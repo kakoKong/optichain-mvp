@@ -1,0 +1,11 @@
+# backend/requirements.txt
+fastapi
+uvicorn[standard]
+python-multipart
+pydantic
+supabase
+python-dotenv
+line-bot-sdk
+requests
+aiohttp
+pydantic[email]
