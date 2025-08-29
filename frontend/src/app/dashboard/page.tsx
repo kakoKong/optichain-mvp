@@ -1,6 +1,4 @@
-// frontend/app/dashboard/page.tsx
 'use client'
-
 import { useEffect, useState } from 'react'
 import liff from '@line/liff'
 import { supabase } from '@/lib/supabase'
@@ -15,7 +13,10 @@ import {
     PlusCircleIcon,
     HistoryIcon
 } from 'lucide-react'
-
+import { useHybridAuth } from '@/hooks/useHybridAuth'
+import SignInWithGoogle, { SupabaseSignIn } from '../signin/SupabaseSignIn'
+import { useRouter } from 'next/navigation'
+import LogoutButton from '@/components/LogoutButton'
 interface DashboardStats {
     totalProducts: number
     lowStockItems: number
@@ -24,132 +25,142 @@ interface DashboardStats {
     recentTransactions: any[]
     stockMovement: any[]
     topProducts: any[]
+    businessName: string | null;
 }
-
 const LIFF_ID = process.env.NEXT_PUBLIC_LIFF_ID || process.env.NEXT_PUBLIC_LINE_LIFF_ID
-
 export default function Dashboard() {
+    const { user, loading: authLoading } = useHybridAuth()
     const [stats, setStats] = useState<DashboardStats | null>(null)
     const [loading, setLoading] = useState(true)
-    const [user, setUser] = useState<any>(null)
-    const [timeRange, setTimeRange] = useState('7d')
-
+    const router = useRouter()
     useEffect(() => {
-        const boot = async () => {
-            try {
-                if (!LIFF_ID) {
-                    throw new Error('Missing NEXT_PUBLIC_LIFF_ID')
-                }
-
-                await liff.init({ liffId: LIFF_ID })
-
-                // if (!liff.isLoggedIn()) {
-                //   liff.login()
-                // //   window.location.replace(location.href + "/");
-                //   return // wait for redirect
-                // }
-                const profile = await liff.getProfile()
-                setUser(profile)
-                await loadDashboardData(profile.userId)
-            } catch (err) {
-                console.error('LIFF init failed:', err)
-                setLoading(false)
+        supabase.auth.getSession().finally(() => {
+            if (typeof window !== 'undefined' && window.location.hash) {
+                window.history.replaceState({}, document.title, window.location.pathname + window.location.search)
             }
-        }
-
-        boot()
+        })
     }, [])
-
-    const loadDashboardData = async (lineUserId: string) => {
+    useEffect(() => {
+        if (authLoading) return
+        if (!user) {
+            router.replace(`/signin`)
+        }
+        if (user) {
+            loadDashboardData(user)
+        }
+    }, [authLoading, user])
+    const loadDashboardData = async (u: { id: string; source: 'supabase' | 'line' }) => {
         try {
-            // Get user's businesses + products + inventory
-            const { data: userData, error } = await supabase
-                .from('users')
+            let ownerId = u.id;
+            if (u.source === 'line') {
+                const { data: appUser, error: userErr } = await supabase
+                    .from('users')
+                    .select('id')
+                    .eq('line_user_id', u.id)
+                    .single();
+                if (userErr || !appUser) {
+                    console.warn('No app user found for this LINE id');
+                    setStats(null);
+                    return;
+                }
+                ownerId = appUser.id;
+            }
+            const { data: bizRows, error: bizErr } = await supabase
+                .from('businesses')
                 .select(`
-          *,
-          businesses (
-            id,
-            name,
-            products (
               id,
               name,
-              cost_price,
-              selling_price,
-              barcode,
-              inventory (
-                current_stock,
-                min_stock_level
+              products (
+                id,
+                name,
+                cost_price,
+                selling_price,
+                barcode,
+                inventory (
+                  current_stock,
+                  min_stock_level
+                )
               )
-            )
-          )
-        `)
-                .eq('line_user_id', lineUserId)
-                .single()
-
-            if (error) {
-                console.error('Supabase error (users query):', error)
+            `)
+                .eq('owner_id', ownerId)
+                .limit(1);
+            if (bizErr) {
+                console.error('Supabase error (businesses query):', bizErr);
+                setStats(null);
+                return;
             }
-
-            if (userData?.businesses?.[0]) {
-                const business = userData.businesses[0]
-                const products = business.products || []
-
-                const totalProducts = products.length
-                const lowStockItems = products.filter((p: any) => {
-                    const cur = p.inventory?.[0]?.current_stock
-                    const min = p.inventory?.[0]?.min_stock_level
-                    return typeof cur === 'number' && typeof min === 'number' && cur <= min
-                }).length
-
-                const totalValue = products.reduce((sum: number, p: any) => {
-                    const stock = p.inventory?.[0]?.current_stock ?? 0
-                    const cost = Number(p.cost_price ?? 0)
-                    return sum + stock * cost
-                }, 0)
-
-                // Calculate monthly revenue estimate
-                const monthlyRevenue = products.reduce((sum: number, p: any) => {
-                    const stock = p.inventory?.[0]?.current_stock ?? 0
-                    const sellPrice = Number(p.selling_price ?? 0)
-                    return sum + stock * sellPrice * 0.1 // Assume 10% monthly turnover
-                }, 0)
-
-                // Get transactions for analytics
-                const { data: transactions, error: txErr } = await supabase
-                    .from('inventory_transactions')
-                    .select(`
-            *,
-            products ( name, selling_price )
-          `)
-                    .eq('business_id', business.id)
-                    .order('created_at', { ascending: false })
-                    .limit(20)
-
-                if (txErr) {
-                    console.error('Supabase error (transactions):', txErr)
-                }
-
-                // Process stock movement data
-                const stockMovement = processStockMovement(transactions || [])
-                const topProducts = getTopProducts(products)
-
+            const business = bizRows?.[0];
+            const businessName = business?.name || 'Inventory Hub'
+            if (!business) {
                 setStats({
-                    totalProducts,
-                    lowStockItems,
-                    totalValue,
-                    monthlyRevenue,
-                    recentTransactions: transactions?.slice(0, 5) || [],
-                    stockMovement,
-                    topProducts
-                })
+                    totalProducts: 0,
+                    lowStockItems: 0,
+                    totalValue: 0,
+                    monthlyRevenue: 0,
+                    recentTransactions: [],
+                    stockMovement: [],
+                    topProducts: [],
+                    businessName: null,
+                });
+                return;
             }
+            const products = business.products ?? [];
+            const totalProducts = products.length;
+            const lowStockItems = products.filter((p: any) => {
+                const cur = p.inventory?.[0]?.current_stock;
+                const min = p.inventory?.[0]?.min_stock_level;
+                return typeof cur === 'number' && typeof min === 'number' && cur <= min;
+            }).length;
+            const totalValue = products.reduce((sum: number, p: any) => {
+                const stock = p.inventory?.[0]?.current_stock ?? 0;
+                const cost = Number(p.cost_price ?? 0);
+                return sum + stock * cost;
+            }, 0);
+            const monthlyRevenue = products.reduce((sum: number, p: any) => {
+                const stock = p.inventory?.[0]?.current_stock ?? 0;
+                const sellPrice = Number(p.selling_price ?? 0);
+                return sum + stock * sellPrice * 0.1;
+            }, 0);
+            const { data: transactions, error: txErr } = await supabase
+                .from('inventory_transactions')
+                .select(`
+              id,
+              transaction_type,
+              quantity,
+              reason,
+              created_at,
+              products ( name, selling_price )
+            `)
+                .eq('business_id', business.id)
+                .order('created_at', { ascending: false })
+                .limit(20);
+            if (txErr) console.error('Supabase error (transactions):', txErr);
+            const stockMovement = processStockMovement(transactions || []);
+            const topProducts = getTopProducts(products);
+            setStats({
+                totalProducts,
+                lowStockItems,
+                totalValue,
+                monthlyRevenue,
+                recentTransactions: transactions?.slice(0, 5) || [],
+                stockMovement,
+                topProducts,
+                businessName,
+            });
         } catch (error) {
-            console.error('Error loading dashboard data:', error)
+            console.error('Error loading dashboard data:', error);
+            setStats(null);
         } finally {
-            setLoading(false)
+            setLoading(false);
         }
+    };
+    if (authLoading || !user) {
+        return (
+            <div className="min-h-screen grid place-items-center">
+                <div className="animate-spin h-10 w-10 rounded-full border-4 border-gray-300 border-t-transparent" />
+            </div>
+        )
     }
-
     const processStockMovement = (transactions: any[]) => {
         const last7Days = Array.from({ length: 7 }, (_, i) => {
             const date = new Date()
@@ -160,7 +171,6 @@ export default function Dashboard() {
                 stockOut: 0
             }
         }).reverse()
-
         transactions.forEach(tx => {
             const txDate = tx.created_at.split('T')[0]
             const dayData = last7Days.find(d => d.date === txDate)
@@ -172,10 +182,8 @@ export default function Dashboard() {
                 }
             }
         })
-
         return last7Days
     }
-
     const getTopProducts = (products: any[]) => {
         return products
             .map(p => ({
@@ -186,7 +194,7 @@ export default function Dashboard() {
             .sort((a, b) => b.value - a.value)
             .slice(0, 5)
     }
-
+    const formatCurrency = (amount: number) => `฿${amount.toLocaleString()}`
     if (loading) {
         return (
             <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
@@ -197,107 +205,209 @@ export default function Dashboard() {
             </div>
         )
     }
-
-    const formatCurrency = (amount: number) => `฿${amount.toLocaleString()}`
-
     return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-            {/* Header */}
-            <div className="bg-gradient-to-r from-blue-600 to-indigo-700 shadow-lg">
-                <div className="px-6 py-6">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-                                <PackageIcon className="h-8 w-8" />
-                                Inventory Hub
-                            </h1>
-                            <p className="text-blue-100 mt-1">Welcome back, {user?.displayName}</p>
+        <div
+            className="min-h-screen relative overflow-hidden"
+            style={{
+                backgroundImage:
+                    'linear-gradient(to bottom right, var(--bg-from), var(--bg-via), var(--bg-to))',
+            }}
+        >
+            {/* Animated background blobs, tinted by theme */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                <div
+                    className="absolute -top-40 -right-40 w-80 h-80 rounded-full mix-blend-multiply blur-xl opacity-40 animate-blob"
+                    style={{ background: 'var(--accentA)' }}
+                />
+                <div
+                    className="absolute -bottom-40 -left-40 w-80 h-80 rounded-full mix-blend-multiply blur-xl opacity-40 animate-blob animation-delay-2000"
+                    style={{ background: 'var(--accentB)' }}
+                />
+                <div
+                    className="absolute top-40 left-40 w-80 h-80 rounded-full mix-blend-multiply blur-xl opacity-40 animate-blob animation-delay-4000"
+                    style={{ background: 'var(--accentC)' }}
+                />
+            </div>
+            {/* Subtle grid overlay */}
+            <div
+                className="absolute inset-0 opacity-70"
+                style={{
+                    backgroundImage:
+                        `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.06'%3E%3Ccircle cx='30' cy='30' r='1.5'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+                }}
+            />
+            <div className="relative z-10 p-4 sm:p-6 space-y-6 sm:space-y-8 pb-20 sm:pb-6">
+                {/* Header */}
+                <div
+                    className="relative overflow-hidden rounded-2xl border shadow-xl backdrop-blur-lg"
+                    style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}
+                >
+                    {/* Accent bar */}
+                    <div
+                        className="pointer-events-none absolute inset-x-0 top-0 h-1 opacity-60"
+                        style={{ background: 'linear-gradient(90deg, transparent, var(--accentA), var(--accentB), transparent)' }}
+                    />
+                    <div className="p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        {/* Title + avatar */}
+                        <div className="flex items-center gap-4 min-w-0">
+                            <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                    <h1
+                                        className="text-2xl sm:text-3xl font-bold tracking-tight truncate"
+                                        style={{ color: 'var(--text)' }}
+                                    >
+                                        {stats?.businessName || 'Inventory Hub'}
+                                    </h1>
+                                </div>
+                                <p className="mt-1 text-sm sm:text-base truncate" style={{ color: 'var(--muted)' }}>
+                                    Welcome back, {user?.displayName}
+                                </p>
+                            </div>
                         </div>
-                        <div className="text-right">
-                            <p className="text-blue-100 text-sm">Last updated</p>
-                            <p className="text-white font-medium">{new Date().toLocaleTimeString()}</p>
+                        {/* Meta + actions */}
+                        <div className="flex items-center gap-3 w-full sm:w-auto">
+                            <div className="ml-auto sm:ml-0">
+                                <div
+                                    className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs sm:text-sm"
+                                    style={{ borderColor: 'var(--card-border)', color: 'var(--muted)' }}
+                                >
+                                    <span className="relative flex h-2.5 w-2.5">
+                                        <span
+                                            className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-40"
+                                            style={{ background: 'var(--accentA)' }}
+                                        />
+                                        <span
+                                            className="relative inline-flex rounded-full h-2.5 w-2.5"
+                                            style={{ background: 'var(--accentA)' }}
+                                        />
+                                    </span>
+                                    Last updated {new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => window.location.reload()}
+                                className="hidden sm:inline-flex items-center rounded-xl px-3 py-2 text-sm font-medium transition-colors"
+                                style={{ border: '1px solid var(--card-border)', color: 'var(--text)', background: 'transparent' }}
+                            >
+                                Refresh
+                            </button>
+                            <div className="shrink-0">
+                                <LogoutButton />
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-
-            <div className="px-6 py-6 space-y-8">
                 {/* Key Metrics */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div
+                        className="p-5 rounded-2xl shadow-sm border backdrop-blur-xl"
+                        style={{
+                            background: 'var(--card-bg)',
+                            borderColor: 'var(--card-border)',
+                        }}
+                    >
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-sm font-medium text-gray-600">Total Products</p>
-                                <p className="text-3xl font-bold text-gray-900 mt-2">{stats?.totalProducts ?? 0}</p>
+                                <p className="text-sm font-medium" style={{ color: 'var(--muted)' }}>Total Products</p>
+                                <p className="text-2xl sm:text-3xl font-bold mt-1 sm:mt-2" style={{ color: 'var(--text)' }}>
+                                    {stats?.totalProducts ?? 0}
+                                </p>
                             </div>
-                            <div className="bg-blue-100 p-3 rounded-xl">
-                                <PackageIcon className="h-6 w-6 text-blue-600" />
+                            <div className="p-3 rounded-xl bg-indigo-100/50 text-indigo-600">
+                                <PackageIcon className="h-6 w-6" />
                             </div>
                         </div>
                     </div>
-
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                    <div
+                        className="p-5 rounded-2xl shadow-sm border backdrop-blur-xl"
+                        style={{
+                            background: 'var(--card-bg)',
+                            borderColor: 'var(--card-border)',
+                        }}
+                    >
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-sm font-medium text-gray-600">Low Stock Alert</p>
-                                <p className="text-3xl font-bold text-red-500 mt-2">{stats?.lowStockItems ?? 0}</p>
+                                <p className="text-sm font-medium" style={{ color: 'var(--muted)' }}>Low Stock Alert</p>
+                                <p className="text-2xl sm:text-3xl font-bold text-red-500 mt-1 sm:mt-2">{stats?.lowStockItems ?? 0}</p>
                             </div>
-                            <div className="bg-red-100 p-3 rounded-xl">
-                                <AlertTriangleIcon className="h-6 w-6 text-red-600" />
+                            <div className="p-3 rounded-xl bg-red-100/50 text-red-600">
+                                <AlertTriangleIcon className="h-6 w-6" />
                             </div>
                         </div>
                     </div>
-
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                    <div
+                        className="p-5 rounded-2xl shadow-sm border backdrop-blur-xl"
+                        style={{
+                            background: 'var(--card-bg)',
+                            borderColor: 'var(--card-border)',
+                        }}
+                    >
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-sm font-medium text-gray-600">Inventory Value</p>
-                                <p className="text-3xl font-bold text-green-600 mt-2">
+                                <p className="text-sm font-medium" style={{ color: 'var(--muted)' }}>Inventory Value</p>
+                                <p className="text-2xl sm:text-3xl font-bold text-green-600 mt-1 sm:mt-2">
                                     {formatCurrency(stats?.totalValue ?? 0)}
                                 </p>
                             </div>
-                            <div className="bg-green-100 p-3 rounded-xl">
-                                <DollarSignIcon className="h-6 w-6 text-green-600" />
+                            <div className="p-3 rounded-xl bg-green-100/50 text-green-600">
+                                <DollarSignIcon className="h-6 w-6" />
                             </div>
                         </div>
                     </div>
-
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                    <div
+                        className="p-5 rounded-2xl shadow-sm border backdrop-blur-xl"
+                        style={{
+                            background: 'var(--card-bg)',
+                            borderColor: 'var(--card-border)',
+                        }}
+                    >
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-sm font-medium text-gray-600">Est. Monthly Revenue</p>
-                                <p className="text-3xl font-bold text-purple-600 mt-2">
+                                <p className="text-sm font-medium" style={{ color: 'var(--muted)' }}>Est. Monthly Revenue</p>
+                                <p className="text-2xl sm:text-3xl font-bold text-purple-600 mt-1 sm:mt-2">
                                     {formatCurrency(stats?.monthlyRevenue ?? 0)}
                                 </p>
                             </div>
-                            <div className="bg-purple-100 p-3 rounded-xl">
-                                <TrendingUpIcon className="h-6 w-6 text-purple-600" />
+                            <div className="p-3 rounded-xl bg-purple-100/50 text-purple-600">
+                                <TrendingUpIcon className="h-6 w-6" />
                             </div>
                         </div>
                     </div>
                 </div>
-
-                {/* Quick Actions */}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
-                    <div className="px-6 py-4 border-b border-gray-100">
-                        <h2 className="text-lg font-semibold text-gray-900">Quick Actions</h2>
+                {/* Quick Actions (Desktop/Tablet) */}
+                <div
+                    className="hidden sm:block rounded-2xl shadow-sm border backdrop-blur-xl"
+                    style={{
+                        background: 'var(--card-bg)',
+                        borderColor: 'var(--card-border)',
+                    }}
+                >
+                    <div className="px-4 py-4 sm:px-6 border-b" style={{ borderColor: 'var(--card-border)' }}>
+                        <h2 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>Quick Actions</h2>
                     </div>
-                    <div className="p-6">
+                    <div className="p-4 sm:p-6">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <button
                                 onClick={() => (window.location.href = '/liff/scanner')}
-                                className="flex items-center gap-4 p-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-medium hover:from-blue-600 hover:to-blue-700 transition-all shadow-md"
+                                className="flex items-center gap-4 p-4 rounded-xl font-medium transition-all shadow-md transform transition-all duration-200 hover:scale-[1.02] hover:shadow-lg"
+                                style={{
+                                    background: 'linear-gradient(to right, #6366f1, #4f46e5)',
+                                    color: 'white',
+                                }}
                             >
                                 <ScanLineIcon className="h-6 w-6" />
                                 <div className="text-left">
                                     <div className="font-semibold">Scan Barcode</div>
-                                    <div className="text-blue-100 text-sm">Quick inventory update</div>
+                                    <div className="text-indigo-100 text-sm">Quick inventory update</div>
                                 </div>
                             </button>
-
                             <button
                                 onClick={() => (window.location.href = '/liff/products')}
-                                className="flex items-center gap-4 p-4 bg-gradient-to-r from-gray-500 to-gray-600 text-white rounded-xl font-medium hover:from-gray-600 hover:to-gray-700 transition-all shadow-md"
+                                className="flex items-center gap-4 p-4 rounded-xl font-medium transition-all shadow-md transform transition-all duration-200 hover:scale-[1.02] hover:shadow-lg"
+                                style={{
+                                    background: 'linear-gradient(to right, #6b7280, #4b5563)',
+                                    color: 'white',
+                                }}
                             >
                                 <PackageIcon className="h-6 w-6" />
                                 <div className="text-left">
@@ -305,10 +415,13 @@ export default function Dashboard() {
                                     <div className="text-gray-200 text-sm">View & edit inventory</div>
                                 </div>
                             </button>
-
                             <button
                                 onClick={() => (window.location.href = '/liff/analytics')}
-                                className="flex items-center gap-4 p-4 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl font-medium hover:from-green-600 hover:to-green-700 transition-all shadow-md"
+                                className="flex items-center gap-4 p-4 rounded-xl font-medium transition-all shadow-md transform transition-all duration-200 hover:scale-[1.02] hover:shadow-lg"
+                                style={{
+                                    background: 'linear-gradient(to right, #22c55e, #16a34a)',
+                                    color: 'white',
+                                }}
                             >
                                 <BarChart3Icon className="h-6 w-6" />
                                 <div className="text-left">
@@ -319,33 +432,38 @@ export default function Dashboard() {
                         </div>
                     </div>
                 </div>
-
                 {/* Charts & Analytics */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Stock Movement Chart */}
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
-                        <div className="px-6 py-4 border-b border-gray-100">
-                            <h3 className="text-lg font-semibold text-gray-900">Stock Movement (7 Days)</h3>
+                    <div
+                        className="rounded-2xl shadow-sm border backdrop-blur-xl"
+                        style={{
+                            background: 'var(--card-bg)',
+                            borderColor: 'var(--card-border)',
+                        }}
+                    >
+                        <div className="px-4 py-4 sm:px-6 border-b" style={{ borderColor: 'var(--card-border)' }}>
+                            <h3 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>Stock Movement (7 Days)</h3>
                         </div>
-                        <div className="p-6">
+                        <div className="p-4 sm:p-6">
                             <div className="space-y-4">
                                 {stats?.stockMovement.map((day, index) => (
                                     <div key={index} className="flex items-center gap-4">
-                                        <div className="w-16 text-sm text-gray-600 font-medium">
+                                        <div className="w-16 text-sm font-medium shrink-0" style={{ color: 'var(--muted)' }}>
                                             {new Date(day.date).toLocaleDateString('en', { weekday: 'short' })}
                                         </div>
                                         <div className="flex-1">
-                                            <div className="flex items-center gap-2 mb-1">
+                                            <div className="flex items-center gap-2 mb-1 text-xs sm:text-sm">
                                                 <div className="flex items-center gap-1">
-                                                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                                                    <span className="text-sm text-gray-600">In: {day.stockIn}</span>
+                                                    <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-green-500 rounded-full"></div>
+                                                    <span style={{ color: 'var(--muted)' }}>In: {day.stockIn}</span>
                                                 </div>
                                                 <div className="flex items-center gap-1">
-                                                    <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                                                    <span className="text-sm text-gray-600">Out: {day.stockOut}</span>
+                                                    <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-red-500 rounded-full"></div>
+                                                    <span style={{ color: 'var(--muted)' }}>Out: {day.stockOut}</span>
                                                 </div>
                                             </div>
-                                            <div className="w-full bg-gray-200 rounded-full h-2">
+                                            <div className="w-full rounded-full h-2" style={{ backgroundColor: 'rgba(0,0,0,0.1)' }}>
                                                 <div
                                                     className="bg-green-500 h-2 rounded-full"
                                                     style={{ width: `${Math.min(100, (day.stockIn / Math.max(day.stockIn + day.stockOut, 1)) * 100)}%` }}
@@ -357,27 +475,32 @@ export default function Dashboard() {
                             </div>
                         </div>
                     </div>
-
                     {/* Top Products */}
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
-                        <div className="px-6 py-4 border-b border-gray-100">
-                            <h3 className="text-lg font-semibold text-gray-900">Top Products by Value</h3>
+                    <div
+                        className="rounded-2xl shadow-sm border backdrop-blur-xl"
+                        style={{
+                            background: 'var(--card-bg)',
+                            borderColor: 'var(--card-border)',
+                        }}
+                    >
+                        <div className="px-4 py-4 sm:px-6 border-b" style={{ borderColor: 'var(--card-border)' }}>
+                            <h3 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>Top Products by Value</h3>
                         </div>
-                        <div className="p-6">
+                        <div className="p-4 sm:p-6">
                             <div className="space-y-4">
                                 {stats?.topProducts.map((product, index) => (
                                     <div key={index} className="flex items-center justify-between">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center text-white font-bold text-sm">
+                                            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm bg-gradient-to-br from-indigo-500 to-purple-500 shrink-0">
                                                 {index + 1}
                                             </div>
                                             <div>
-                                                <p className="font-medium text-gray-900">{product.name}</p>
-                                                <p className="text-sm text-gray-500">{product.stock} units</p>
+                                                <p className="font-medium truncate" style={{ color: 'var(--text)' }}>{product.name}</p>
+                                                <p className="text-sm" style={{ color: 'var(--muted)' }}>{product.stock} units</p>
                                             </div>
                                         </div>
                                         <div className="text-right">
-                                            <p className="font-semibold text-gray-900">{formatCurrency(product.value)}</p>
+                                            <p className="font-semibold" style={{ color: 'var(--text)' }}>{formatCurrency(product.value)}</p>
                                         </div>
                                     </div>
                                 ))}
@@ -385,27 +508,32 @@ export default function Dashboard() {
                         </div>
                     </div>
                 </div>
-
                 {/* Recent Activity */}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
-                    <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-                        <h3 className="text-lg font-semibold text-gray-900">Recent Activity</h3>
+                <div
+                    className="rounded-2xl shadow-sm border backdrop-blur-xl"
+                    style={{
+                        background: 'var(--card-bg)',
+                        borderColor: 'var(--card-border)',
+                    }}
+                >
+                    <div className="px-4 py-4 sm:px-6 border-b flex items-center justify-between" style={{ borderColor: 'var(--card-border)' }}>
+                        <h3 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>Recent Activity</h3>
                         <button
                             onClick={() => (window.location.href = '/liff/transactions')}
-                            className="text-blue-600 hover:text-blue-700 font-medium text-sm"
+                            className="text-indigo-600 hover:text-indigo-700 font-medium text-sm"
                         >
                             View All
                         </button>
                     </div>
-                    <div className="divide-y divide-gray-100">
+                    <div className="divide-y" style={{ borderColor: 'var(--card-border)' }}>
                         {stats?.recentTransactions.map((tx: any) => (
-                            <div key={tx.id} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                            <div key={tx.id} className="px-4 py-4 sm:px-6 flex items-center justify-between transition-colors hover:bg-gray-50/20">
                                 <div className="flex items-center gap-4">
-                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${tx.transaction_type === 'stock_in'
-                                            ? 'bg-green-100 text-green-600'
-                                            : tx.transaction_type === 'stock_out'
-                                                ? 'bg-red-100 text-red-600'
-                                                : 'bg-blue-100 text-blue-600'
+                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${tx.transaction_type === 'stock_in'
+                                        ? 'bg-green-100/50 text-green-600'
+                                        : tx.transaction_type === 'stock_out'
+                                            ? 'bg-red-100/50 text-red-600'
+                                            : 'bg-indigo-100/50 text-indigo-600'
                                         }`}>
                                         {tx.transaction_type === 'stock_in' ? (
                                             <TrendingUpIcon className="h-5 w-5" />
@@ -416,17 +544,17 @@ export default function Dashboard() {
                                         )}
                                     </div>
                                     <div>
-                                        <p className="font-medium text-gray-900">{tx.products?.name}</p>
-                                        <p className="text-sm text-gray-500">
+                                        <p className="font-medium truncate" style={{ color: 'var(--text)' }}>{tx.products?.name}</p>
+                                        <p className="text-sm truncate" style={{ color: 'var(--muted)' }}>
                                             {tx.transaction_type.replace('_', ' ')} • {tx.quantity} units
                                         </p>
                                     </div>
                                 </div>
-                                <div className="text-right">
-                                    <p className="text-sm text-gray-500">
+                                <div className="text-right shrink-0">
+                                    <p className="text-sm" style={{ color: 'var(--muted)' }}>
                                         {new Date(tx.created_at).toLocaleDateString()}
                                     </p>
-                                    <p className="text-xs text-gray-400">
+                                    <p className="text-xs" style={{ color: 'var(--muted)' }}>
                                         {new Date(tx.created_at).toLocaleTimeString()}
                                     </p>
                                 </div>
@@ -435,6 +563,47 @@ export default function Dashboard() {
                     </div>
                 </div>
             </div>
+            {/* Quick Actions - Floating Bottom Bar (Mobile Only) */}
+            <div
+                className="fixed bottom-0 left-0 right-0 z-50 p-4 sm:hidden transition-transform duration-300 ease-in-out"
+                style={{
+                    background: 'linear-gradient(to top, rgba(0,0,0,0.4), transparent)',
+                    backdropFilter: 'blur(10px)',
+                }}
+            >
+                <div
+                    className="grid grid-cols-3 gap-2 rounded-2xl border p-2 shadow-2xl backdrop-blur-sm"
+                    style={{
+                        background: 'var(--card-bg)',
+                        borderColor: 'var(--card-border)',
+                    }}
+                >
+                    <button
+                        onClick={() => (window.location.href = '/liff/scanner')}
+                        className="flex flex-col items-center justify-center gap-1 py-2 px-1 rounded-xl text-center text-xs font-medium transition-colors"
+                        style={{ color: 'var(--text)' }}
+                    >
+                        <ScanLineIcon className="h-5 w-5 text-indigo-600" />
+                        <span className="mt-1">Scan</span>
+                    </button>
+                    <button
+                        onClick={() => (window.location.href = '/liff/products')}
+                        className="flex flex-col items-center justify-center gap-1 py-2 px-1 rounded-xl text-center text-xs font-medium transition-colors"
+                        style={{ color: 'var(--text)' }}
+                    >
+                        <PackageIcon className="h-5 w-5 text-gray-600" />
+                        <span className="mt-1">Products</span>
+                    </button>
+                    <button
+                        onClick={() => (window.location.href = '/liff/analytics')}
+                        className="flex flex-col items-center justify-center gap-1 py-2 px-1 rounded-xl text-center text-xs font-medium transition-colors"
+                        style={{ color: 'var(--text)' }}
+                    >
+                        <BarChart3Icon className="h-5 w-5 text-green-600" />
+                        <span className="mt-1">Analytics</span>
+                    </button>
+                </div>
+            </div>
         </div>
-    )
+    );
 }

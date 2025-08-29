@@ -3,10 +3,10 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
-import { 
-  ScanLineIcon, 
-  CameraIcon, 
-  KeyboardIcon, 
+import {
+  ScanLineIcon,
+  CameraIcon,
+  KeyboardIcon,
   CheckCircleIcon,
   XCircleIcon,
   PackageIcon,
@@ -15,6 +15,7 @@ import {
   SettingsIcon,
   ArrowLeftIcon
 } from 'lucide-react'
+import { resolveOwnerId } from '@/lib/userhelper';
 
 declare global {
   interface Window {
@@ -34,44 +35,35 @@ export default function BarcodeScanner() {
   const [recentScans, setRecentScans] = useState<any[]>([])
   const videoRef = useRef<HTMLVideoElement>(null)
 
+  const initializeAndLoad = async () => {
+    setLoading(true)
+    try {
+      const ownerId = await resolveOwnerId()
+      if (!ownerId) { setLoading(false); return }
+
+      // fetch 1st business owned by this user
+      const { data: bizRows, error: bizErr } = await supabase
+        .from('businesses')
+        .select('id, name')
+        .eq('owner_id', ownerId)
+        .limit(1)
+
+      if (bizErr) throw bizErr
+      const biz = bizRows?.[0]
+      if (!biz) { setBusiness(null); setLoading(false); return }
+
+      setBusiness(biz)
+    } catch (e) {
+      console.error('Scanner init failed:', e)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   useEffect(() => {
-    initializeLiff()
+    initializeAndLoad()
     loadRecentScans()
   }, [])
-
-  const initializeLiff = async () => {
-    if (typeof window !== 'undefined' && window.liff) {
-      try {
-        await window.liff.init({ liffId: process.env.NEXT_PUBLIC_LINE_LIFF_ID })
-
-        if (window.liff.isLoggedIn()) {
-          const profile = await window.liff.getProfile()
-          setUser(profile)
-          await loadUserBusiness(profile.userId)
-        } else {
-          window.liff.login()
-        }
-      } catch (error) {
-        console.error('LIFF initialization failed:', error)
-      }
-    }
-  }
-
-  const loadUserBusiness = async (lineUserId: string) => {
-    try {
-      const { data: userData } = await supabase
-        .from('users')
-        .select('*, businesses(*)')
-        .eq('line_user_id', lineUserId)
-        .single()
-
-      if (userData?.businesses?.[0]) {
-        setBusiness(userData.businesses[0])
-      }
-    } catch (error) {
-      console.error('Error loading user business:', error)
-    }
-  }
 
   const loadRecentScans = () => {
     const recent = localStorage.getItem('recentScans')
@@ -139,13 +131,11 @@ export default function BarcodeScanner() {
 
   const handleBarcodeResult = async (barcode: string) => {
     if (!business) return
-
     setLoading(true)
     try {
-      // Look up product by barcode
       const { data: productData } = await supabase
         .from('products')
-        .select('*, inventory(*)')
+        .select('id, name, barcode, cost_price, selling_price, inventory(id, current_stock, min_stock_level)')
         .eq('business_id', business.id)
         .eq('barcode', barcode)
         .single()
@@ -154,14 +144,11 @@ export default function BarcodeScanner() {
         setProduct(productData)
         saveToRecentScans({ barcode, productName: productData.name, action: 'found' })
       } else {
-        // Product not found, offer to create
         const productName = prompt('Product not found. Enter product name to create:')
-        if (productName) {
-          await createNewProduct(barcode, productName)
-        }
+        if (productName) await createNewProduct(barcode, productName)
       }
-    } catch (error) {
-      console.error('Error looking up product:', error)
+    } catch (e) {
+      console.error('Error looking up product:', e)
     } finally {
       setLoading(false)
     }
@@ -204,6 +191,7 @@ export default function BarcodeScanner() {
   }
 
   const recordTransaction = async () => {
+    // TODO: Make it call backend
     if (!product || !business) return
 
     setLoading(true)
@@ -224,13 +212,13 @@ export default function BarcodeScanner() {
 
       if (response.ok) {
         setSuccess(true)
-        saveToRecentScans({ 
-          barcode: product.barcode, 
-          productName: product.name, 
+        saveToRecentScans({
+          barcode: product.barcode,
+          productName: product.name,
           action: transactionType,
-          quantity 
+          quantity
         })
-        
+
         // Reset form after success
         setTimeout(() => {
           setProduct(null)
@@ -374,12 +362,11 @@ export default function BarcodeScanner() {
                   {recentScans.map((scan, index) => (
                     <div key={index} className="px-6 py-4 flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                          scan.action === 'created' ? 'bg-blue-100 text-blue-600' :
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${scan.action === 'created' ? 'bg-blue-100 text-blue-600' :
                           scan.action === 'stock_in' ? 'bg-green-100 text-green-600' :
-                          scan.action === 'stock_out' ? 'bg-red-100 text-red-600' :
-                          'bg-gray-100 text-gray-600'
-                        }`}>
+                            scan.action === 'stock_out' ? 'bg-red-100 text-red-600' :
+                              'bg-gray-100 text-gray-600'
+                          }`}>
                           <PackageIcon className="h-5 w-5" />
                         </div>
                         <div>
@@ -449,11 +436,10 @@ export default function BarcodeScanner() {
                       <button
                         key={type.value}
                         onClick={() => setTransactionType(type.value)}
-                        className={`p-4 rounded-xl border-2 transition-all ${
-                          isSelected 
-                            ? `border-${type.color}-500 bg-${type.color}-50 text-${type.color}-700`
-                            : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
-                        }`}
+                        className={`p-4 rounded-xl border-2 transition-all ${isSelected
+                          ? `border-${type.color}-500 bg-${type.color}-50 text-${type.color}-700`
+                          : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                          }`}
                       >
                         <Icon className="h-6 w-6 mx-auto mb-2" />
                         <div className="text-sm font-medium">{type.label}</div>
