@@ -107,7 +107,7 @@ export default function ProductsPage() {
     const loadUserBusinessAndProducts = async (lineUserId: string) => {
         try {
             const { data: userData } = await supabase
-                .from('users')
+                .from('profiles')
                 .select(`
           *,
           businesses (

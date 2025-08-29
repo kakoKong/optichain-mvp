@@ -18,7 +18,7 @@ export default function TeamSettings() {
       let ownerId = user.id
       if (user.source === 'line') {
         const { data } = await supabase
-          .from('users')
+          .from('profiles')
           .select('id')
           .eq('line_user_id', user.id)
           .single()

@@ -69,7 +69,7 @@ export default function Dashboard() {
             let ownerId = u.id;
             if (u.source === 'line') {
                 const { data: appUser, error: userErr } = await supabase
-                    .from('users')
+                    .from('profiles')
                     .select('id')
                     .eq('line_user_id', u.id)
                     .single();

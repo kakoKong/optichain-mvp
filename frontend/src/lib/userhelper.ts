@@ -17,7 +17,7 @@ export async function resolveOwnerId(): Promise<string | null> {
       const profile = await liff.getProfile()
       // map line_user_id -> public.users.id
       const { data: appUser, error } = await supabase
-        .from('users')
+        .from('profiles')
         .select('id')
         .eq('line_user_id', profile.userId)
         .single()

@@ -74,7 +74,7 @@ export default function Analytics() {
         try {
             // Get user's business
             const { data: userData } = await supabase
-                .from('users')
+                .from('profiles')
                 .select('*, businesses(*)')
                 .eq('line_user_id', lineUserId)
                 .single()
