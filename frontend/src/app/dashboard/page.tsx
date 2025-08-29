@@ -113,7 +113,7 @@ export default function Dashboard() {
         if (memErr) throw memErr
         if (!membership?.business) return { business: null, products: [] }
 
-        return { business: membership.business, products: membership.business.products ?? [] }
+        return { business: membership.business, products: Array.isArray(membership.business) ? [] : (membership.business as { products: any[] })?.products ?? [] }
     }
 
     // --- replace your loadDashboardData with this ---
@@ -154,7 +154,7 @@ export default function Dashboard() {
                 return
             }
 
-            const businessName = business.name || 'Inventory Hub'
+            const businessName = !Array.isArray(business) && business.name ? business.name : 'Inventory Hub'
 
             // 4) Compute metrics
             const totalProducts = products.length
@@ -187,7 +187,7 @@ export default function Dashboard() {
           created_at,
           products ( name, selling_price )
         `)
-                .eq('business_id', business.id)
+                .eq('business_id', !Array.isArray(business) ? business.id : null)
                 .order('created_at', { ascending: false })
                 .limit(20)
 
