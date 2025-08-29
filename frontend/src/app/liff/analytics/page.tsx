@@ -30,7 +30,7 @@ interface AnalyticsData {
     salesData: any[]
     topProducts: any[]
     lowStockAlerts: any[]
-    monthlyComparison: any[]
+    monthlyComparison: { current: { revenue: number; transactions: number }; previous: { revenue: number; transactions: number } }
 }
 
 export default function Analytics() {
