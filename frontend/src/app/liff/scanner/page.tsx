@@ -237,35 +237,86 @@ export default function BarcodeScanner() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-indigo-600 to-purple-700 shadow-lg">
-        <div className="px-6 py-6">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => window.history.back()}
-              className="p-2 bg-white/20 rounded-xl text-white hover:bg-white/30 transition-colors"
-            >
-              <ArrowLeftIcon className="h-5 w-5" />
-            </button>
-            <div>
-              <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-                <ScanLineIcon className="h-8 w-8" />
-                Smart Scanner
-              </h1>
-              <p className="text-indigo-100 mt-1">Scan to update inventory instantly</p>
+    <div
+      className="min-h-screen relative"
+      style={{
+        backgroundImage:
+          'linear-gradient(to bottom right, var(--bg-from), var(--bg-via), var(--bg-to))',
+      }}
+    >
+      {/* Animated background blobs, tinted by theme */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div
+          className="absolute -top-40 -right-40 w-80 h-80 rounded-full mix-blend-multiply blur-xl opacity-40 animate-blob"
+          style={{ background: 'var(--accentA)' }}
+        />
+        <div
+          className="absolute -bottom-40 -left-40 w-80 h-80 rounded-full mix-blend-multiply blur-xl opacity-40 animate-blob animation-delay-2000"
+          style={{ background: 'var(--accentB)' }}
+        />
+        <div
+          className="absolute top-40 left-40 w-80 h-80 rounded-full mix-blend-multiply blur-xl opacity-40 animate-blob animation-delay-4000"
+          style={{ background: 'var(--accentC)' }}
+        />
+      </div>
+      {/* Subtle grid overlay */}
+      <div
+        className="absolute inset-0 opacity-70"
+        style={{
+          backgroundImage:
+            `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.06'%3E%3Ccircle cx='30' cy='30' r='1.5'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+        }}
+      />
+      <div className="relative z-10 p-4 sm:p-6 space-y-6 sm:space-y-8">
+        {/* Header */}
+        <div
+          className="relative overflow-hidden rounded-2xl border shadow-xl backdrop-blur-lg"
+          style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}
+        >
+          {/* Accent bar */}
+          <div
+            className="pointer-events-none absolute inset-x-0 top-0 h-1 opacity-60"
+            style={{ background: 'linear-gradient(90deg, transparent, var(--accentA), var(--accentB), transparent)' }}
+          />
+          <div className="p-4 sm:p-6 flex items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => window.history.back()}
+                className="p-3 rounded-xl transition-colors"
+                style={{
+                  background: 'var(--card-border)',
+                  color: 'var(--text)',
+                  border: '1px solid var(--card-border)',
+                }}
+              >
+                <ArrowLeftIcon className="h-5 w-5" />
+              </button>
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight" style={{ color: 'var(--text)' }}>
+                  Smart Scanner
+                </h1>
+                <p className="mt-1 text-sm sm:text-base" style={{ color: 'var(--muted)' }}>
+                  Scan to update inventory instantly
+                </p>
+              </div>
+            </div>
+            <div className="shrink-0">
+              <ScanLineIcon className="h-10 w-10" style={{ color: 'var(--accentA)' }} />
             </div>
           </div>
         </div>
-      </div>
 
-      <div className="px-6 py-6 space-y-6">
         {success && (
-          <div className="bg-green-50 border-2 border-green-200 rounded-2xl p-6 flex items-center gap-4">
-            <CheckCircleIcon className="h-8 w-8 text-green-600" />
+          <div
+            className="rounded-2xl border p-4 sm:p-6 backdrop-blur-xl flex items-center gap-4"
+            style={{ background: 'var(--card-bg)', borderColor: 'var(--accentA)' }}
+          >
+            <CheckCircleIcon className="h-8 w-8" style={{ color: 'var(--accentA)' }} />
             <div>
-              <h3 className="font-semibold text-green-900">Transaction Recorded!</h3>
-              <p className="text-green-700">Your inventory has been updated successfully.</p>
+              <h3 className="font-semibold" style={{ color: 'var(--text)' }}>Transaction Recorded!</h3>
+              <p className="text-sm" style={{ color: 'var(--muted)' }}>
+                Your inventory has been updated successfully.
+              </p>
             </div>
           </div>
         )}
@@ -273,44 +324,55 @@ export default function BarcodeScanner() {
         {!product ? (
           <div className="space-y-6">
             {/* Scanning Options */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200">
-              <div className="px-6 py-4 border-b border-gray-100">
-                <h2 className="text-xl font-semibold text-gray-900">Choose Scanning Method</h2>
-                <p className="text-gray-600 text-sm mt-1">Select the best option for your device</p>
+            <div
+              className="rounded-2xl border shadow-sm backdrop-blur-xl"
+              style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}
+            >
+              <div className="px-4 py-4 sm:px-6 border-b" style={{ borderColor: 'var(--card-border)' }}>
+                <h2 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>
+                  Choose Scanning Method
+                </h2>
+                <p className="text-sm" style={{ color: 'var(--muted)' }}>Select the best option for your device</p>
               </div>
 
-              <div className="p-6 space-y-4">
+              <div className="p-4 sm:p-6 space-y-4">
                 {scanning ? (
                   <div className="relative">
                     <video
                       ref={videoRef}
                       autoPlay
                       playsInline
-                      className="w-full h-80 bg-black rounded-2xl object-cover"
+                      className="w-full h-80 rounded-2xl object-cover"
+                      style={{ backgroundColor: 'var(--muted)' }}
                     />
                     <div className="absolute inset-0 border-4 border-white/30 rounded-2xl pointer-events-none">
                       <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-                        <div className="w-48 h-32 border-4 border-red-500 rounded-lg bg-red-500/10">
-                          <div className="absolute -top-2 -left-2 w-6 h-6 border-l-4 border-t-4 border-red-500"></div>
-                          <div className="absolute -top-2 -right-2 w-6 h-6 border-r-4 border-t-4 border-red-500"></div>
-                          <div className="absolute -bottom-2 -left-2 w-6 h-6 border-l-4 border-b-4 border-red-500"></div>
-                          <div className="absolute -bottom-2 -right-2 w-6 h-6 border-r-4 border-b-4 border-red-500"></div>
+                        <div className="w-48 h-32 border-4 rounded-lg bg-red-500/10" style={{ borderColor: 'var(--accentB)' }}>
+                          <div className="absolute -top-2 -left-2 w-6 h-6 border-l-4 border-t-4" style={{ borderColor: 'var(--accentB)' }}></div>
+                          <div className="absolute -top-2 -right-2 w-6 h-6 border-r-4 border-t-4" style={{ borderColor: 'var(--accentB)' }}></div>
+                          <div className="absolute -bottom-2 -left-2 w-6 h-6 border-l-4 border-b-4" style={{ borderColor: 'var(--accentB)' }}></div>
+                          <div className="absolute -bottom-2 -right-2 w-6 h-6 border-r-4 border-b-4" style={{ borderColor: 'var(--accentB)' }}></div>
                         </div>
                       </div>
                     </div>
                     <button
                       onClick={stopCamera}
-                      className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-xl font-medium transition-colors shadow-lg"
+                      className="absolute bottom-6 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-xl font-medium transition-colors shadow-lg"
+                      style={{ background: 'var(--accentB)', color: 'white' }}
                     >
                       Stop Camera
                     </button>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <button
                       onClick={scanWithLiffScanner}
                       disabled={loading}
-                      className="flex items-center justify-center gap-4 p-6 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-2xl font-medium hover:from-indigo-600 hover:to-purple-700 transition-all shadow-lg disabled:opacity-50"
+                      className="flex items-center gap-4 p-4 rounded-xl font-medium transition-all shadow-md transform transition-all duration-200 hover:scale-[1.02] hover:shadow-lg disabled:opacity-50"
+                      style={{
+                        background: 'linear-gradient(to right, #6366f1, #4f46e5)',
+                        color: 'white',
+                      }}
                     >
                       {loading ? (
                         <div className="animate-spin rounded-full h-6 w-6 border-2 border-white border-t-transparent"></div>
@@ -325,7 +387,11 @@ export default function BarcodeScanner() {
 
                     <button
                       onClick={startCamera}
-                      className="flex items-center justify-center gap-4 p-6 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-2xl font-medium hover:from-gray-700 hover:to-gray-800 transition-all shadow-lg"
+                      className="flex items-center gap-4 p-4 rounded-xl font-medium transition-all shadow-md transform transition-all duration-200 hover:scale-[1.02] hover:shadow-lg"
+                      style={{
+                        background: 'linear-gradient(to right, #6b7280, #4b5563)',
+                        color: 'white',
+                      }}
                     >
                       <CameraIcon className="h-6 w-6" />
                       <div className="text-left">
@@ -339,7 +405,11 @@ export default function BarcodeScanner() {
                         const barcode = prompt('Enter barcode manually:')
                         if (barcode) handleBarcodeResult(barcode)
                       }}
-                      className="flex items-center justify-center gap-4 p-6 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-2xl font-medium hover:from-green-600 hover:to-green-700 transition-all shadow-lg"
+                      className="flex items-center gap-4 p-4 rounded-xl font-medium transition-all shadow-md transform transition-all duration-200 hover:scale-[1.02] hover:shadow-lg"
+                      style={{
+                        background: 'linear-gradient(to right, #22c55e, #16a34a)',
+                        color: 'white',
+                      }}
                     >
                       <KeyboardIcon className="h-6 w-6" />
                       <div className="text-left">
@@ -354,31 +424,34 @@ export default function BarcodeScanner() {
 
             {/* Recent Scans */}
             {recentScans.length > 0 && (
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-200">
-                <div className="px-6 py-4 border-b border-gray-100">
-                  <h3 className="text-lg font-semibold text-gray-900">Recent Scans</h3>
+              <div
+                className="rounded-2xl border shadow-sm backdrop-blur-xl"
+                style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}
+              >
+                <div className="px-4 py-4 sm:px-6 border-b" style={{ borderColor: 'var(--card-border)' }}>
+                  <h3 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>Recent Scans</h3>
                 </div>
-                <div className="divide-y divide-gray-100">
+                <div className="divide-y" style={{ borderColor: 'var(--card-border)' }}>
                   {recentScans.map((scan, index) => (
-                    <div key={index} className="px-6 py-4 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${scan.action === 'created' ? 'bg-blue-100 text-blue-600' :
-                          scan.action === 'stock_in' ? 'bg-green-100 text-green-600' :
-                            scan.action === 'stock_out' ? 'bg-red-100 text-red-600' :
-                              'bg-gray-100 text-gray-600'
+                    <div key={index} className="px-4 py-4 sm:px-6 flex items-center justify-between transition-colors hover:bg-gray-50/20">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${scan.action === 'created' ? 'bg-blue-100/50 text-blue-600' :
+                          scan.action === 'stock_in' ? 'bg-green-100/50 text-green-600' :
+                            scan.action === 'stock_out' ? 'bg-red-100/50 text-red-600' :
+                              'bg-gray-100/50 text-gray-600'
                           }`}>
                           <PackageIcon className="h-5 w-5" />
                         </div>
                         <div>
-                          <p className="font-medium text-gray-900">{scan.productName}</p>
-                          <p className="text-sm text-gray-500">{scan.barcode}</p>
+                          <p className="font-medium truncate" style={{ color: 'var(--text)' }}>{scan.productName}</p>
+                          <p className="text-sm truncate" style={{ color: 'var(--muted)' }}>{scan.barcode}</p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm font-medium capitalize text-gray-900">
+                      <div className="text-right shrink-0">
+                        <p className="text-sm font-medium capitalize" style={{ color: 'var(--text)' }}>
                           {scan.action.replace('_', ' ')}
                         </p>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs" style={{ color: 'var(--muted)' }}>
                           {new Date(scan.scannedAt).toLocaleTimeString()}
                         </p>
                       </div>
@@ -389,30 +462,41 @@ export default function BarcodeScanner() {
             )}
           </div>
         ) : (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200">
-            <div className="px-6 py-4 border-b border-gray-100">
-              <h2 className="text-xl font-semibold text-gray-900">Record Transaction</h2>
-              <p className="text-gray-600 text-sm mt-1">Update inventory for scanned product</p>
+          <div
+            className="rounded-2xl border shadow-sm backdrop-blur-xl"
+            style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}
+          >
+            <div className="px-4 py-4 sm:px-6 border-b" style={{ borderColor: 'var(--card-border)' }}>
+              <h2 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>Record Transaction</h2>
+              <p className="text-sm" style={{ color: 'var(--muted)' }}>Update inventory for scanned product</p>
             </div>
 
-            <div className="p-6 space-y-6">
+            <div className="p-4 sm:p-6 space-y-6">
               {/* Product Info */}
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-2xl border border-blue-200">
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 bg-blue-500 rounded-2xl flex items-center justify-center">
-                    <PackageIcon className="h-6 w-6 text-white" />
+              <div
+                className="p-4 sm:p-6 rounded-2xl border"
+                style={{ background: 'var(--bg-from)', borderColor: 'var(--card-border)' }}
+              >
+                <div className="flex flex-col sm:flex-row items-start gap-4">
+                  <div
+                    className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
+                    style={{ background: 'var(--accentA)', color: 'white' }}
+                  >
+                    <PackageIcon className="h-6 w-6" />
                   </div>
-                  <div className="flex-1">
-                    <h3 className="text-xl font-semibold text-gray-900">{product.name}</h3>
-                    <div className="mt-2 space-y-1">
-                      <p className="text-sm text-gray-600">
-                        <span className="font-medium">Barcode:</span> {product.barcode}
+                  <div className="flex-1 space-y-2">
+                    <h3 className="text-xl font-semibold" style={{ color: 'var(--text)' }}>
+                      {product.name}
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <p className="text-sm" style={{ color: 'var(--muted)' }}>
+                        <span className="font-medium" style={{ color: 'var(--text)' }}>Barcode:</span> {product.barcode}
                       </p>
-                      <p className="text-sm text-gray-600">
-                        <span className="font-medium">Current Stock:</span> {product.inventory?.[0]?.current_stock || 0} units
+                      <p className="text-sm" style={{ color: 'var(--muted)' }}>
+                        <span className="font-medium" style={{ color: 'var(--text)' }}>Current Stock:</span> {product.inventory?.[0]?.current_stock || 0} units
                       </p>
-                      <p className="text-sm text-gray-600">
-                        <span className="font-medium">Min. Level:</span> {product.inventory?.[0]?.min_stock_level || 0} units
+                      <p className="text-sm" style={{ color: 'var(--muted)' }}>
+                        <span className="font-medium" style={{ color: 'var(--text)' }}>Min. Level:</span> {product.inventory?.[0]?.min_stock_level || 0} units
                       </p>
                     </div>
                   </div>
@@ -421,7 +505,7 @@ export default function BarcodeScanner() {
 
               {/* Transaction Type */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
+                <label className="block text-sm font-semibold mb-3" style={{ color: 'var(--text)' }}>
                   Transaction Type
                 </label>
                 <div className="grid grid-cols-3 gap-3">
@@ -432,14 +516,18 @@ export default function BarcodeScanner() {
                   ].map((type) => {
                     const Icon = type.icon
                     const isSelected = transactionType === type.value
+                    const baseStyle = { color: 'var(--text)', background: 'var(--card-bg)', borderColor: 'var(--card-border)' };
+                    const selectedStyle = {
+                      background: `var(--${type.color}-100/50)`,
+                      color: `var(--${type.color}-600)`,
+                      borderColor: `var(--${type.color}-600)`
+                    };
                     return (
                       <button
                         key={type.value}
                         onClick={() => setTransactionType(type.value)}
-                        className={`p-4 rounded-xl border-2 transition-all ${isSelected
-                          ? `border-${type.color}-500 bg-${type.color}-50 text-${type.color}-700`
-                          : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
-                          }`}
+                        className={`p-4 rounded-xl border-2 transition-all`}
+                        style={isSelected ? selectedStyle : baseStyle}
                       >
                         <Icon className="h-6 w-6 mx-auto mb-2" />
                         <div className="text-sm font-medium">{type.label}</div>
@@ -451,13 +539,14 @@ export default function BarcodeScanner() {
 
               {/* Quantity */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
+                <label className="block text-sm font-semibold mb-3" style={{ color: 'var(--text)' }}>
                   Quantity
                 </label>
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="w-12 h-12 bg-gray-200 hover:bg-gray-300 rounded-xl font-bold text-gray-700 transition-colors"
+                    className="w-12 h-12 rounded-xl font-bold transition-colors"
+                    style={{ background: 'var(--card-border)', color: 'var(--text)' }}
                   >
                     -
                   </button>
@@ -466,11 +555,13 @@ export default function BarcodeScanner() {
                     value={quantity}
                     onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
                     min="1"
-                    className="flex-1 text-center text-2xl font-bold border-2 border-gray-200 rounded-xl py-3 px-4 focus:border-blue-500 focus:outline-none"
+                    className="flex-1 text-center text-2xl font-bold rounded-xl py-3 px-4 focus:outline-none"
+                    style={{ background: 'var(--card-bg)', color: 'var(--text)', border: '2px solid var(--card-border)' }}
                   />
                   <button
                     onClick={() => setQuantity(quantity + 1)}
-                    className="w-12 h-12 bg-gray-200 hover:bg-gray-300 rounded-xl font-bold text-gray-700 transition-colors"
+                    className="w-12 h-12 rounded-xl font-bold transition-colors"
+                    style={{ background: 'var(--card-border)', color: 'var(--text)' }}
                   >
                     +
                   </button>
@@ -478,7 +569,7 @@ export default function BarcodeScanner() {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex gap-4 pt-4">
+              <div className="flex flex-col sm:flex-row gap-4 pt-4">
                 <button
                   onClick={recordTransaction}
                   disabled={loading}
@@ -493,7 +584,8 @@ export default function BarcodeScanner() {
                 </button>
                 <button
                   onClick={() => setProduct(null)}
-                  className="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-4 px-6 rounded-xl font-semibold transition-colors flex items-center justify-center gap-2"
+                  className="flex-1 text-white py-4 px-6 rounded-xl font-semibold transition-colors flex items-center justify-center gap-2"
+                  style={{ background: 'var(--muted)', color: 'var(--text)' }}
                 >
                   <XCircleIcon className="h-5 w-5" />
                   Cancel

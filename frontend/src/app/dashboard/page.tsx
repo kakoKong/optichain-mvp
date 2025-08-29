@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import liff from '@line/liff'
 import { supabase } from '@/lib/supabase'
+import Link from 'next/link'
 import {
     TrendingUpIcon,
     TrendingDownIcon,
@@ -11,7 +12,8 @@ import {
     BarChart3Icon,
     ScanLineIcon,
     PlusCircleIcon,
-    HistoryIcon
+    HistoryIcon,
+    Settings as SettingsIcon, UserPlus as UserPlusIcon
 } from 'lucide-react'
 import { useHybridAuth } from '@/hooks/useHybridAuth'
 import SignInWithGoogle, { SupabaseSignIn } from '../signin/SupabaseSignIn'
@@ -48,8 +50,21 @@ export default function Dashboard() {
         if (user) {
             loadDashboardData(user)
         }
+
     }, [authLoading, user])
+
+
     const loadDashboardData = async (u: { id: string; source: 'supabase' | 'line' }) => {
+        // after you resolved appUserId
+        const [{ data: owned }, { data: memberships }] = await Promise.all([
+            supabase.from('businesses').select('id').eq('owner_id', u.id),
+            supabase.from('business_members').select('id').eq('user_id', u.id),
+        ])
+
+        if ((owned?.length ?? 0) === 0 && (memberships?.length ?? 0) === 0) {
+            router.replace('/get-started')
+            return
+        }
         try {
             let ownerId = u.id;
             if (u.source === 'line') {
@@ -65,6 +80,7 @@ export default function Dashboard() {
                 }
                 ownerId = appUser.id;
             }
+            console.log(ownerId)
             const { data: bizRows, error: bizErr } = await supabase
                 .from('businesses')
                 .select(`
@@ -264,8 +280,9 @@ export default function Dashboard() {
                                 </p>
                             </div>
                         </div>
+
                         {/* Meta + actions */}
-                        <div className="flex items-center gap-3 w-full sm:w-auto">
+                        <div className="flex items-center gap-3 w-full sm:w-auto mt-4 sm:mt-0">
                             <div className="ml-auto sm:ml-0">
                                 <div
                                     className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs sm:text-sm"
@@ -284,6 +301,29 @@ export default function Dashboard() {
                                     Last updated {new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
                                 </div>
                             </div>
+
+                            {/* Team Settings Link */}
+                            <Link
+                                href="/settings/team"
+                                className="inline-flex items-center justify-center rounded-xl px-3 py-2 text-sm font-medium transition-colors"
+                                style={{ border: '1px solid var(--card-border)', color: 'var(--text)', background: 'transparent' }}
+                            >
+                                <SettingsIcon className="h-4 w-4 sm:mr-2" />
+                                <span className="hidden sm:inline">Team</span>
+                            </Link>
+
+                            {/* Invite Button */}
+                            <Link
+                                href="/settings/team#invite"
+                                className="hidden md:inline-flex items-center rounded-xl px-3 py-2 text-sm font-medium transition-colors"
+                                style={{ border: '1px solid var(--card-border)', color: 'var(--text)', background: 'transparent' }}
+                                title="Invite teammates"
+                            >
+                                <UserPlusIcon className="h-4 w-4 mr-2" />
+                                Invite
+                            </Link>
+
+                            {/* Refresh Button */}
                             <button
                                 onClick={() => window.location.reload()}
                                 className="hidden sm:inline-flex items-center rounded-xl px-3 py-2 text-sm font-medium transition-colors"
@@ -291,6 +331,8 @@ export default function Dashboard() {
                             >
                                 Refresh
                             </button>
+
+                            {/* Logout Button */}
                             <div className="shrink-0">
                                 <LogoutButton />
                             </div>
