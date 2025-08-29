@@ -53,60 +53,93 @@ export default function Dashboard() {
 
     }, [authLoading, user])
 
+    async function resolveAppUserId(u: { id: string; source: 'supabase' | 'line' }) {
+        // For Supabase OAuth: auth.uid() == public.users.id
+        if (u.source === 'supabase') return u.id
 
-    const loadDashboardData = async (u: { id: string; source: 'supabase' | 'line' }) => {
-        // after you resolved appUserId
-        const [{ data: owned }, { data: memberships }] = await Promise.all([
-            supabase.from('businesses').select('id').eq('owner_id', u.id),
-            supabase.from('business_members').select('id').eq('user_id', u.id),
-        ])
+        // For LINE: map liff profile id to your app user (public.users.id)
+        // NOTE: this expects `public.users.line_user_id` to exist.
+        const { data, error } = await supabase
+            .from('users')
+            .select('id')
+            .eq('line_user_id', u.id)
+            .single()
 
-        if ((owned?.length ?? 0) === 0 && (memberships?.length ?? 0) === 0) {
-            router.replace('/get-started')
-            return
+        if (error) {
+            console.warn('Could not map LINE user to app user:', error)
+            return null
         }
-        try {
-            let ownerId = u.id;
-            if (u.source === 'line') {
-                const { data: appUser, error: userErr } = await supabase
-                    .from('profiles')
-                    .select('id')
-                    .eq('line_user_id', u.id)
-                    .single();
-                if (userErr || !appUser) {
-                    console.warn('No app user found for this LINE id');
-                    setStats(null);
-                    return;
-                }
-                ownerId = appUser.id;
-            }
-            console.log(ownerId)
-            const { data: bizRows, error: bizErr } = await supabase
-                .from('businesses')
-                .select(`
+        return data?.id ?? null
+    }
+
+    async function fetchBusinessForUser(appUserId: string) {
+        // Try owner first
+        const { data: owned, error: ownedErr } = await supabase
+            .from('businesses')
+            .select(`
+            id,
+            name,
+            products (
+              id, name, cost_price, selling_price, barcode,
+              inventory ( current_stock, min_stock_level )
+            )
+          `)
+            .eq('owner_id', appUserId)
+            .limit(1)
+
+        if (ownedErr) throw ownedErr
+        if (owned && owned.length > 0) {
+            return { business: owned[0], products: owned[0].products ?? [] }
+        }
+
+        // Fallback: first business where the user is a member
+        const { data: membership, error: memErr } = await supabase
+            .from('business_members')
+            .select(`
+            business:business_id (
               id,
               name,
               products (
-                id,
-                name,
-                cost_price,
-                selling_price,
-                barcode,
-                inventory (
-                  current_stock,
-                  min_stock_level
-                )
+                id, name, cost_price, selling_price, barcode,
+                inventory ( current_stock, min_stock_level )
               )
-            `)
-                .eq('owner_id', ownerId)
-                .limit(1);
-            if (bizErr) {
-                console.error('Supabase error (businesses query):', bizErr);
-                setStats(null);
-                return;
+            )
+          `)
+            .eq('user_id', appUserId)
+            .order('created_at', { ascending: true })
+            .limit(1)
+            .maybeSingle()
+
+        if (memErr) throw memErr
+        if (!membership?.business) return { business: null, products: [] }
+
+        return { business: membership.business, products: membership.business.products ?? [] }
+    }
+
+    // --- replace your loadDashboardData with this ---
+    const loadDashboardData = async (u: { id: string; source: 'supabase' | 'line' }) => {
+        try {
+            // 1) Resolve app-level user id used in your public schema
+            const appUserId = await resolveAppUserId(u)
+            if (!appUserId) {
+                console.warn('Could not resolve app user id')
+                setStats(null)
+                setLoading(false)
+                return
             }
-            const business = bizRows?.[0];
-            const businessName = business?.name || 'Inventory Hub'
+
+            // 2) If user has no business (neither owner nor member) -> get-started
+            const [{ data: owned }, { data: memberships }] = await Promise.all([
+                supabase.from('businesses').select('id').eq('owner_id', appUserId),
+                supabase.from('business_members').select('id').eq('user_id', appUserId),
+            ])
+            if ((owned?.length ?? 0) === 0 && (memberships?.length ?? 0) === 0) {
+                router.replace('/get-started')
+                return
+            }
+
+            // 3) Fetch a business for this user (owner first, else member)
+            const { business, products } = await fetchBusinessForUser(appUserId)
             if (!business) {
                 setStats({
                     totalProducts: 0,
@@ -117,42 +150,52 @@ export default function Dashboard() {
                     stockMovement: [],
                     topProducts: [],
                     businessName: null,
-                });
-                return;
+                })
+                return
             }
-            const products = business.products ?? [];
-            const totalProducts = products.length;
+
+            const businessName = business.name || 'Inventory Hub'
+
+            // 4) Compute metrics
+            const totalProducts = products.length
             const lowStockItems = products.filter((p: any) => {
-                const cur = p.inventory?.[0]?.current_stock;
-                const min = p.inventory?.[0]?.min_stock_level;
-                return typeof cur === 'number' && typeof min === 'number' && cur <= min;
-            }).length;
+                const cur = p.inventory?.[0]?.current_stock
+                const min = p.inventory?.[0]?.min_stock_level
+                return typeof cur === 'number' && typeof min === 'number' && cur <= min
+            }).length
+
             const totalValue = products.reduce((sum: number, p: any) => {
-                const stock = p.inventory?.[0]?.current_stock ?? 0;
-                const cost = Number(p.cost_price ?? 0);
-                return sum + stock * cost;
-            }, 0);
+                const stock = p.inventory?.[0]?.current_stock ?? 0
+                const cost = Number(p.cost_price ?? 0)
+                return sum + stock * cost
+            }, 0)
+
             const monthlyRevenue = products.reduce((sum: number, p: any) => {
-                const stock = p.inventory?.[0]?.current_stock ?? 0;
-                const sellPrice = Number(p.selling_price ?? 0);
-                return sum + stock * sellPrice * 0.1;
-            }, 0);
+                const stock = p.inventory?.[0]?.current_stock ?? 0
+                const sellPrice = Number(p.selling_price ?? 0)
+                return sum + stock * sellPrice * 0.1
+            }, 0)
+
+            // 5) Recent transactions for this business
             const { data: transactions, error: txErr } = await supabase
                 .from('inventory_transactions')
                 .select(`
-              id,
-              transaction_type,
-              quantity,
-              reason,
-              created_at,
-              products ( name, selling_price )
-            `)
+          id,
+          transaction_type,
+          quantity,
+          reason,
+          created_at,
+          products ( name, selling_price )
+        `)
                 .eq('business_id', business.id)
                 .order('created_at', { ascending: false })
-                .limit(20);
-            if (txErr) console.error('Supabase error (transactions):', txErr);
-            const stockMovement = processStockMovement(transactions || []);
-            const topProducts = getTopProducts(products);
+                .limit(20)
+
+            if (txErr) console.error('Supabase (transactions):', txErr)
+
+            const stockMovement = processStockMovement(transactions || [])
+            const topProducts = getTopProducts(products)
+
             setStats({
                 totalProducts,
                 lowStockItems,
@@ -162,14 +205,15 @@ export default function Dashboard() {
                 stockMovement,
                 topProducts,
                 businessName,
-            });
+            })
         } catch (error) {
-            console.error('Error loading dashboard data:', error);
-            setStats(null);
+            console.error('Error loading dashboard data:', error)
+            setStats(null)
         } finally {
-            setLoading(false);
+            setLoading(false)
         }
-    };
+    }
+
     if (authLoading || !user) {
         return (
             <div className="min-h-screen grid place-items-center">
