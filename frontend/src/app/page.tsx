@@ -1,43 +1,27 @@
-// app/page.tsx
-'use client'
+import { Suspense } from 'react'
+import HomeGate from './home-gate'
 
-import { useEffect } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { useHybridAuth } from '@/hooks/useHybridAuth'
-import { supabase } from '@/lib/supabase'
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
-export default function Home() {
-  const { user, loading } = useHybridAuth()
-  const router = useRouter()
-  const search = useSearchParams()
+type Search = Record<string, string | string[] | undefined>
 
-  // Normalize Supabase hash tokens once, then clean the URL
-  useEffect(() => {
-    supabase.auth.getSession().finally(() => {
-      if (typeof window !== 'undefined' && window.location.hash) {
-        window.history.replaceState(
-          {},
-          document.title,
-          window.location.pathname + window.location.search
-        )
-      }
-    })
-  }, [])
+function toQueryString(searchParams: Search) {
+  const entries: [string, string][] = []
+  for (const [k, v] of Object.entries(searchParams)) {
+    if (v === undefined) continue
+    if (Array.isArray(v)) v.forEach(val => entries.push([k, val]))
+    else entries.push([k, v])
+  }
+  const qs = new URLSearchParams(entries).toString()
+  return qs ? `?${qs}` : ''
+}
 
-  useEffect(() => {
-    if (loading) return
-    const next = search.get('next')
-    if (user) {
-      router.replace(next || '/dashboard')
-    } else {
-      router.replace(`/signin${next ? `?next=${encodeURIComponent(next)}` : ''}`)
-    }
-  }, [loading, user, router, search])
-
-  // Tiny spinner while deciding
+export default function Page({ searchParams }: { searchParams: Search }) {
+  const qs = toQueryString(searchParams)
   return (
-    <div className="min-h-screen grid place-items-center">
-      <div className="animate-spin h-10 w-10 rounded-full border-4 border-gray-300 border-t-transparent" />
-    </div>
+    <Suspense fallback={<div className="min-h-screen grid place-items-center">Loading…</div>}>
+      <HomeGate initialQuery={qs} />
+    </Suspense>
   )
 }
