@@ -16,7 +16,6 @@ import {
     Settings as SettingsIcon, UserPlus as UserPlusIcon
 } from 'lucide-react'
 import { useHybridAuth } from '@/hooks/useHybridAuth'
-import SignInWithGoogle, { SupabaseSignIn } from '../signin/SupabaseSignIn'
 import { useRouter } from 'next/navigation'
 import LogoutButton from '@/components/LogoutButton'
 interface DashboardStats {
