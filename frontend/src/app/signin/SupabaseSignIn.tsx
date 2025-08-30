@@ -1,71 +1,77 @@
-import { useState } from "react";
-import { supabase } from "@/lib/supabase";
+// components/SupabaseSignIn.tsx
+'use client'
 
-export function SupabaseSignIn() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
+import { supabase } from '@/lib/supabase'
+import { useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 
-  const handleSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (error) setMessage(error.message);
-    else setMessage("Signed in!");
-    setLoading(false);
-  };
+export default function SignInWithGoogle({ label = 'Continue with Google' }) {
+  const router = useRouter()
+  const popupRef = useRef<Window | null>(null)
+  const base =
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  (typeof window !== 'undefined' ? window.location.origin : '');
 
-  return (
-    <form onSubmit={handleSignIn} className="space-y-4">
-      <input
-        type="email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        placeholder="Email"
-        className="w-full border rounded px-3 py-2"
-      />
-      <input
-        type="password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        placeholder="Password"
-        className="w-full border rounded px-3 py-2"
-      />
-      <button
-        type="submit"
-        disabled={loading}
-        className="bg-blue-600 text-white px-4 py-2 rounded"
-      >
-        {loading ? "Signing in..." : "Sign in"}
-      </button>
-      {message && <p className="text-sm text-red-500">{message}</p>}
-    </form>
-  );
-}
+  useEffect(() => {
+    // If the session changes (popup finished), navigate and close popup
+    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN') {
+        popupRef.current?.close()
+        router.replace('/dashboard')
+      }
+    })
 
+    // Fallback: explicit postMessage from callback page
+    const onMessage = (e: MessageEvent) => {
+      if (e.origin !== window.location.origin) return
+      if (e.data?.type === 'oauth:complete') {
+        popupRef.current?.close()
+        router.replace('/dashboard')
+      }
+    }
+    window.addEventListener('message', onMessage)
 
-export default function SignInWithGoogle({ label = "Continue with Google" }) {
+    return () => {
+      sub.subscription?.unsubscribe?.()
+      window.removeEventListener('message', onMessage)
+    }
+  }, [router])
+
   const signIn = async () => {
-    await supabase.auth.signInWithOAuth({
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`
+        redirectTo: `${base}/auth/callback`,
+        skipBrowserRedirect: true, // <-- don't redirect current tab
       },
     })
+
+    if (error || !data?.url) {
+      // Popup blocked or something went wrong → full redirect as a last resort
+      await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: `${base}/auth/callback` },
+      })
+      return
+    }
+
+    const url = data.url
+    const w = 480, h = 700
+    const y = (window.top?.outerHeight ?? h) / 2 + (window.top?.screenY ?? 0) - h / 2
+    const x = (window.top?.outerWidth ?? w) / 2 + (window.top?.screenX ?? 0) - w / 2
+    popupRef.current = window.open(
+      url,
+      'supabase-oauth',
+      `width=${w},height=${h},left=${Math.max(0, x)},top=${Math.max(0, y)}`
+    )
+
+    // If popup blocked, fallback to same-tab redirect
+    if (!popupRef.current) window.location.href = url
   }
 
   return (
-    <button
-      onClick={signIn}
-      className={"w-full flex items-center justify-center gap-2 rounded-lg px-4 py-3 hover:opacity-90 " +
-        "transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black/20 " +
-        "min-h-[44px] text-white bg-black"}
-    >
-      <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.9 32.6 29.5 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.7 1.1 7.8 2.9l5.7-5.7C33.9 6.1 29.2 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20c10 0 19-7.3 19-20 0-1.3-.1-2.2-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 16 18.9 12 24 12c3 0 5.7 1.1 7.8 2.9l5.7-5.7C33.9 6.1 29.2 4 24 4 16.4 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.4 0 10.3-2.1 13.8-5.6l-6.4-5.2C29.3 34.7 26.8 36 24 36c-5.4 0-9.9-3.4-11.6-8.1l-6.6 5.1C9.2 39.7 16 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-1.6 3.7-5.5 8-11.3 8-6.6 0-12-5.4-12-12 0-6.6 5.4-12 12-12 3 0 5.7 1.1 7.8 2.9l5.7-5.7C33.9 6.1 29.2 4 24 4c-11.1 0-20 8.9-20 20s8.9 20 20 20c10 0 19-7.3 19-20 0-1.3-.1-2.2-.4-3.5z"/></svg>
+    <button onClick={signIn} className="w-full flex items-center justify-center gap-2 rounded-lg px-4 py-3 bg-black text-white hover:opacity-90">
+      {/* your Google icon here */}
       {label}
     </button>
   )

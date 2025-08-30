@@ -1,25 +1,23 @@
+// app/auth/callback/page.tsx
 'use client'
+
 import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
 export default function AuthCallback() {
-  const router = useRouter()
-
   useEffect(() => {
-    // This makes supabase-js parse the fragment and persist the session
-    supabase.auth.getSession().finally(() => {
-      // remove the fragment and forward to dashboard
-      if (typeof window !== 'undefined') {
-        window.history.replaceState({}, document.title, window.location.pathname)
-      }
-      router.replace('/dashboard')
-    })
-  }, [router])
+    (async () => {
+      // Consume the hash and persist session
+      await supabase.auth.getSession()
 
-  return (
-    <div className="min-h-screen flex items-center justify-center">
-      <p>Signing you in…</p>
-    </div>
-  )
+      // Tell the opener we’re done (works even if BroadcastChannel is delayed)
+      try {
+        window.opener?.postMessage({ type: 'oauth:complete' }, window.location.origin)
+      } catch {}
+      // Close the popup
+      window.close()
+    })()
+  }, [])
+
+  return null
 }
