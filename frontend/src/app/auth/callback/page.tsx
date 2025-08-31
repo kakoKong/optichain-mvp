@@ -1,23 +1,27 @@
 // app/auth/callback/page.tsx
 'use client'
-
 import { useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 
-export default function AuthCallback() {
+export default function OAuthCallback() {
   useEffect(() => {
-    (async () => {
-      // Consume the hash and persist session
-      await supabase.auth.getSession()
-
-      // Tell the opener we’re done (works even if BroadcastChannel is delayed)
+    // let Supabase parse the URL & persist the session
+    supabase.auth.getSession().finally(() => {
       try {
-        window.opener?.postMessage({ type: 'oauth:complete' }, window.location.origin)
-      } catch {}
-      // Close the popup
-      window.close()
-    })()
+        if (window.opener) {
+          // tell the original tab we’re done
+          window.opener.postMessage({ type: 'oauth:complete' }, window.location.origin)
+          window.close()
+        } else {
+          // no opener (blocked), just land on dashboard
+          const to = sessionStorage.getItem('postLoginRedirect') || '/dashboard'
+          sessionStorage.removeItem('postLoginRedirect')
+          window.location.replace(to)
+        }
+      } catch {
+        window.location.replace('/dashboard')
+      }
+    })
   }, [])
-
   return null
 }
