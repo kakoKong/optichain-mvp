@@ -91,26 +91,22 @@ export default function SignInPage() {
                         {/* LINE Sign In */}
                         <button
                             type="button"
-                            onClick={() => (window.location.href = `https://liff.line.me/${process.env.NEXT_PUBLIC_LINE_LIFF_ID}`)}
-                            className={"w-full flex items-center justify-center gap-2 rounded-lg px-4 py-3 hover:opacity-90 " +
-                                "transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black/20 " +
-                                "min-h-[44px] text-white"}
-                            style={{
-                                background: "linear-gradient(90deg, #22c55e, #16a34a)", // LINE green
-                                borderColor: "rgba(34,197,94,0.3)",
+                            onClick={() => {
+                                // remember where to go after LINE auth
+                                const returnTo =
+                                    window.location.pathname + window.location.search || '/dashboard'
+                                sessionStorage.setItem('postLoginRedirect', returnTo)
+
+                                // open the LIFF app, which will redirect to your Endpoint URL (step 3)
+                                window.location.href = `https://liff.line.me/${process.env.NEXT_PUBLIC_LINE_LIFF_ID}`
                             }}
-                            aria-label="Continue with LINE"
+                            className="w-full flex items-center justify-center gap-2 rounded-lg px-4 py-3 hover:opacity-90 transition-colors min-h-[44px] text-white"
+                            style={{ background: 'linear-gradient(90deg, #22c55e, #16a34a)' }}
                         >
-                            <Image
-                                src="/LineLogo.png"     // put your logo in /public/LineLogo.png
-                                alt="LINE"
-                                width={20}
-                                height={20}
-                                priority
-                                className="shrink-0"
-                            />
-                            <span className="leading-none">Continue with LINE</span>
+                            {/* …icon + label… */}
+                            Continue with LINE
                         </button>
+
                     </div>
 
                     {/* Features */}
