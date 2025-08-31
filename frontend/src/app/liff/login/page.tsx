@@ -64,7 +64,7 @@ async function ensureProfileFromLine(p: { userId: string; displayName?: string; 
   const { data: inserted, error: insErr } = await supabase
     .from('profiles')
     .insert([{
-      // id: crypto.randomUUID(), // <-- uncomment only if `profiles.id` has NO default
+      id: crypto.randomUUID(),
       line_user_id: p.userId,
       display_name: p.displayName ?? null,
       avatar_url: p.pictureUrl ?? null,
