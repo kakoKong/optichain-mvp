@@ -29,25 +29,42 @@ export function useHybridAuth() {
                     return
                 }
 
-                // 2) If not signed in and we’re inside LIFF, use LINE
-                const isLiff = typeof window !== 'undefined' && (window as any).liff
-                const skipLiffAutoLogin =
-                    typeof window !== 'undefined' && localStorage.getItem('skipLiffAutoLogin') === '1'
+                // 2) LIFF path
+                const hasWindow = typeof window !== 'undefined'
+                const hasLiffOnWindow = hasWindow && !!(window as any).liff
 
-                if (isLiff && !skipLiffAutoLogin) {
+                // Do we already have LIFF tokens saved for this origin? (like your screenshot)
+                const hasLiffTokens = hasWindow && Object.keys(localStorage).some(k => k.startsWith('LIFF_STORE:'))
+
+                // Only respect skip flag if there are no tokens
+                const skipFlag = hasWindow && localStorage.getItem('skipLiffAutoLogin') === '1'
+                const shouldUseLiff = hasLiffOnWindow && (!skipFlag || hasLiffTokens)
+
+                if (shouldUseLiff) {
                     await liff.init({ liffId: process.env.NEXT_PUBLIC_LINE_LIFF_ID! })
+
                     if (!liff.isLoggedIn()) {
                         liff.login()
                         return
                     }
+
+                    // We’re logged in via LINE
                     const profile = await liff.getProfile()
-                    // Important: since user chose LINE login, allow auto login next time
+
+                    // Make sure future visits can auto-login via LINE
                     localStorage.removeItem('skipLiffAutoLogin')
-                    setUser({ id: profile.userId, displayName: profile.displayName, source: 'line', raw: profile })
+
+                    setUser({
+                        id: profile.userId,
+                        displayName: profile.displayName,
+                        source: 'line',
+                        raw: profile,
+                    })
                     setLoading(false)
                     return
                 }
 
+                // 3) No session anywhere
                 setUser(null)
                 setLoading(false)
             } catch (e) {
@@ -59,7 +76,6 @@ export function useHybridAuth() {
 
         init()
 
-        // IMPORTANT: Don’t reload; just update state.
         const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
             if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
                 if (session?.user) {
@@ -72,12 +88,11 @@ export function useHybridAuth() {
                     })
                 }
             }
-            if (event === 'SIGNED_OUT') {
-                setUser(null)
-            }
+            if (event === 'SIGNED_OUT') setUser(null)
         })
         return () => sub.subscription.unsubscribe()
     }, [])
+
 
     return { user, loading }
 }
