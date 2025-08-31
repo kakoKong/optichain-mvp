@@ -59,11 +59,11 @@ export default function Dashboard() {
         // For LINE: map liff profile id to your app user (public.users.id)
         // NOTE: this expects `public.users.line_user_id` to exist.
         const { data, error } = await supabase
-            .from('users')
+            .from('profiles')
             .select('id')
             .eq('line_user_id', u.id)
             .single()
-        alert(data)
+
         if (error) {
             console.warn('Could not map LINE user to app user:', error)
             return null
