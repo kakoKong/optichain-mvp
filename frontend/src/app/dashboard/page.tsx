@@ -63,7 +63,7 @@ export default function Dashboard() {
             .select('id')
             .eq('line_user_id', u.id)
             .single()
-
+        alert(data)
         if (error) {
             console.warn('Could not map LINE user to app user:', error)
             return null
