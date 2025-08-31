@@ -1,5 +1,6 @@
 import './globals.css'
 import { ThemeProvider } from 'next-themes'
+import type { Metadata } from 'next'
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -16,4 +17,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </body>
     </html>
   )
+}
+
+export const metadata: Metadata = {
+  title: {
+    default: 'OptiChain',
+    template: '%s | OptiChain',
+  },
+  icons: {
+    icon: '/OptichainLogo2.png',
+
+  },
+  description: 'Your Smart Inventory Copilot',
 }
