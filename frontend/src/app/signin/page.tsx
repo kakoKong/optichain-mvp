@@ -92,6 +92,7 @@ export default function SignInPage() {
                         <button
                             type="button"
                             onClick={() => {
+                                localStorage.removeItem('skipLiffAutoLogin'); // <-- important
                                 // remember where to go after LINE auth
                                 const returnTo =
                                     window.location.pathname + window.location.search || '/dashboard'
