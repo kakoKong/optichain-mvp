@@ -14,7 +14,7 @@ import {
     DownloadIcon,
     FilterIcon
 } from 'lucide-react'
-import { resolveOwnerId } from '@/lib/userhelper';
+import { useAuth } from '@/contexts/AuthContext'
 
 declare global {
     interface Window {
@@ -34,26 +34,27 @@ interface AnalyticsData {
 }
 
 export default function Analytics() {
+    const { user, loading: authLoading } = useAuth()
     const [analytics, setAnalytics] = useState<AnalyticsData | null>(null)
     const [loading, setLoading] = useState(false)
     const [timeRange, setTimeRange] = useState('30d')
     const [business, setBusiness] = useState<any>(null)
 
     useEffect(() => {
+        if (authLoading || !user) return
         initializeAndLoad()
-    }, [timeRange])
+    }, [authLoading, user, timeRange])
 
     const initializeAndLoad = async () => {
         setLoading(true)
         try {
-            const ownerId = await resolveOwnerId()
-            if (!ownerId) { setLoading(false); return }
+            if (!user) { setLoading(false); return }
 
             // fetch owner’s business
             const { data: bizRows, error: bizErr } = await supabase
                 .from('businesses')
                 .select('id, name')
-                .eq('owner_id', ownerId)
+                .eq('owner_id', user.id)
                 .limit(1)
 
             if (bizErr) throw bizErr

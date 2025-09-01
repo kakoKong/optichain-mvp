@@ -17,7 +17,7 @@ import {
     Calendar as CalendarIcon,
     X as XIcon
 } from 'lucide-react'
-import { resolveOwnerId } from '@/lib/userhelper';
+import { useAuth } from '@/contexts/AuthContext'
 
 declare global {
     interface Window {
@@ -70,8 +70,10 @@ export default function TransactionsPage() {
     const initializeAndLoad = async () => {
         setLoading(true)
         try {
-            const ownerId = await resolveOwnerId()
-            if (!ownerId) { setLoading(false); return }
+            const { user } = useAuth()
+            if (!user) { setLoading(false); return }
+
+            const ownerId = user.id
 
             const { data: bizRows, error: bizErr } = await supabase
                 .from('businesses')

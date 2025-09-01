@@ -19,7 +19,7 @@ import {
     BarcodeIcon,
     DollarSignIcon
 } from 'lucide-react'
-import { resolveOwnerId } from '@/lib/userhelper';
+import { useAuth } from '@/contexts/AuthContext'
 
 declare global {
     interface Window {
@@ -41,6 +41,7 @@ interface Product {
 }
 
 export default function ProductsPage() {
+    const { user, loading: authLoading } = useAuth()
     const [products, setProducts] = useState<Product[]>([])
     const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
     const [loading, setLoading] = useState(false)
@@ -64,8 +65,9 @@ export default function ProductsPage() {
     })
 
     useEffect(() => {
+        if (authLoading || !user) return
         initializeAndLoad()
-    }, [])
+    }, [authLoading, user])
 
     useEffect(() => {
         filterAndSortProducts()
@@ -74,8 +76,7 @@ export default function ProductsPage() {
     const initializeAndLoad = async () => {
         setLoading(true)
         try {
-            const ownerId = await resolveOwnerId()
-            if (!ownerId) { setLoading(false); return }
+            if (!user) { setLoading(false); return }
 
             const { data: bizRows, error: bizErr } = await supabase
                 .from('businesses')
@@ -87,7 +88,7 @@ export default function ProductsPage() {
             inventory (*)
           )
         `)
-                .eq('owner_id', ownerId)
+                .eq('owner_id', user.id)
                 .limit(1)
 
             if (bizErr) throw bizErr

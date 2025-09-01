@@ -3,7 +3,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { resolveOwnerId } from '@/lib/userhelper'
+import { useAuth } from '@/contexts/AuthContext'
 import {
   ScanLineIcon, CameraIcon, KeyboardIcon, CheckCircleIcon, PackageIcon,
   TrendingUpIcon, TrendingDownIcon, SettingsIcon, ArrowLeftIcon,
@@ -62,6 +62,7 @@ const SCANNER_CONFIG = {
 
 export default function BarcodeScanner() {
   // State management
+  const { user, loading: authLoading } = useAuth()
   const [scanning, setScanning] = useState(false)
   const [product, setProduct] = useState<Product | null>(null)
   const [transactionForm, setTransactionForm] = useState<TransactionForm>({
@@ -92,24 +93,24 @@ export default function BarcodeScanner() {
 
   // Initialize component
   useEffect(() => {
+    if (authLoading || !user) return
     initializeScanner()
     return () => {
       cleanupScanner()
     }
-  }, [])
+  }, [authLoading, user])
 
   const initializeScanner = async () => {
     try {
-      const ownerId = await resolveOwnerId()
-      if (!ownerId) {
-        console.error('No owner ID found')
+      if (!user) {
+        console.error('No user logged in')
         return
       }
 
       const { data, error } = await supabase
         .from('businesses')
         .select('id, name')
-        .eq('owner_id', ownerId)
+        .eq('owner_id', user.id)
         .limit(1)
 
       if (error) {
