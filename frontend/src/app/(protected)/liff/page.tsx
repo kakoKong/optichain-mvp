@@ -76,9 +76,42 @@ export default function LiffPage() {
         const profile = await liff.getProfile()
         setUserProfile(profile)
         
-        // Redirect to dashboard after successful authentication
+        // Determine the intended destination from the LIFF URL
+        const currentUrl = window.location.href
+        console.log('LIFF authentication - Current URL:', currentUrl)
+        console.log('LIFF authentication - Current pathname:', window.location.pathname)
+        
+        let intendedRoute = '/dashboard' // default fallback
+        
+        // Check if there's a specific route in the LIFF URL
+        if (currentUrl.includes('/liff/')) {
+          const urlPath = new URL(currentUrl).pathname
+          console.log('LIFF authentication - URL path:', urlPath)
+          
+          if (urlPath.includes('/liff/')) {
+            const liffPath = urlPath.split('/liff/')[1]
+            console.log('LIFF authentication - LIFF path:', liffPath)
+            
+            if (liffPath && liffPath !== 'login') {
+              intendedRoute = `/liff/${liffPath}`
+              console.log('LIFF authentication - Setting intended route to:', intendedRoute)
+            }
+          }
+        }
+        
+        // Check if there's a stored redirect preference
+        const storedRedirect = sessionStorage.getItem('postLoginRedirect')
+        if (storedRedirect) {
+          intendedRoute = storedRedirect
+          sessionStorage.removeItem('postLoginRedirect')
+          console.log('LIFF authentication - Using stored redirect:', intendedRoute)
+        }
+        
+        console.log('LIFF authentication successful, redirecting to:', intendedRoute)
+        
+        // Redirect to the intended route
         setTimeout(() => {
-          router.replace('/dashboard')
+          router.replace(intendedRoute)
         }, 1000)
       }
     } catch (error) {
@@ -93,9 +126,13 @@ export default function LiffPage() {
       setLoading(true)
       setError(null)
       
+      // Preserve the current URL as the redirect URI
+      const redirectUri = window.location.href
+      console.log('LINE login with redirect URI:', redirectUri)
+      
       // This will redirect to LINE login
       liff.login({ 
-        redirectUri: window.location.origin + '/liff'
+        redirectUri: redirectUri
       })
     } catch (error) {
       console.error('LINE login failed:', error)

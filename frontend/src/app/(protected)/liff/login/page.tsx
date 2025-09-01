@@ -27,9 +27,27 @@ export default function LiffLogin() {
         const profile = await liff.getProfile()
         await ensureProfileFromLine(profile)
 
-        const to = sessionStorage.getItem('postLoginRedirect') || '/dashboard'
-        sessionStorage.removeItem('postLoginRedirect')
-        router.replace(to)
+        // Get the intended destination from the URL path
+        const currentPath = window.location.pathname
+        let intendedRoute = '/dashboard' // default fallback
+        
+        // Extract the route from the LIFF URL path
+        if (currentPath.includes('/liff/')) {
+          const liffPath = currentPath.split('/liff/')[1]
+          if (liffPath && liffPath !== 'login') {
+            intendedRoute = `/liff/${liffPath}`
+          }
+        }
+        
+        // Check if there's a stored redirect preference
+        const storedRedirect = sessionStorage.getItem('postLoginRedirect')
+        if (storedRedirect) {
+          intendedRoute = storedRedirect
+          sessionStorage.removeItem('postLoginRedirect')
+        }
+
+        console.log('Redirecting to:', intendedRoute)
+        router.replace(intendedRoute)
       } catch (e: any) {
         setErr(e?.message || 'LIFF init/login failed')
       }
