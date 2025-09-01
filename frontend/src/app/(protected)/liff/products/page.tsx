@@ -340,9 +340,8 @@ export default function ProductsPage() {
     }
 
     const handleAddProduct = async (e: React.FormEvent) => {
-        // TODO: Change to calling backend API
         e.preventDefault()
-        if (!business) return
+        if (!business || !user) return
 
         try {
             const { data: product, error } = await supabase
@@ -364,16 +363,47 @@ export default function ProductsPage() {
 
             // Create initial inventory record
             if (product) {
+                const initialStock = Number(formData.current_stock) || 0
+                
                 await supabase
                     .from('inventory')
                     .insert([
                         {
                             business_id: business.id,
                             product_id: product.id,
-                            current_stock: Number(formData.current_stock) || 0,
-                            min_stock_level: Number(formData.min_stock_level) || 0
+                            current_stock: initialStock,
+                            min_stock_level: Number(formData.min_stock_level) || 0,
+                            updated_at: new Date().toISOString()
                         }
                     ])
+
+                // Create initial transaction record if there's initial stock
+                if (initialStock > 0) {
+                    const appUserId = await resolveAppUserId(user)
+                    if (appUserId) {
+                        const { error: transactionError } = await supabase
+                            .from('inventory_transactions')
+                            .insert([{
+                                business_id: business.id,
+                                product_id: product.id,
+                                user_id: appUserId,
+                                transaction_type: 'stock_in',
+                                quantity: initialStock,
+                                previous_stock: 0,
+                                new_stock: initialStock,
+                                unit_cost: Number(formData.cost_price) || null,
+                                reason: 'Initial stock setup',
+                                notes: `Initial inventory for new product: ${formData.name}`,
+                                reference_number: `INIT-${Date.now()}`,
+                                metadata: { source: 'product_creation', timestamp: new Date().toISOString() }
+                            }])
+
+                        if (transactionError) {
+                            console.warn('Failed to create initial transaction record:', transactionError)
+                            // Don't fail the entire operation if transaction record fails
+                        }
+                    }
+                }
 
                 // Reload products
                 await loadUserBusinessAndProducts()
@@ -388,9 +418,13 @@ export default function ProductsPage() {
 
     const handleEditProduct = async (e: React.FormEvent) => {
         e.preventDefault()
-        if (!editingProduct || !business) return
+        if (!editingProduct || !business || !user) return
 
         try {
+            // Get current inventory for comparison
+            const currentStock = editingProduct.inventory?.[0]?.current_stock || 0
+            const newStock = Number(formData.current_stock) || 0
+            
             const { error: productError } = await supabase
                 .from('products')
                 .update({
@@ -408,12 +442,41 @@ export default function ProductsPage() {
             const { error: inventoryError } = await supabase
                 .from('inventory')
                 .update({
-                    current_stock: Number(formData.current_stock) || 0,
-                    min_stock_level: Number(formData.min_stock_level) || 0
+                    current_stock: newStock,
+                    min_stock_level: Number(formData.min_stock_level) || 0,
+                    updated_at: new Date().toISOString()
                 })
                 .eq('product_id', editingProduct.id)
 
             if (inventoryError) throw inventoryError
+
+            // Create transaction record if stock changed
+            if (currentStock !== newStock) {
+                const appUserId = await resolveAppUserId(user)
+                if (appUserId) {
+                    const { error: transactionError } = await supabase
+                        .from('inventory_transactions')
+                        .insert([{
+                            business_id: business.id,
+                            product_id: editingProduct.id,
+                            user_id: appUserId,
+                            transaction_type: 'adjustment',
+                            quantity: newStock,
+                            previous_stock: currentStock,
+                            new_stock: newStock,
+                            unit_cost: null,
+                            reason: 'Stock adjustment via product edit',
+                            notes: `Manual adjustment from ${currentStock} to ${newStock}`,
+                            reference_number: `ADJ-${Date.now()}`,
+                            metadata: { source: 'product_edit', timestamp: new Date().toISOString() }
+                        }])
+
+                    if (transactionError) {
+                        console.warn('Failed to create transaction record:', transactionError)
+                        // Don't fail the entire operation if transaction record fails
+                    }
+                }
+            }
 
             // Reload products
             await loadUserBusinessAndProducts()

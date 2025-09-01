@@ -684,25 +684,98 @@ export default function BarcodeScanner() {
 
   // Record inventory transaction
   const recordTransaction = async () => {
-    if (!product || !business) return
+    if (!product || !business || !user) return
 
     setLoading(true)
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/inventory/transactions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      // Get current inventory for the product
+      const { data: currentInventory, error: inventoryError } = await supabase
+        .from('inventory')
+        .select('current_stock, min_stock_level')
+        .eq('business_id', business.id)
+        .eq('product_id', product.id)
+        .single()
+
+      if (inventoryError) {
+        throw new Error(`Failed to fetch current inventory: ${inventoryError.message}`)
+      }
+
+      const previousStock = currentInventory.current_stock
+      let newStock = previousStock
+
+      // Calculate new stock based on transaction type
+      switch (transactionForm.type) {
+        case 'stock_in':
+          newStock = previousStock + transactionForm.quantity
+          break
+        case 'stock_out':
+          newStock = previousStock - transactionForm.quantity
+          if (newStock < 0) {
+            throw new Error('Insufficient stock for this transaction')
+          }
+          break
+        case 'adjustment':
+          newStock = transactionForm.quantity // Direct adjustment
+          break
+        default:
+          throw new Error('Invalid transaction type')
+      }
+
+      // Resolve app-level user ID for the transaction
+      const appUserId = await resolveAppUserId(user)
+      if (!appUserId) {
+        throw new Error('Could not resolve user ID')
+      }
+
+      // Create transaction record
+      const { error: transactionError } = await supabase
+        .from('inventory_transactions')
+        .insert([{
           business_id: business.id,
           product_id: product.id,
+          user_id: appUserId,
           transaction_type: transactionForm.type,
           quantity: transactionForm.quantity,
-          reason: `${transactionForm.type.replace('_', ' ')} via scanner`
-        })
-      })
+          previous_stock: previousStock,
+          new_stock: newStock,
+          unit_cost: null, // Could be enhanced to include cost tracking
+          reason: `${transactionForm.type.replace('_', ' ')} via scanner`,
+          notes: `Transaction recorded via mobile scanner`,
+          reference_number: `${transactionForm.type.toUpperCase()}-${Date.now()}`,
+          metadata: { source: 'mobile_scanner', timestamp: new Date().toISOString() }
+        }])
 
-      if (!response.ok) {
-        throw new Error(`Transaction failed: ${response.statusText}`)
+      if (transactionError) {
+        throw new Error(`Failed to create transaction record: ${transactionError.message}`)
       }
+
+      // Update inventory current_stock
+      const { error: updateError } = await supabase
+        .from('inventory')
+        .update({ 
+          current_stock: newStock,
+          updated_at: new Date().toISOString()
+        })
+        .eq('business_id', business.id)
+        .eq('product_id', product.id)
+
+      if (updateError) {
+        throw new Error(`Failed to update inventory: ${updateError.message}`)
+      }
+
+      // Update local product state with new inventory
+      setProduct(prev => prev ? {
+        ...prev,
+        inventory: prev.inventory ? [{
+          id: prev.inventory[0].id,
+          current_stock: newStock,
+          min_stock_level: currentInventory.min_stock_level
+        }] : [{ 
+          id: '', // Temporary ID for display
+          current_stock: newStock, 
+          min_stock_level: currentInventory.min_stock_level 
+        }]
+      } : null)
 
       setSuccess(true)
       saveRecentScan({
