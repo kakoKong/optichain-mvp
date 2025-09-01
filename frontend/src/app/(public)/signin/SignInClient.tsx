@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import liff from '@line/liff'
-import SignInWithGoogle from '@/app/signin/SupabaseSignIn'
+import SignInWithGoogle from '@/app/(public)/signin/SupabaseSignIn'
 
 type Mode = 'loading' | 'web' | 'liff'
 
