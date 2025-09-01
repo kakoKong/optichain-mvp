@@ -53,6 +53,9 @@ export default function ProductsPage() {
     const [editingProduct, setEditingProduct] = useState<Product | null>(null)
     const [business, setBusiness] = useState<any>(null)
 
+    // Debug: Log user object
+    console.log('[DEBUG] ProductsPage user state:', { user: user?.id, source: user?.source, authLoading })
+
     // Form states
     const [formData, setFormData] = useState({
         name: '',
@@ -69,11 +72,8 @@ export default function ProductsPage() {
         initializeAndLoad()
     }, [authLoading, user])
 
-    // Helper function to resolve app-level user ID (same as dashboard)
-    const resolveAppUserId = async (u: { id: string; source: 'supabase' | 'line' }) => {
-        // For Supabase OAuth: auth.uid() == public.users.id
-        if (u.source === 'supabase') return u.id
-
+    // Helper function to resolve app-level user ID
+    const resolveAppUserId = async (u: { id: string; source: 'line' }) => {
         // For LINE: map liff profile id to your app user (public.users.id)
         // NOTE: this expects `public.users.line_user_id` to exist.
         const { data, error } = await supabase
@@ -91,6 +91,8 @@ export default function ProductsPage() {
 
     // Helper function to fetch business for user (same as dashboard)
     const fetchBusinessForUser = async (appUserId: string) => {
+        console.log('[fetchBusinessForUser] Looking for business with appUserId:', appUserId)
+        
         // Try owner first
         const { data: owned, error: ownedErr } = await supabase
             .from('businesses')
@@ -105,12 +107,20 @@ export default function ProductsPage() {
             .eq('owner_id', appUserId)
             .limit(1)
 
-        if (ownedErr) throw ownedErr
+        if (ownedErr) {
+            console.error('[fetchBusinessForUser] Error checking owned businesses:', ownedErr)
+            throw ownedErr
+        }
+        
+        console.log('[fetchBusinessForUser] Owned businesses found:', owned?.length || 0)
+        
         if (owned && owned.length > 0) {
+            console.log('[fetchBusinessForUser] Using owned business:', owned[0])
             return { business: owned[0], products: owned[0].products || [] }
         }
 
         // Fallback: first business where the user is a member
+        console.log('[fetchBusinessForUser] No owned businesses, checking memberships...')
         const { data: membership, error: memErr } = await supabase
             .from('business_members')
             .select(`
@@ -128,19 +138,31 @@ export default function ProductsPage() {
             .limit(1)
             .maybeSingle()
 
-        if (memErr) throw memErr
-        if (!membership?.business) return { business: null, products: [] }
+        if (memErr) {
+            console.error('[fetchBusinessForUser] Error checking memberships:', memErr)
+            throw memErr
+        }
+        
+        console.log('[fetchBusinessForUser] Membership found:', membership)
 
+        if (!membership?.business) {
+            console.log('[fetchBusinessForUser] No memberships found')
+            return { business: null, products: [] }
+        }
+
+        console.log('[fetchBusinessForUser] Using membership business:', membership.business)
         return { business: membership.business, products: Array.isArray(membership.business) ? [] : (membership.business as { products: any[] })?.products ?? [] }
     }
 
     const initializeAndLoad = async () => {
+        console.log('[DEBUG] initializeAndLoad called with user:', user)
         setLoading(true)
         try {
             if (!user) { setLoading(false); return }
 
             // 1) Resolve app-level user id used in your public schema
             const appUserId = await resolveAppUserId(user)
+            console.log('[DEBUG] Resolved appUserId:', appUserId)
             if (!appUserId) {
                 console.warn('Could not resolve app user id')
                 setLoading(false)
@@ -149,6 +171,7 @@ export default function ProductsPage() {
 
             // 2) Fetch business for this user (owner first, else member)
             const { business: biz, products: prods } = await fetchBusinessForUser(appUserId)
+            console.log('[DEBUG] Business lookup result:', { business: biz, productsCount: prods?.length || 0 })
             if (!biz) {
                 setBusiness(null)
                 setProducts([])

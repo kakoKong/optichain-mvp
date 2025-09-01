@@ -6,7 +6,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 
 export default function ProtectedLayout({ children }: { children: ReactNode }) {
-  const { user, loading, authSource } = useAuth()
+  const { user, loading } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
 
@@ -26,11 +26,9 @@ export default function ProtectedLayout({ children }: { children: ReactNode }) {
           <p className="text-gray-600">
             {loading ? 'Checking authentication...' : 'Redirecting to sign in...'}
           </p>
-          {authSource && (
-            <p className="text-sm text-gray-500 mt-2">
-              Using {authSource === 'line' ? 'LINE' : 'Supabase'} authentication
-            </p>
-          )}
+          <p className="text-sm text-gray-500 mt-2">
+            Using LINE authentication
+          </p>
         </div>
       </div>
     )

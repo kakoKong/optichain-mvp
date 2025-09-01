@@ -1,96 +1,84 @@
 // app/settings/team/page.tsx
 'use client'
+
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { useHybridAuth } from '@/hooks/useHybridAuth'
+import { useAuth } from '@/contexts/AuthContext'
+import { UserPlus, Users, Crown, Mail, Phone, MapPin, Building, Calendar, Trash2, Edit, Plus } from 'lucide-react'
 import InvitePanel from '@/components/InvitePanel'
 import JoinRequestsPanel from '@/components/JoinRequestPanel'
 import { ArrowLeft } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
-export default function TeamSettings() {
-    const { user, loading } = useHybridAuth()
-    const [businessId, setBusinessId] = useState<string | null>(null)
+export default function TeamPage() {
+    const { user, loading: authLoading } = useAuth()
+    const [teamMembers, setTeamMembers] = useState<any[]>([])
+    const [business, setBusiness] = useState<any>(null)
+    const [dataLoading, setDataLoading] = useState(false)
+    const [showAddModal, setShowAddModal] = useState(false)
+    const [editingMember, setEditingMember] = useState<any>(null)
     const router = useRouter()
 
     useEffect(() => {
-        if (loading) return
-        if (!user) return router.replace('/signin')
-            ; (async () => {
-                let ownerId = user.id
-                if (user.source === 'line') {
-                    const { data } = await supabase
-                        .from('profiles')
-                        .select('id')
-                        .eq('line_user_id', user.id)
-                        .single()
-                    ownerId = data?.id ?? ''
-                }
+        if (authLoading || !user) return
+        
+        // Load business data for the user
+        ;(async () => {
+            try {
                 const { data: biz } = await supabase
                     .from('businesses')
-                    .select('id, name')
-                    .eq('owner_id', ownerId)
+                    .select('*')
+                    .eq('owner_id', user.id)
                     .limit(1)
-                setBusinessId(biz?.[0]?.id ?? null)
-            })()
-    }, [loading, user, router])
+                setBusiness(biz?.[0] ?? null)
+            } catch (error) {
+                console.error('Error loading business:', error)
+            }
+        })()
+    }, [authLoading, user, router])
 
-    const goBack = () => {
-        if (typeof window !== 'undefined' && window.history.length > 1) router.back()
-        else router.push('/dashboard')
+    if (authLoading) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-100 flex items-center justify-center">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-16 w-16 border-4 border-green-500 border-t-transparent mx-auto"></div>
+                    <p className="mt-6 text-gray-600 font-medium">Loading...</p>
+                </div>
+            </div>
+        )
     }
 
-    if (!businessId) {
+    if (!user) {
+        router.replace('/signin')
+        return null
+    }
+
+    if (!business) {
         return (
             <div className="p-6 space-y-4">
-                <div
-                    className="rounded-2xl p-4 border shadow-sm backdrop-blur-lg flex items-center gap-3"
-                    style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}
-                >
-                    <button
-                        onClick={goBack}
-                        className="inline-flex items-center justify-center rounded-xl px-3 py-2 text-sm"
-                        style={{ border: '1px solid var(--card-border)', color: 'var(--text)', background: 'transparent' }}
-                    >
-                        <ArrowLeft className="h-4 w-4" />
-                        <span className="ml-2 hidden sm:inline">Back</span>
-                    </button>
-                    <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>Team & Access</h1>
-                </div>
-
-                <div
-                    className="rounded-2xl p-6 border shadow-sm backdrop-blur-lg"
-                    style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}
-                >
-                    <h1 className="text-xl font-semibold" style={{ color: 'var(--text)' }}>Team</h1>
-                    <p className="text-sm mt-2" style={{ color: 'var(--muted)' }}>
-                        No business found for this account.
-                    </p>
+                <div className="text-center">
+                    <h2 className="text-xl font-semibold text-gray-900">No Business Found</h2>
+                    <p className="text-gray-600">You need to create or join a business first.</p>
                 </div>
             </div>
         )
     }
 
     return (
-        <div className="p-6 space-y-6">
-            {/* Header with Back button */}
-            <div
-                className="rounded-2xl p-4 border shadow-sm backdrop-blur-lg flex items-center gap-3"
-                style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}
-            >
+        <div className="p-6 space-y-4">
+            <div className="flex items-center justify-between">
+                <h1 className="text-2xl font-bold text-gray-900">Team Management</h1>
                 <button
-                    onClick={goBack}
-                    className="inline-flex items-center justify-center rounded-xl px-3 py-2 text-sm"
-                    style={{ border: '1px solid var(--card-border)', color: 'var(--text)', background: 'transparent' }}
+                    onClick={() => setShowAddModal(true)}
+                    className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2"
                 >
-                    <ArrowLeft className="h-4 w-4" />
-                    <span className="ml-2 hidden sm:inline">Back</span>
+                    <Plus className="h-4 w-4" />
+                    Add Member
                 </button>
-                <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>Team & Access</h1>
             </div>
 
-            <InvitePanel businessId={businessId} />
-            <JoinRequestsPanel businessId={businessId} />
+            <InvitePanel businessId={business.id} />
+            <JoinRequestsPanel businessId={business.id} />
         </div>
     )
 }

@@ -3,28 +3,12 @@
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import liff from '@line/liff'
-import SignInWithGoogle from '@/app/(public)/signin/SupabaseSignIn'
 import { useRouter } from 'next/navigation'
 
-type Mode = 'loading' | 'web' | 'liff'
-
 export default function SignInPage() {
-  const [mode, setMode] = useState<Mode>('loading')
   const [liffError, setLiffError] = useState<string | null>(null)
   const [liffLoading, setLiffLoading] = useState(false)
   const router = useRouter()
-
-  // For testing: manually switch to LINE mode
-  const forceLiffMode = () => {
-    console.log('[SignInClient] Forcing LIFF mode for testing')
-    setMode('liff')
-  }
-
-  // For testing: manually switch to web mode
-  const forceWebMode = () => {
-    console.log('[SignInClient] Forcing web mode for testing')
-    setMode('web')
-  }
 
   useEffect(() => {
     let mounted = true
@@ -70,17 +54,12 @@ export default function SignInPage() {
             router.replace('/dashboard')
             return
           }
-          
-          console.log('[SignInClient] Setting mode to LIFF')
-          setMode('liff')
         } catch (error) {
           console.error('[SignInClient] LIFF initialization failed:', error)
           setLiffError('Failed to initialize LINE login')
-          setMode('web')
         }
       } else {
-        console.log('[SignInClient] No LINE context detected, setting mode to web')
-        setMode('web')
+        console.log('[SignInClient] No LINE context detected, but still using LINE auth')
       }
     }
     
@@ -155,69 +134,31 @@ export default function SignInPage() {
             <p className="text-sm font-medium text-gray-500">Your Smart Inventory Copilot</p>
           </div>
 
-          {/* sign-in area */}
-          {mode === 'loading' && (
-            <div className="grid place-items-center py-4">
-              <div className="animate-spin h-8 w-8 rounded-full border-4 border-gray-300 border-t-transparent" />
-            </div>
-          )}
-
-          {/* Debug mode switcher (only in development) */}
-          {process.env.NODE_ENV === 'development' && (
-            <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <p className="text-sm text-yellow-800 mb-2">🔧 Debug Mode Switcher</p>
-              <div className="flex gap-2">
-                <button
-                  onClick={forceWebMode}
-                  className="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600"
-                >
-                  Force Web Mode
-                </button>
-                <button
-                  onClick={forceLiffMode}
-                  className="px-3 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600"
-                >
-                  Force LINE Mode
-                </button>
+          {/* LINE sign-in area */}
+          <div className="space-y-4">
+            {liffError && (
+              <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg">
+                {liffError}
               </div>
-              <p className="text-xs text-yellow-600 mt-1">Current mode: {mode}</p>
-            </div>
-          )}
-
-          {mode === 'web' && (
-            <div className="space-y-4">
-              <div className="transform transition-all duration-200 hover:scale-[1.02] hover:shadow-lg">
-                <SignInWithGoogle />
-              </div>
-            </div>
-          )}
-
-          {mode === 'liff' && (
-            <div className="space-y-4">
-              {liffError && (
-                <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg">
-                  {liffError}
-                </div>
+            )}
+            <button
+              type="button"
+              onClick={onLineClick}
+              disabled={liffLoading}
+              className="w-full flex items-center justify-center gap-2 rounded-lg px-4 py-3 hover:opacity-90 transition-colors min-h-[44px] text-white disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ background: 'linear-gradient(90deg, #22c55e, #16a34a)' }}
+              aria-label="Continue with LINE"
+            >
+              {liffLoading ? (
+                <>
+                  <div className="animate-spin h-4 w-4 rounded-full border-2 border-white border-t-transparent" />
+                  Authenticating...
+                </>
+              ) : (
+                'Continue with LINE'
               )}
-              <button
-                type="button"
-                onClick={onLineClick}
-                disabled={liffLoading}
-                className="w-full flex items-center justify-center gap-2 rounded-lg px-4 py-3 hover:opacity-90 transition-colors min-h-[44px] text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{ background: 'linear-gradient(90deg, #22c55e, #16a34a)' }}
-                aria-label="Continue with LINE"
-              >
-                {liffLoading ? (
-                  <>
-                    <div className="animate-spin h-4 w-4 rounded-full border-2 border-white border-t-transparent" />
-                    Authenticating...
-                  </>
-                ) : (
-                  'Continue with LINE'
-                )}
-              </button>
-            </div>
-          )}
+            </button>
+          </div>
 
           {/* features (optional, keep as-is) */}
           <div className="mt-8 pt-6 border-t border-gray-200">

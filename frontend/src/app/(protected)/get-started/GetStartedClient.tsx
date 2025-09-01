@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { useHybridAuth } from '@/hooks/useHybridAuth'
-import { Building2, KeySquare, UsersRound, ArrowLeft } from 'lucide-react'
+import { useAuth } from '@/contexts/AuthContext'
+import { useRouter } from 'next/navigation'
+import { Building, Users, Package, TrendingUp, CheckCircle, ArrowRight, Plus, Edit, Trash2, ArrowLeft, KeySquare, UsersRound } from 'lucide-react'
 
 function makeJoinCode(len = 6) {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
@@ -13,16 +13,27 @@ function makeJoinCode(len = 6) {
     return out
 }
 
-export default function GetStartedPage() {
-    const { user, loading: authLoading } = useHybridAuth()
-    const router = useRouter()
-    const [busy, setBusy] = useState(false)
-    const [createName, setCreateName] = useState('')
+export default function GetStartedClient() {
+    const { user, loading: authLoading } = useAuth()
+    const [business, setBusiness] = useState<any>(null)
+    const [loading, setLoading] = useState(false)
+    const [showCreateModal, setShowCreateModal] = useState(false)
+    const [showJoinModal, setShowJoinModal] = useState(false)
+    const [formData, setFormData] = useState({
+        name: '',
+        description: '',
+        address: '',
+        phone: '',
+        email: ''
+    })
     const [joinCode, setJoinCode] = useState('')
     const [joinMessage, setJoinMessage] = useState('')
+    const [createName, setCreateName] = useState('')
+    const [busy, setBusy] = useState(false)
     const [notice, setNotice] = useState<string | null>(null)
+    const router = useRouter()
 
-    // Resolve our "app user id" (public.users.id) from hybrid auth
+    // Resolve our "app user id" (public.users.id) from LINE auth
     const [appUserId, setAppUserId] = useState<string | null>(null)
 
     useEffect(() => {
@@ -34,7 +45,7 @@ export default function GetStartedPage() {
             }
 
             try {
-                // If LINE: map to app user (public.users.id) by line_user_id
+                // For LINE: map to app user (public.users.id) by line_user_id
                 if (user.source === 'line') {
                     const { data } = await supabase
                         .from('profiles')
@@ -42,16 +53,15 @@ export default function GetStartedPage() {
                         .eq('line_user_id', user.id)
                         .single()
                     setAppUserId(data?.id ?? null)
-                } else {
-                    // Supabase user -> same id in public.users.id
-                    setAppUserId(user.id)
                 }
             } catch {
                 setAppUserId(null)
             }
         })()
     }, [authLoading, user, router])
+
     console.log('appUserId', appUserId)
+    
     // If user already has a business (owner or member), bounce to dashboard
     useEffect(() => {
         if (!appUserId) return
@@ -67,8 +77,8 @@ export default function GetStartedPage() {
         })()
     }, [appUserId, router])
 
-    const canCreate = useMemo(() => createName.trim().length >= 2, [createName])
-    const canJoin = useMemo(() => joinCode.trim().length >= 4, [joinCode])
+    const canCreate = createName.trim().length >= 2
+    const canJoin = joinCode.trim().length >= 4
 
     const createBusiness = async () => {
         if (!appUserId || !canCreate) return
@@ -123,7 +133,6 @@ export default function GetStartedPage() {
                 throw new Error('No business found for that code');
             }
 
-
             console.log('nono')
             // 2) ensure not already member
             const { data: existingMember } = await supabase
@@ -176,7 +185,7 @@ export default function GetStartedPage() {
                     <div className="flex items-start justify-between gap-4">
                         <div>
                             <h1 className="text-2xl md:text-3xl font-bold" style={{ color: 'var(--text)' }}>
-                                Let’s get you set up
+                                Let's get you set up
                             </h1>
                             <p className="mt-1" style={{ color: 'var(--muted)' }}>
                                 Create a new business or request to join an existing one.
@@ -201,12 +210,12 @@ export default function GetStartedPage() {
                     >
                         <div className="flex items-center gap-3">
                             <div className="p-2 rounded-xl bg-gray-100 text-gray-700">
-                                <Building2 className="h-5 w-5" />
+                                <Building className="h-5 w-5" />
                             </div>
                             <h2 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>Create a new business</h2>
                         </div>
                         <p className="text-sm" style={{ color: 'var(--muted)' }}>
-                            You’ll be the owner. You can invite teammates later with a join code.
+                            You'll be the owner. You can invite teammates later with a join code.
                         </p>
 
                         <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>
@@ -291,7 +300,7 @@ export default function GetStartedPage() {
                     <div className="flex items-center gap-3">
                         <UsersRound className="h-5 w-5" style={{ color: 'var(--muted)' }} />
                         <p className="text-sm" style={{ color: 'var(--muted)' }}>
-                            Admins can rotate the join code anytime. Pending requests appear in the admin’s “Team” or “Requests” view.
+                            Admins can rotate the join code anytime. Pending requests appear in the admin's "Team" or "Requests" view.
                         </p>
                     </div>
                 </div>

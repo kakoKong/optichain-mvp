@@ -1,20 +1,18 @@
 'use client'
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react'
-import { supabase } from '@/lib/supabase'
 import liff from '@line/liff'
 
 type AuthUser = {
   id: string
   displayName?: string
-  source: 'supabase' | 'line'
+  source: 'line'
   raw?: any
 } | null
 
 type AuthContextType = {
   user: AuthUser
   loading: boolean
-  authSource: 'supabase' | 'line' | null
   signOut: () => Promise<void>
   refreshUser: () => Promise<void>
 }
@@ -24,7 +22,6 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser>(null)
   const [loading, setLoading] = useState(true)
-  const [authSource, setAuthSource] = useState<'supabase' | 'line' | null>(null)
   const [initialized, setInitialized] = useState(false)
 
   // Initialize authentication once when the app starts
@@ -32,7 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (initialized) return
     
     const initializeAuth = async () => {
-      console.log('[AuthContext] Initializing authentication...')
+      console.log('[AuthContext] Initializing LINE authentication...')
       
       try {
         // Check if we have a stored LINE user first
@@ -42,7 +39,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const lineUser = JSON.parse(storedLineUser)
             console.log('[AuthContext] Found stored LINE user:', lineUser.id)
             setUser(lineUser)
-            setAuthSource('line')
             setLoading(false)
             setInitialized(true)
             return
@@ -52,16 +48,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         }
 
-        // Check if we're in a LINE context
-        const isLiffContext = await checkLiffContext()
-        
-        if (isLiffContext && process.env.NEXT_PUBLIC_LINE_LIFF_ID) {
-          console.log('[AuthContext] LINE context detected, initializing LIFF...')
-          await initLiffAuth()
-        } else {
-          console.log('[AuthContext] Web context detected, initializing Supabase...')
-          await initSupabaseAuth()
-        }
+        // Initialize LIFF authentication
+        await initLiffAuth()
       } catch (error) {
         console.error('[AuthContext] Authentication initialization failed:', error)
         setLoading(false)
@@ -73,37 +61,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     initializeAuth()
   }, [initialized])
 
-  const checkLiffContext = async (): Promise<boolean> => {
-    try {
-      const params = new URLSearchParams(window.location.search)
-      const hasLiffState = params.has('liff.state')
-      const hasLiffReferrer = /liff\.line\.me/i.test(document.referrer)
-      const isInLineApp = /line/i.test(navigator.userAgent) || window.location.hostname.includes('liff.line.me')
-      
-      // Remove the isLiffRoute check as it incorrectly forces LINE auth for all /liff routes
-      // const isLiffRoute = window.location.pathname.startsWith('/liff')
-      
-      const looksLikeLiff = hasLiffState || hasLiffReferrer || isInLineApp
-      
-      console.log('[AuthContext] LINE context check:', {
-        hasLiffState,
-        hasLiffReferrer,
-        isInLineApp,
-        pathname: window.location.pathname,
-        looksLikeLiff
-      })
-      
-      return looksLikeLiff
-    } catch (error) {
-      console.error('[AuthContext] Error checking LIFF context:', error)
-      return false
-    }
-  }
-
   const initLiffAuth = async () => {
     try {
+      if (!process.env.NEXT_PUBLIC_LINE_LIFF_ID) {
+        throw new Error('LINE LIFF ID not configured')
+      }
+
       await liff.init({
-        liffId: process.env.NEXT_PUBLIC_LINE_LIFF_ID!,
+        liffId: process.env.NEXT_PUBLIC_LINE_LIFF_ID,
         withLoginOnExternalBrowser: true,
       })
 
@@ -118,121 +83,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         console.log('[AuthContext] LIFF user authenticated:', userData)
         setUser(userData)
-        setAuthSource('line')
         
         // Store in localStorage for persistence
         localStorage.setItem('lineUser', JSON.stringify(userData))
       } else {
         console.log('[AuthContext] LIFF user not logged in')
         setUser(null)
-        setAuthSource('line')
       }
     } catch (error) {
       console.error('[AuthContext] LIFF initialization failed:', error)
-      // Fallback to Supabase
-      await initSupabaseAuth()
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const initSupabaseAuth = async () => {
-    try {
-      const { data: { session }, error } = await supabase.auth.getSession()
-      
-      if (error) {
-        console.error('[AuthContext] Error getting Supabase session:', error)
-        setUser(null)
-        setAuthSource('supabase')
-        return
-      }
-
-      if (session?.user) {
-        const u = session.user
-        const userData = {
-          id: u.id,
-          displayName: u.user_metadata?.full_name || u.user_metadata?.name || u.email || 'User',
-          source: 'supabase' as const,
-          raw: u,
-        }
-        console.log('[AuthContext] Supabase user authenticated:', userData)
-        setUser(userData)
-        setAuthSource('supabase')
-      } else {
-        console.log('[AuthContext] No Supabase session')
-        setUser(null)
-        setAuthSource('supabase')
-      }
-    } catch (error) {
-      console.error('[AuthContext] Supabase initialization failed:', error)
       setUser(null)
-      setAuthSource('supabase')
     } finally {
       setLoading(false)
     }
   }
-
-  // Listen for Supabase auth changes (only if using Supabase)
-  useEffect(() => {
-    if (authSource !== 'supabase') return
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('[AuthContext] Supabase auth state change:', { event, userId: session?.user?.id })
-      
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
-        if (session?.user) {
-          const u = session.user
-          const userData = {
-            id: u.id,
-            displayName: u.user_metadata?.full_name || u.user_metadata?.name || u.email || 'User',
-            source: 'supabase' as const,
-            raw: u,
-          }
-          console.log('[AuthContext] Setting user from Supabase auth change:', userData)
-          setUser(userData)
-        }
-      } else if (event === 'SIGNED_OUT') {
-        console.log('[AuthContext] User signed out from Supabase')
-        setUser(null)
-      }
-      
-      setLoading(false)
-    })
-
-    return () => subscription.unsubscribe()
-  }, [authSource])
 
   const signOut = async () => {
     try {
-      let logoutSuccess = false
-
-      // Try Supabase logout
-      if (authSource === 'supabase') {
-        try {
-          const { error } = await supabase.auth.signOut()
-          if (!error) {
-            console.log('[AuthContext] Supabase logout successful')
-            logoutSuccess = true
-          }
-        } catch (error) {
-          console.log('[AuthContext] Supabase logout failed')
-        }
-      }
-
       // Try LINE logout
-      if (authSource === 'line') {
-        try {
-          if (process.env.NEXT_PUBLIC_LINE_LIFF_ID) {
-            await liff.init({ liffId: process.env.NEXT_PUBLIC_LINE_LIFF_ID })
-            if (liff.isLoggedIn()) {
-              liff.logout()
-              console.log('[AuthContext] LINE logout successful')
-              logoutSuccess = true
-            }
+      try {
+        if (process.env.NEXT_PUBLIC_LINE_LIFF_ID) {
+          await liff.init({ liffId: process.env.NEXT_PUBLIC_LINE_LIFF_ID })
+          if (liff.isLoggedIn()) {
+            liff.logout()
+            console.log('[AuthContext] LINE logout successful')
           }
-        } catch (error) {
-          console.log('[AuthContext] LINE logout failed')
         }
+      } catch (error) {
+        console.log('[AuthContext] LINE logout failed')
       }
 
       // Clear stored data
@@ -242,11 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Reset state
       setUser(null)
-      setAuthSource(null)
-
-      if (logoutSuccess) {
-        console.log('[AuthContext] Logout completed successfully')
-      }
+      console.log('[AuthContext] Logout completed successfully')
     } catch (error) {
       console.error('[AuthContext] Logout error:', error)
     }
@@ -257,11 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true)
     
     try {
-      if (authSource === 'line') {
-        await initLiffAuth()
-      } else if (authSource === 'supabase') {
-        await initSupabaseAuth()
-      }
+      await initLiffAuth()
     } catch (error) {
       console.error('[AuthContext] Failed to refresh user:', error)
     }
@@ -270,7 +140,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value: AuthContextType = {
     user,
     loading,
-    authSource,
     signOut,
     refreshUser,
   }
@@ -278,7 +147,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   console.log('[AuthContext] Current state:', { 
     user: user?.id, 
     loading, 
-    authSource,
     source: user?.source,
     initialized
   })

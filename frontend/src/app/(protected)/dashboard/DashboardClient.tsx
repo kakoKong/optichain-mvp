@@ -14,7 +14,7 @@ import {
     HistoryIcon,
     Settings as SettingsIcon, UserPlus as UserPlusIcon
 } from 'lucide-react'
-import { useHybridAuth } from '@/hooks/useHybridAuth'
+import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
 import LogoutButton from '@/components/LogoutButton'
 interface DashboardStats {
@@ -30,17 +30,10 @@ interface DashboardStats {
 const LIFF_ID = process.env.NEXT_PUBLIC_LIFF_ID || process.env.NEXT_PUBLIC_LINE_LIFF_ID
 
 export default function Dashboard() {
-    const { user, loading: authLoading } = useHybridAuth()
+    const { user, loading: authLoading } = useAuth()
     const [stats, setStats] = useState<DashboardStats | null>(null)
     const [loading, setLoading] = useState(true)
     const router = useRouter()
-    useEffect(() => {
-        supabase.auth.getSession().finally(() => {
-            if (typeof window !== 'undefined' && window.location.hash) {
-                window.history.replaceState({}, document.title, window.location.pathname + window.location.search)
-            }
-        })
-    }, [])
     useEffect(() => {
         if (authLoading) return
         if (!user) {
@@ -52,10 +45,7 @@ export default function Dashboard() {
 
     }, [authLoading, user])
 
-    async function resolveAppUserId(u: { id: string; source: 'supabase' | 'line' }) {
-        // For Supabase OAuth: auth.uid() == public.users.id
-        if (u.source === 'supabase') return u.id
-
+    async function resolveAppUserId(u: { id: string; source: 'line' }) {
         // For LINE: map liff profile id to your app user (public.users.id)
         // NOTE: this expects `public.users.line_user_id` to exist.
         const { data, error } = await supabase
@@ -116,7 +106,7 @@ export default function Dashboard() {
     }
 
     // --- replace your loadDashboardData with this ---
-    const loadDashboardData = async (u: { id: string; source: 'supabase' | 'line' }) => {
+    const loadDashboardData = async (u: { id: string; source: 'line' }) => {
         try {
             // 1) Resolve app-level user id used in your public schema
             const appUserId = await resolveAppUserId(u)

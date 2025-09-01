@@ -70,11 +70,8 @@ export default function TransactionsPage() {
         calculateStats()
     }, [transactions, searchTerm, filterType])
 
-    // Helper function to resolve app-level user ID (same as dashboard)
-    const resolveAppUserId = async (u: { id: string; source: 'supabase' | 'line' }) => {
-        // For Supabase OAuth: auth.uid() == public.users.id
-        if (u.source === 'supabase') return u.id
-
+    // Helper function to resolve app-level user ID
+    const resolveAppUserId = async (u: { id: string; source: 'line' }) => {
         // For LINE: map liff profile id to your app user (public.users.id)
         // NOTE: this expects `public.users.line_user_id` to exist.
         const { data, error } = await supabase
@@ -88,7 +85,7 @@ export default function TransactionsPage() {
             return null
         }
         return data?.id ?? null
-    }
+        }
 
     // Helper function to fetch business for user (same as dashboard)
     const fetchBusinessForUser = async (appUserId: string) => {
