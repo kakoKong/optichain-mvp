@@ -2,74 +2,54 @@
 'use client'
 
 import { supabase } from '@/lib/supabase'
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
 export default function SignInWithGoogle({ label = 'Continue with Google' }) {
   const router = useRouter()
-  const winRef = useRef<Window | null>(null)
-  const base =
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    (typeof window !== 'undefined' ? window.location.origin : '')
 
   useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'SIGNED_IN') {
-        // go back where we started
-        const to = sessionStorage.getItem('postLoginRedirect') || '/dashboard'
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        // Redirect to dashboard or stored redirect path
+        const redirectTo = sessionStorage.getItem('postLoginRedirect') || '/dashboard'
         sessionStorage.removeItem('postLoginRedirect')
-        winRef.current?.close()
-        router.replace(to)
+        router.replace(redirectTo)
       }
     })
 
-    const onMessage = (e: MessageEvent) => {
-      if (typeof window === 'undefined') return
-      if (e.origin !== window.location.origin) return
-      if (e.data?.type === 'oauth:complete') {
-        const to = sessionStorage.getItem('postLoginRedirect') || '/dashboard'
-        sessionStorage.removeItem('postLoginRedirect')
-        winRef.current?.close()
-        router.replace(to)
-      }
-    }
-    window.addEventListener('message', onMessage)
-    return () => {
-      sub.subscription?.unsubscribe?.()
-      window.removeEventListener('message', onMessage)
-    }
+    return () => subscription.unsubscribe()
   }, [router])
 
   const signIn = async () => {
-    // remember current page for the original tab
-    const returnTo = window.location.pathname + window.location.search || '/dashboard'
-    sessionStorage.setItem('postLoginRedirect', returnTo)
+    try {
+      // Store current path for post-login redirect
+      const currentPath = window.location.pathname + window.location.search
+      if (currentPath !== '/signin') {
+        sessionStorage.setItem('postLoginRedirect', currentPath)
+      }
 
-    // pre-open a NEW TAB (not a sized popup) to avoid popup blockers
-    winRef.current = window.open('about:blank', '_blank')
-
-    const { data } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: `${base}/auth/callback`, skipBrowserRedirect: true },
-    })
-
-    if (data?.url) {
-      // send the new tab to Google
-      if (winRef.current) winRef.current.location.href = data.url
-      else window.location.href = data.url // extreme fallback
-    } else {
-      // fallback: same-tab
-      await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: `${base}/auth/callback` },
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        }
       })
+
+      if (error) {
+        console.error('Sign in error:', error)
+        alert('Failed to sign in. Please try again.')
+      }
+    } catch (error) {
+      console.error('Sign in error:', error)
+      alert('An unexpected error occurred. Please try again.')
     }
   }
 
   return (
     <button
       onClick={signIn}
-      className="w-full flex items-center justify-center gap-2 rounded-lg px-4 py-3 bg-black text-white hover:opacity-90"
+      className="w-full flex items-center justify-center gap-2 rounded-lg px-4 py-3 bg-black text-white hover:opacity-90 transition-opacity"
     >
       {label}
     </button>

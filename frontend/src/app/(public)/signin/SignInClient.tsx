@@ -4,20 +4,22 @@ import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import liff from '@line/liff'
 import SignInWithGoogle from '@/app/(public)/signin/SupabaseSignIn'
+import { supabase } from '@/lib/supabase'
+import { useRouter } from 'next/navigation'
 
 type Mode = 'loading' | 'web' | 'liff'
 
 export default function SignInPage() {
   const [mode, setMode] = useState<Mode>('loading')
+  const [liffError, setLiffError] = useState<string | null>(null)
+  const [liffLoading, setLiffLoading] = useState(false)
+  const router = useRouter()
 
   useEffect(() => {
     let mounted = true
-
     const decide = async () => {
       if (typeof window === 'undefined') return
 
-      // Heuristics: if opened by LIFF, you'll have liff.state in the URL,
-      // or the referrer is liff.line.me. Then try init().
       const params = new URLSearchParams(window.location.search)
       const looksLikeLiff = params.has('liff.state') || /liff\.line\.me/i.test(document.referrer)
 
@@ -27,32 +29,86 @@ export default function SignInPage() {
             liffId: process.env.NEXT_PUBLIC_LINE_LIFF_ID,
             withLoginOnExternalBrowser: true,
           })
+          
           if (!mounted) return
+          
+          // Check if user is already logged in to LINE
+          if (liff.isLoggedIn()) {
+            // User is logged in to LINE, try to authenticate with Supabase
+            await authenticateWithSupabase()
+            return
+          }
+          
           setMode('liff')
-          return
-        } catch {
-          // If init fails, fall back to web
+        } catch (error) {
+          console.error('LIFF initialization failed:', error)
+          setLiffError('Failed to initialize LINE login')
+          setMode('web')
         }
+      } else {
+        setMode('web')
       }
-
-      setMode('web')
     }
-
+    
     decide()
     return () => { mounted = false }
   }, [])
 
-  const onLineClick = () => {
-    // remember where to go after LINE auth
-    const returnTo = window.location.pathname + window.location.search || '/dashboard'
-    sessionStorage.setItem('postLoginRedirect', returnTo)
+  const authenticateWithSupabase = async () => {
+    try {
+      setLiffLoading(true)
+      setLiffError(null)
 
-    // ensure auto-login allowed next time
-    localStorage.removeItem('skipLiffAutoLogin')
+      // Get LINE ID token
+      const idToken = liff.getIDToken()
+      if (!idToken) {
+        throw new Error('No LINE ID token available')
+      }
 
-    // open your LIFF app (Endpoint URL should be /liff/login)
-    window.location.href = `https://liff.line.me/${process.env.NEXT_PUBLIC_LINE_LIFF_ID}`
+      // Sign in to Supabase with LINE ID token
+      const { data, error } = await supabase.auth.signInWithIdToken({
+        provider: 'line',
+        token: idToken,
+      })
+
+      if (error) {
+        throw error
+      }
+
+      if (data.session) {
+        // Successfully authenticated with Supabase
+        // Redirect to dashboard or stored redirect path
+        const redirectTo = sessionStorage.getItem('postLoginRedirect') || '/dashboard'
+        sessionStorage.removeItem('postLoginRedirect')
+        router.replace(redirectTo)
+      }
+    } catch (error) {
+      console.error('Supabase authentication failed:', error)
+      setLiffError('Failed to authenticate with LINE. Please try again.')
+      setLiffLoading(false)
+    }
   }
+
+  const onLineClick = async () => {
+    try {
+      setLiffError(null)
+      setLiffLoading(true)
+      
+      if (!liff.isLoggedIn()) {
+        // This will redirect to LINE login
+        liff.login({ 
+          redirectUri: window.location.origin + '/signin'
+        })
+      } else {
+        // User is already logged in, authenticate with Supabase
+        await authenticateWithSupabase()
+      }
+    } catch (error) {
+      console.error('LINE login failed:', error)
+      setLiffError('Failed to start LINE login. Please try again.')
+      setLiffLoading(false)
+    }
+  };
 
   return (
     <div
@@ -106,14 +162,27 @@ export default function SignInPage() {
 
           {mode === 'liff' && (
             <div className="space-y-4">
+              {liffError && (
+                <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg">
+                  {liffError}
+                </div>
+              )}
               <button
                 type="button"
                 onClick={onLineClick}
-                className="w-full flex items-center justify-center gap-2 rounded-lg px-4 py-3 hover:opacity-90 transition-colors min-h-[44px] text-white"
+                disabled={liffLoading}
+                className="w-full flex items-center justify-center gap-2 rounded-lg px-4 py-3 hover:opacity-90 transition-colors min-h-[44px] text-white disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{ background: 'linear-gradient(90deg, #22c55e, #16a34a)' }}
                 aria-label="Continue with LINE"
               >
-                Continue with LINE
+                {liffLoading ? (
+                  <>
+                    <div className="animate-spin h-4 w-4 rounded-full border-2 border-white border-t-transparent" />
+                    Authenticating...
+                  </>
+                ) : (
+                  'Continue with LINE'
+                )}
               </button>
             </div>
           )}

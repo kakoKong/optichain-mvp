@@ -377,7 +377,7 @@ export default function Dashboard() {
 
                             {/* Logout Button */}
                             <div className="shrink-0">
-                                <LogoutButton />
+                                <LogoutButton>Sign Out</LogoutButton>
                             </div>
                         </div>
                     </div>

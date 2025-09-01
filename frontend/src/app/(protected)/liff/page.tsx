@@ -2,72 +2,166 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-
-declare global {
-  interface Window {
-    liff: any;
-  }
-}
+import { useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
+import liff from '@line/liff'
 
 export default function LiffPage() {
-  const [liffInitialized, setLiffInitialized] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [userProfile, setUserProfile] = useState<any>(null)
+  const router = useRouter()
 
   useEffect(() => {
-    // Load LIFF SDK
-    const script = document.createElement('script')
-    script.src = 'https://static.line-scdn.net/liff/edge/2/sdk.js'
-    script.async = true
-    script.onload = () => initializeLiff()
-    document.body.appendChild(script)
-
-    return () => {
-      document.body.removeChild(script)
-    }
+    initializeLiff()
   }, [])
 
   const initializeLiff = async () => {
     try {
-      await window.liff.init({ liffId: process.env.NEXT_PUBLIC_LINE_LIFF_ID })
-      setLiffInitialized(true)
+      setLoading(true)
+      setError(null)
 
-      if (window.liff.isLoggedIn()) {
-        const profile = await window.liff.getProfile()
-        setUserProfile(profile)
+      // Check if we already have a Supabase session
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.user) {
+        // User is already authenticated with Supabase, redirect to dashboard
+        router.replace('/dashboard')
+        return
+      }
+
+      // Initialize LIFF
+      if (!process.env.NEXT_PUBLIC_LINE_LIFF_ID) {
+        throw new Error('LIFF ID not configured')
+      }
+
+      await liff.init({
+        liffId: process.env.NEXT_PUBLIC_LINE_LIFF_ID,
+        withLoginOnExternalBrowser: true,
+      })
+
+      if (liff.isLoggedIn()) {
+        // User is logged in to LINE, now authenticate with Supabase
+        await authenticateWithSupabase()
+      } else {
+        // User needs to login to LINE first
+        setLoading(false)
       }
     } catch (error) {
       console.error('LIFF initialization failed:', error)
+      setError('Failed to initialize LINE login')
+      setLoading(false)
     }
   }
 
-  const loginWithLine = () => {
-    if (!window.liff.isLoggedIn()) {
-      window.liff.login()
+  const authenticateWithSupabase = async () => {
+    try {
+      // Get LINE ID token
+      const idToken = liff.getIDToken()
+      if (!idToken) {
+        throw new Error('No LINE ID token available')
+      }
+
+      // Sign in to Supabase with LINE ID token
+      const { data, error } = await supabase.auth.signInWithIdToken({
+        provider: 'line',
+        token: idToken,
+      })
+
+      if (error) {
+        throw error
+      }
+
+      if (data.session) {
+        // Successfully authenticated with Supabase
+        const profile = await liff.getProfile()
+        setUserProfile(profile)
+        
+        // Redirect to dashboard after successful authentication
+        setTimeout(() => {
+          router.replace('/dashboard')
+        }, 1000)
+      }
+    } catch (error) {
+      console.error('Supabase authentication failed:', error)
+      setError('Failed to authenticate with LINE')
+      setLoading(false)
     }
   }
 
-  if (!liffInitialized) {
-    return <div className="p-4">Loading LIFF...</div>
+  const loginWithLine = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      // This will redirect to LINE login
+      liff.login({ 
+        redirectUri: window.location.origin + '/liff'
+      })
+    } catch (error) {
+      console.error('LINE login failed:', error)
+      setError('Failed to start LINE login')
+      setLoading(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin h-10 w-10 rounded-full border-4 border-gray-300 border-t-transparent mx-auto mb-4" />
+          <p className="text-gray-600">Initializing LINE login...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="max-w-md mx-auto text-center">
+          <div className="text-red-500 mb-4">
+            <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Authentication Error</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-md mx-auto">
-        <h1 className="text-2xl font-bold mb-4">📦 Inventory Copilot</h1>
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold mb-2">📦 Inventory Copilot</h1>
+          <p className="text-gray-600">Sign in with LINE to continue</p>
+        </div>
 
-        {!userProfile ? (
+        <div className="bg-white p-6 rounded-lg shadow-lg">
           <button
             onClick={loginWithLine}
-            className="w-full bg-green-500 text-white py-2 px-4 rounded-lg"
+            className="w-full bg-green-500 text-white py-3 px-4 rounded-lg hover:bg-green-600 transition-colors flex items-center justify-center gap-2"
           >
-            Login with LINE
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63h2.386c.346 0 .627.285.627.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V6.108c0-.27.173-.51.43-.595.06-.023.136-.033.194-.033.195 0 .375.104.495.254l2.462 3.33V6.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v6.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V6.108c0-.345.282-.63.63-.63.346 0 .628.285.628.63v6.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V6.108c0-.345.285-.63.63-.63h2.386c.345 0 .63.285.63.63v6.771c0 .344-.285.629-.63.629z"/>
+            </svg>
+            Continue with LINE
           </button>
-        ) : (
-          <div className="bg-white p-4 rounded-lg shadow">
-            <h2>Welcome, {userProfile.displayName}!</h2>
-            <p className="text-sm text-gray-600">LIFF is working! 🎉</p>
+          
+          <div className="mt-4 text-center">
+            <p className="text-sm text-gray-500">
+              You'll be redirected to LINE to complete the sign-in process
+            </p>
           </div>
-        )}
+        </div>
       </div>
     </div>
   )
