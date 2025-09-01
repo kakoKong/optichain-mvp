@@ -13,7 +13,7 @@ export default function ProtectedLayout({ children }: { children: ReactNode }) {
   // Allow LIFF routes to handle their own authentication
   const isLiffRoute = pathname?.startsWith('/liff/')
   
-  // For LIFF routes, don't redirect to signin - let LIFF handle auth
+  // For LIFF routes, show loading while auth is being checked
   if (isLiffRoute) {
     // Show loading spinner while checking authentication
     if (loading) {
@@ -27,7 +27,8 @@ export default function ProtectedLayout({ children }: { children: ReactNode }) {
       )
     }
     
-    // For LIFF routes, always render children (auth will be handled by individual pages)
+    // For LIFF routes, render children (auth will be handled by individual pages)
+    // If user is not authenticated, the LIFF pages will handle the login flow
     return <>{children}</>
   }
 

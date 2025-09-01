@@ -81,7 +81,7 @@ export default function LiffPage() {
         console.log('LIFF authentication - Current URL:', currentUrl)
         console.log('LIFF authentication - Current pathname:', window.location.pathname)
         
-        let intendedRoute = '/dashboard' // default fallback
+        let intendedRoute = '/dashboard' // default to dashboard
         
         // Check if there's a specific route in the LIFF URL
         if (currentUrl.includes('/liff/')) {
@@ -98,6 +98,7 @@ export default function LiffPage() {
             }
           }
         }
+        // If no specific path (just /liff), default to dashboard
         
         // Check if there's a stored redirect preference
         const storedRedirect = sessionStorage.getItem('postLoginRedirect')

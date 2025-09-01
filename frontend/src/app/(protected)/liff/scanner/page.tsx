@@ -95,7 +95,15 @@ export default function BarcodeScanner() {
 
   // Initialize component
   useEffect(() => {
-    if (authLoading || !user) return
+    if (authLoading) return // Still loading auth, wait
+    
+    if (!user) {
+      // User is not authenticated, redirect to LIFF login
+      console.log('User not authenticated, redirecting to LIFF login')
+      window.location.href = '/liff/login'
+      return
+    }
+    
     initializeScanner()
     return () => {
       cleanupScanner()
@@ -819,6 +827,16 @@ export default function BarcodeScanner() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 relative overflow-hidden">
       <canvas ref={canvasRef} className="hidden" />
+      
+      {/* Loading State */}
+      {authLoading && (
+        <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-500 border-t-transparent mx-auto mb-4"></div>
+            <p className="text-gray-600 font-medium">Initializing scanner...</p>
+          </div>
+        </div>
+      )}
       
       <div className="relative z-10 p-4 sm:p-6 space-y-6">
         {/* Header */}
