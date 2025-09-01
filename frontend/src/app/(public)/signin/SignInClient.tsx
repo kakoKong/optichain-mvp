@@ -4,87 +4,110 @@ import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import liff from '@line/liff'
 import SignInWithGoogle from '@/app/(public)/signin/SupabaseSignIn'
-import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 
+type Mode = 'loading' | 'web' | 'liff'
+
 export default function SignInPage() {
-  const [liffLoading, setLiffLoading] = useState(false)
+  const [mode, setMode] = useState<Mode>('loading')
   const [liffError, setLiffError] = useState<string | null>(null)
+  const [liffLoading, setLiffLoading] = useState(false)
   const router = useRouter()
 
-  const authenticateWithSupabase = async () => {
-    try {
-      setLiffLoading(true)
-      setLiffError(null)
+  // For testing: manually switch to LINE mode
+  const forceLiffMode = () => {
+    console.log('[SignInClient] Forcing LIFF mode for testing')
+    setMode('liff')
+  }
 
-      // Initialize LIFF and get the ID token
-      await liff.init({ liffId: process.env.NEXT_PUBLIC_LINE_LIFF_ID!, withLoginOnExternalBrowser: true })
-      const idToken = liff.getIDToken()
+  // For testing: manually switch to web mode
+  const forceWebMode = () => {
+    console.log('[SignInClient] Forcing web mode for testing')
+    setMode('web')
+  }
 
-      if (!idToken) {
-        throw new Error('No LINE ID token available after LIFF login.')
-      }
+  useEffect(() => {
+    let mounted = true
+    const decide = async () => {
+      if (typeof window === 'undefined') return
 
-      // Sign in to Supabase with the LIFF ID token
-      const { data, error } = await supabase.auth.signInWithIdToken({
-        provider: 'line',
-        token: idToken,
+      console.log('[SignInClient] Checking LINE context...')
+      console.log('[SignInClient] URL:', window.location.href)
+      console.log('[SignInClient] Referrer:', document.referrer)
+      console.log('[SignInClient] User Agent:', navigator.userAgent)
+
+      const params = new URLSearchParams(window.location.search)
+      const hasLiffState = params.has('liff.state')
+      const hasLiffReferrer = /liff\.line\.me/i.test(document.referrer)
+      const isInLineApp = /line/i.test(navigator.userAgent) || window.location.hostname.includes('liff.line.me')
+      
+      console.log('[SignInClient] LINE detection:', {
+        hasLiffState,
+        hasLiffReferrer,
+        isInLineApp,
+        liffId: process.env.NEXT_PUBLIC_LINE_LIFF_ID
       })
 
-      if (error) {
-        throw error
-      }
+      // More comprehensive LINE detection
+      const looksLikeLiff = hasLiffState || hasLiffReferrer || isInLineApp
 
-      if (data.session) {
-        console.log('[Auth] Supabase session created successfully.')
-        const redirectTo = sessionStorage.getItem('postLoginRedirect') || '/dashboard'
-        sessionStorage.removeItem('postLoginRedirect')
-        router.replace(redirectTo)
+      if (looksLikeLiff && process.env.NEXT_PUBLIC_LINE_LIFF_ID) {
+        console.log('[SignInClient] LINE context detected, initializing LIFF...')
+        try {
+          await liff.init({
+            liffId: process.env.NEXT_PUBLIC_LINE_LIFF_ID,
+            withLoginOnExternalBrowser: true,
+          })
+          
+          if (!mounted) return
+          
+          console.log('[SignInClient] LIFF initialized successfully')
+          
+          // Check if user is already logged in to LINE
+          if (liff.isLoggedIn()) {
+            console.log('[SignInClient] User already logged in to LINE, redirecting to dashboard...')
+            // User is already logged in, redirect to dashboard
+            router.replace('/dashboard')
+            return
+          }
+          
+          console.log('[SignInClient] Setting mode to LIFF')
+          setMode('liff')
+        } catch (error) {
+          console.error('[SignInClient] LIFF initialization failed:', error)
+          setLiffError('Failed to initialize LINE login')
+          setMode('web')
+        }
       } else {
-        throw new Error('No Supabase session returned.')
+        console.log('[SignInClient] No LINE context detected, setting mode to web')
+        setMode('web')
       }
-    } catch (error) {
-      console.error('[Auth] Supabase authentication failed with LIFF:', error)
-      setLiffError('Failed to authenticate with LINE. Please try again.')
-    } finally {
-      setLiffLoading(false)
     }
-  }
+    
+    decide()
+    return () => { mounted = false }
+  }, [router])
 
   const onLineClick = async () => {
     try {
       setLiffError(null)
       setLiffLoading(true)
-
-      // Initialize LIFF before attempting login or token check
-      await liff.init({ liffId: process.env.NEXT_PUBLIC_LINE_LIFF_ID!, withLoginOnExternalBrowser: true })
-
+      
       if (!liff.isLoggedIn()) {
-        // This will redirect the user to LINE login
-        liff.login({
-          redirectUri: window.location.origin + window.location.pathname // Redirects back to this same page
+        // This will redirect to LINE login
+        liff.login({ 
+          redirectUri: window.location.origin + '/dashboard'
         })
       } else {
-        // User is already logged in to LINE, proceed with Supabase auth
-        await authenticateWithSupabase()
+        // User is already logged in, redirect to dashboard
+        router.replace('/dashboard')
       }
     } catch (error) {
-      console.error('[Auth] LINE login failed:', error)
+      console.error('LINE login failed:', error)
       setLiffError('Failed to start LINE login. Please try again.')
       setLiffLoading(false)
     }
-  }
-
-  // Handle the callback after a LIFF login redirect
-  useEffect(() => {
-    const handleLiffCallback = async () => {
-      if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('liff.state')) {
-        console.log('[Auth] Detected LIFF callback, attempting authentication...')
-        await authenticateWithSupabase()
-      }
-    }
-    handleLiffCallback()
-  }, [])
+  };
 
   return (
     <div
@@ -122,34 +145,68 @@ export default function SignInPage() {
           </div>
 
           {/* sign-in area */}
-          <div className="space-y-4">
-            {liffError && (
-              <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg">
-                {liffError}
-              </div>
-            )}
-            <div className="transform transition-all duration-200 hover:scale-[1.02] hover:shadow-lg">
-              <SignInWithGoogle />
+          {mode === 'loading' && (
+            <div className="grid place-items-center py-4">
+              <div className="animate-spin h-8 w-8 rounded-full border-4 border-gray-300 border-t-transparent" />
             </div>
-            <div className="text-center text-sm font-medium text-gray-400">or</div>
-            <button
-              type="button"
-              onClick={onLineClick}
-              disabled={liffLoading}
-              className="w-full flex items-center justify-center gap-2 rounded-lg px-4 py-3 hover:opacity-90 transition-colors min-h-[44px] text-white disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ background: 'linear-gradient(90deg, #22c55e, #16a34a)' }}
-              aria-label="Continue with LINE"
-            >
-              {liffLoading ? (
-                <>
-                  <div className="animate-spin h-4 w-4 rounded-full border-2 border-white border-t-transparent" />
-                  Authenticating...
-                </>
-              ) : (
-                'Continue with LINE'
+          )}
+
+          {/* Debug mode switcher (only in development) */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-sm text-yellow-800 mb-2">🔧 Debug Mode Switcher</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={forceWebMode}
+                  className="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600"
+                >
+                  Force Web Mode
+                </button>
+                <button
+                  onClick={forceLiffMode}
+                  className="px-3 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600"
+                >
+                  Force LINE Mode
+                </button>
+              </div>
+              <p className="text-xs text-yellow-600 mt-1">Current mode: {mode}</p>
+            </div>
+          )}
+
+          {mode === 'web' && (
+            <div className="space-y-4">
+              <div className="transform transition-all duration-200 hover:scale-[1.02] hover:shadow-lg">
+                <SignInWithGoogle />
+              </div>
+            </div>
+          )}
+
+          {mode === 'liff' && (
+            <div className="space-y-4">
+              {liffError && (
+                <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg">
+                  {liffError}
+                </div>
               )}
-            </button>
-          </div>
+              <button
+                type="button"
+                onClick={onLineClick}
+                disabled={liffLoading}
+                className="w-full flex items-center justify-center gap-2 rounded-lg px-4 py-3 hover:opacity-90 transition-colors min-h-[44px] text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ background: 'linear-gradient(90deg, #22c55e, #16a34a)' }}
+                aria-label="Continue with LINE"
+              >
+                {liffLoading ? (
+                  <>
+                    <div className="animate-spin h-4 w-4 rounded-full border-2 border-white border-t-transparent" />
+                    Authenticating...
+                  </>
+                ) : (
+                  'Continue with LINE'
+                )}
+              </button>
+            </div>
+          )}
 
           {/* features (optional, keep as-is) */}
           <div className="mt-8 pt-6 border-t border-gray-200">
