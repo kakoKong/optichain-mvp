@@ -1,32 +1,27 @@
-import './globals.css'
-import { ThemeProvider } from 'next-themes'
 import type { Metadata } from 'next'
+import { Inter } from 'next/font/google'
+import './globals.css'
+import { AuthProvider } from '@/contexts/AuthContext'
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+const inter = Inter({ subsets: ['latin'] })
+
+export const metadata: Metadata = {
+  title: 'OptiChain - Smart Inventory Copilot',
+  description: 'Streamline your inventory management with AI-powered insights',
+}
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
   return (
-    <html suppressHydrationWarning>
-      <body>
-        <ThemeProvider
-          attribute="data-theme"     // will set data-theme="light|gray|dark" on <html>
-          defaultTheme="gray"
-          enableSystem={false}
-          themes={['light','gray','dark']}
-        >
+    <html lang="en">
+      <body className={inter.className}>
+        <AuthProvider>
           {children}
-        </ThemeProvider>
+        </AuthProvider>
       </body>
     </html>
   )
-}
-
-export const metadata: Metadata = {
-  title: {
-    default: 'OptiChain',
-    template: '%s | OptiChain',
-  },
-  icons: {
-    icon: '/OptichainLogo2.png',
-
-  },
-  description: 'Your Smart Inventory Copilot',
 }

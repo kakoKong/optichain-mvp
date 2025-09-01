@@ -1,7 +1,10 @@
-// @/lib/userhelper.ts
+// This function is now deprecated in favor of the AuthContext
+// Use useAuth() hook in your components instead
 import { supabase } from './supabase'
 
 export async function resolveOwnerId(): Promise<string | null> {
+  console.warn('[userhelper] resolveOwnerId is deprecated. Use useAuth() hook instead.')
+  
   try {
     // First, check if we have a stored LINE user
     if (typeof window !== 'undefined') {
@@ -37,4 +40,21 @@ export async function resolveOwnerId(): Promise<string | null> {
     console.error('[userhelper] Unexpected error in resolveOwnerId:', error)
     return null
   }
+}
+
+// New recommended way to get the current user ID
+export function getCurrentUserId(): string | null {
+  if (typeof window === 'undefined') return null
+  
+  try {
+    const storedLineUser = localStorage.getItem('lineUser')
+    if (storedLineUser) {
+      const lineUser = JSON.parse(storedLineUser)
+      return lineUser.id
+    }
+  } catch (error) {
+    console.error('[userhelper] Error getting current user ID:', error)
+  }
+  
+  return null
 }

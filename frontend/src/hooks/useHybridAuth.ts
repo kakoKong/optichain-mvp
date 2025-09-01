@@ -52,16 +52,15 @@ export function useHybridAuth() {
             const hasLiffReferrer = /liff\.line\.me/i.test(document.referrer)
             const isInLineApp = /line/i.test(navigator.userAgent) || window.location.hostname.includes('liff.line.me')
             
-            // Also check if we're on a LIFF route (like /liff/scanner, /liff/products, etc.)
-            const isLiffRoute = window.location.pathname.startsWith('/liff')
+            // Remove the isLiffRoute check as it incorrectly forces LINE auth for all /liff routes
+            // const isLiffRoute = window.location.pathname.startsWith('/liff')
             
-            const looksLikeLiff = hasLiffState || hasLiffReferrer || isInLineApp || isLiffRoute
+            const looksLikeLiff = hasLiffState || hasLiffReferrer || isInLineApp
             
             console.log('[useHybridAuth] LINE context check:', {
                 hasLiffState,
                 hasLiffReferrer,
                 isInLineApp,
-                isLiffRoute,
                 pathname: window.location.pathname,
                 looksLikeLiff,
                 liffId: process.env.NEXT_PUBLIC_LINE_LIFF_ID

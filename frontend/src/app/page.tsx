@@ -3,18 +3,18 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useHybridAuth } from '@/hooks/useHybridAuth'
+import { useAuth } from '@/contexts/AuthContext'
 
 export const dynamic = 'force-dynamic'
 
 export default function Home() {
-  const { user, loading } = useHybridAuth()
+  const { user, loading } = useAuth()
   const router = useRouter()
   const [redirecting, setRedirecting] = useState(false)
 
   useEffect(() => {
     if (loading) return
-    
+
     if (!redirecting) {
       setRedirecting(true)
       const target = user ? '/dashboard' : '/signin'
@@ -23,7 +23,6 @@ export default function Home() {
     }
   }, [loading, user, router, redirecting])
 
-  // Show loading state while checking authentication
   if (loading || redirecting) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -38,7 +37,6 @@ export default function Home() {
     )
   }
 
-  // This should never be reached, but just in case
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="text-center">

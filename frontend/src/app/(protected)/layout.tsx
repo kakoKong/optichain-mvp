@@ -3,10 +3,10 @@
 
 import { ReactNode } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { useHybridAuth } from '@/hooks/useHybridAuth'
+import { useAuth } from '@/contexts/AuthContext'
 
 export default function ProtectedLayout({ children }: { children: ReactNode }) {
-  const { user, loading, authSource } = useHybridAuth()
+  const { user, loading, authSource } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
 
