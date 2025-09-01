@@ -1,60 +1,36 @@
 'use client'
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   ScanLineIcon, CameraIcon, KeyboardIcon, CheckCircleIcon, XCircleIcon, PackageIcon,
   TrendingUpIcon, TrendingDownIcon, SettingsIcon, ArrowLeftIcon
 } from 'lucide-react'
 
-// ---- Load jsQR via CDN (QR-only fallback) ----
-const loadJsQR = () => {
-  return new Promise<any>((resolve, reject) => {
-    if ((window as any).jsQR) return resolve((window as any).jsQR)
-    const script = document.createElement('script')
-    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jsqr/1.4.0/jsQR.min.js'
-    script.onload = () => resolve((window as any).jsQR)
-    script.onerror = reject
-    document.head.appendChild(script)
-  })
-}
-
-// ---- Mock data (unchanged) ----
+// --- mock data (unchanged) ---
 const mockProducts = [
   { id: 1, name: 'Sample Product A', barcode: '1234567890123', cost_price: 10.5, selling_price: 15, inventory: [{ current_stock: 25, min_stock_level: 5 }] },
   { id: 2, name: 'Sample Product B', barcode: '9876543210987', cost_price: 8.25, selling_price: 12, inventory: [{ current_stock: 12, min_stock_level: 3 }] },
 ]
 
-// Type helpers
 declare global {
   interface Window {
-    liff?: any
+    liff: any
     BarcodeDetector?: any
-    jsQR?: any
   }
-}
-
-type ZXingReader = {
-  decodeFromVideoDevice: (
-    deviceId: string | null,
-    video: HTMLVideoElement,
-    cb: (result: any, err: any, controls: { stop: () => void }) => void
-  ) => { stop: () => void }
 }
 
 export default function BarcodeScanner() {
   const [scanning, setScanning] = useState(false)
   const [product, setProduct] = useState<any>(null)
   const [quantity, setQuantity] = useState(1)
-  const [transactionType, setTransactionType] = useState<'stock_in' | 'stock_out' | 'adjustment'>('stock_in')
-  const [business] = useState({ id: 1, name: 'Demo Business' }) // mock business
+  const [transactionType, setTransactionType] = useState<'stock_in'|'stock_out'|'adjustment'>('stock_in')
+  const [business] = useState({ id: 1, name: 'Demo Business' }) // mock
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [recentScans, setRecentScans] = useState<any[]>([])
   const [scanResult, setScanResult] = useState('')
-  const [jsQRLib, setJsQRLib] = useState<any>(null)
-  const [method, setMethod] = useState<'none' | 'native' | 'zxing' | 'jsqr'>('none')
+  const [method, setMethod] = useState<'none'|'native'|'zxing'>('none')
   const [cameraError, setCameraError] = useState('')
 
-  // refs
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
@@ -62,26 +38,20 @@ export default function BarcodeScanner() {
   const zxingStopRef = useRef<null | (() => void)>(null)
   const foundOnceRef = useRef(false)
 
-  // Load jsQR once
-  useEffect(() => {
-    loadJsQR().then(setJsQRLib).catch(console.error)
-  }, [])
-
-  // Seed one recent scan (demo)
+  // demo: seed a recent scan
   useEffect(() => {
     setRecentScans([
-      { barcode: '1234567890123', productName: 'Sample Product A', action: 'stock_in', quantity: 5, scannedAt: new Date(Date.now() - 300000).toISOString() },
+      { barcode: '1234567890123', productName: 'Sample Product A', action: 'stock_in', quantity: 5, scannedAt: new Date(Date.now()-300000).toISOString() },
     ])
     return () => stopAll()
   }, [])
 
-  // -------- Recent scans helpers --------
   const saveToRecentScans = (scanData: any) => {
     const newScan = { ...scanData, scannedAt: new Date().toISOString() }
-    setRecentScans(prev => [newScan, ...prev.slice(0, 4)])
+    setRecentScans(prev => [newScan, ...prev.slice(0,4)])
   }
 
-  // -------- Camera start/stop --------
+  // ---------- camera ----------
   const startCamera = async () => {
     setCameraError('')
     foundOnceRef.current = false
@@ -89,7 +59,7 @@ export default function BarcodeScanner() {
       stopAll()
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: false,
+        audio: false
       })
       streamRef.current = stream
       const v = videoRef.current
@@ -101,19 +71,13 @@ export default function BarcodeScanner() {
       }
       setScanning(true)
 
-      // Try Native → ZXing → jsQR
       if (window.BarcodeDetector) {
         startNativeLoop()
       } else {
-        try {
-          await startZXing()
-        } catch {
-          if (jsQRLib) startJsQRLoop()
-          else setCameraError('Scanner not supported. Try Manual Entry.')
-        }
+        await startZXing()
       }
     } catch (e) {
-      console.error('getUserMedia error:', e)
+      console.error(e)
       setCameraError('Camera access denied or unavailable.')
       stopAll()
     }
@@ -132,130 +96,105 @@ export default function BarcodeScanner() {
     setScanning(false)
   }
 
-  // -------- Decoders --------
-  // 1) Native BarcodeDetector
+  // ---------- decoders (barcode only) ----------
+  // 1) Native BarcodeDetector with only 1D formats
   const startNativeLoop = () => {
     try {
       const formats = [
-        'qr_code', 'ean_13', 'ean_8', 'upc_a', 'upc_e',
-        'code_128', 'code_93', 'code_39', 'itf',
-        'data_matrix', 'pdf417', 'aztec'
-      ]
+        'ean_13','ean_8','upc_a','upc_e',
+        'code_128','code_93','code_39','itf'
+      ] // no QR here
       const detector = new (window as any).BarcodeDetector({ formats })
       setMethod('native')
 
       let last = 0
       const loop = async (ts: number) => {
         if (!scanning || !videoRef.current) return
-        // throttle ~10 fps
-        if (ts - last < 100) { rafRef.current = requestAnimationFrame(loop); return }
+        if (ts - last < 100) { rafRef.current = requestAnimationFrame(loop); return } // ~10fps
         last = ts
-
         try {
-          const results = await detector.detect(videoRef.current)
-          if (results?.length && !foundOnceRef.current) {
-            const value = results[0]?.rawValue || results[0]?.rawValueText || ''
-            if (value) {
-              foundOnceRef.current = true
-              stopAll()
-              await handleBarcodeResult(value)
-              return
+          // draw to canvas -> detect on ImageBitmap (reliable across UA)
+          const v = videoRef.current
+          const w = v.videoWidth, h = v.videoHeight
+          if (w && h) {
+            const c = canvasRef.current!
+            if (c.width !== w) { c.width = w; c.height = h }
+            const ctx = c.getContext('2d')!
+            ctx.drawImage(v, 0, 0, w, h)
+            const bmp = await createImageBitmap(c)
+            const results = await detector.detect(bmp)
+            if (results?.length && !foundOnceRef.current) {
+              const value = results[0]?.rawValue || ''
+              if (value) {
+                foundOnceRef.current = true
+                stopAll()
+                await handleBarcodeResult(value)
+                return
+              }
             }
           }
-        } catch (e) {
-          console.warn('Native detect fail → ZXing', e)
-          try {
-            await startZXing()
-          } catch {
-            if (jsQRLib) startJsQRLoop()
-          }
+        } catch (err) {
+          console.warn('Native failed → ZXing', err)
+          startZXing().catch(() => setCameraError('Scanner not supported. Use Manual Entry.'))
           return
         }
         rafRef.current = requestAnimationFrame(loop)
       }
       rafRef.current = requestAnimationFrame(loop)
-    } catch (e) {
-      console.warn('BarcodeDetector not usable → ZXing', e)
-      startZXing().catch(() => jsQRLib && startJsQRLoop())
+    } catch (err) {
+      console.warn('BarcodeDetector not usable → ZXing', err)
+      startZXing().catch(() => setCameraError('Scanner not supported. Use Manual Entry.'))
     }
   }
 
-  // 2) ZXing fallback (1D/2D)
+  // 2) ZXing fallback; ignore QR_CODE results
   const startZXing = async () => {
     setMethod('zxing')
-    const { BrowserMultiFormatReader }: { BrowserMultiFormatReader: new () => ZXingReader } =
-      await import('@zxing/browser')
+    const { BrowserMultiFormatReader } = await import('@zxing/browser')
+    // (We’ll filter QR below; hints optional)
     if (!videoRef.current) throw new Error('no video')
     const reader = new BrowserMultiFormatReader()
-    const controls = reader.decodeFromVideoDevice(null, videoRef.current, async (result, err, _controls) => {
-      if (result?.getText && !foundOnceRef.current) {
-        foundOnceRef.current = true
-        const value = result.getText()
-        _controls.stop()
-        zxingStopRef.current = null
-        stopAll()
-        await handleBarcodeResult(value)
-      }
-    })
-    zxingStopRef.current = () => controls.stop()
-  }
-
-  // 3) jsQR fallback (QR only)
-  const startJsQRLoop = () => {
-    if (!canvasRef.current || !videoRef.current || !jsQRLib) return
-    setMethod('jsqr')
-    const video = videoRef.current
-    const canvas = canvasRef.current
-    const ctx = canvas.getContext('2d')!
-
-    let last = 0
-    const loop = (ts: number) => {
-      if (!scanning) return
-      if (ts - last < 100) { rafRef.current = requestAnimationFrame(loop); return }
-      last = ts
-
-      if (video.videoWidth && video.videoHeight) {
-        canvas.width = video.videoWidth
-        canvas.height = video.videoHeight
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
-        const img = ctx.getImageData(0, 0, canvas.width, canvas.height)
-        const qr = jsQRLib(img.data, img.width, img.height)
-        if (qr?.data && !foundOnceRef.current) {
+    const controls = reader.decodeFromVideoDevice(undefined, videoRef.current, async (result, err, _controls) => {
+      // ZXing calls back on every decode; keep running unless we accept a result
+      if (result && !foundOnceRef.current) {
+        const fmt = (result as any).getBarcodeFormat?.()
+        // If library returns QR_CODE, ignore it to stay "barcode-only"
+        if (fmt && String(fmt).toUpperCase().includes('QR')) return
+        const value = (result as any).getText?.() || ''
+        if (value) {
           foundOnceRef.current = true
+          _controls.stop()
+          zxingStopRef.current = null
           stopAll()
-          handleBarcodeResult(qr.data)
-          return
+          await handleBarcodeResult(value)
         }
       }
-      rafRef.current = requestAnimationFrame(loop)
-    }
-    rafRef.current = requestAnimationFrame(loop)
+    })
+    zxingStopRef.current = async () => (await controls).stop()
   }
 
-  // -------- LIFF scanner (optional, unchanged) --------
+  // ---------- LIFF (optional) ----------
   const scanWithLiffScanner = async () => {
     setLoading(true)
     try {
       if (window?.liff?.scanCode) {
         const result = await window.liff.scanCode()
+        // If LIFF returns a QR string, you can decide to ignore;
+        // here we accept whatever comes from LIFF (or add your own filter).
         await handleBarcodeResult(result.value)
       } else {
-        fallbackToManualEntry()
+        const barcode = prompt('Enter barcode manually:')
+        if (barcode?.trim()) handleBarcodeResult(barcode.trim())
       }
     } catch (e) {
-      console.error('LIFF scanner error:', e)
-      fallbackToManualEntry()
+      const barcode = prompt('Enter barcode manually:')
+      if (barcode?.trim()) handleBarcodeResult(barcode.trim())
     } finally {
       setLoading(false)
     }
   }
 
-  const fallbackToManualEntry = () => {
-    const barcode = prompt('Enter barcode manually:')
-    if (barcode?.trim()) handleBarcodeResult(barcode.trim())
-  }
-
-  // -------- Business logic (mocked) --------
+  // ---------- business logic (mock) ----------
   const handleBarcodeResult = async (barcode: string) => {
     if (!business) return
     setLoading(true)
@@ -269,8 +208,6 @@ export default function BarcodeScanner() {
         const name = prompt(`Product ${barcode} not found. Enter name to create:`)
         if (name?.trim()) await createNewProduct(barcode, name.trim())
       }
-    } catch (e) {
-      alert('Lookup failed. Try again.')
     } finally {
       setLoading(false)
     }
@@ -293,7 +230,7 @@ export default function BarcodeScanner() {
     if (!product || !business) return
     setLoading(true)
     try {
-      await new Promise(r => setTimeout(r, 800)) // mock
+      await new Promise(r => setTimeout(r, 700)) // mock
       setSuccess(true)
       saveToRecentScans({ barcode: product.barcode, productName: product.name, action: transactionType, quantity })
       setTimeout(() => { setProduct(null); setQuantity(1); setSuccess(false); setScanResult('') }, 1500)
@@ -302,14 +239,14 @@ export default function BarcodeScanner() {
     }
   }
 
-  // -------- UI --------
+  // ---------- UI ----------
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 relative overflow-hidden">
-      {/* Hidden canvas (native/jsQR paths) */}
+      {/* hidden canvas for native path */}
       <canvas ref={canvasRef} className="hidden" />
 
       <div className="relative z-10 p-4 sm:p-6 space-y-6 sm:space-y-8">
-        {/* Header */}
+        {/* header */}
         <div className="bg-white/80 backdrop-blur-lg rounded-2xl border border-white/20 shadow-xl overflow-hidden">
           <div className="bg-gradient-to-r from-blue-500 to-indigo-600 h-1" />
           <div className="p-4 sm:p-6 flex items-start sm:items-center justify-between gap-4">
@@ -319,19 +256,19 @@ export default function BarcodeScanner() {
               </button>
               <div>
                 <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">Smart Scanner</h1>
-                <p className="mt-1 text-sm sm:text-base text-gray-600">Scan to update inventory instantly</p>
+                <p className="mt-1 text-sm sm:text-base text-gray-600">Barcode-only, in-page camera</p>
               </div>
             </div>
             <ScanLineIcon className="h-10 w-10 text-blue-500" />
           </div>
         </div>
 
-        {/* Scan result banner */}
+        {/* banner */}
         {scanResult && (
           <div className="bg-white/80 backdrop-blur-lg rounded-2xl border border-green-200 p-4 sm:p-6 flex items-center gap-4">
             <CheckCircleIcon className="h-8 w-8 text-green-500" />
             <div>
-              <h3 className="font-semibold text-gray-900">Code Detected!</h3>
+              <h3 className="font-semibold text-gray-900">Barcode Detected</h3>
               <p className="text-sm text-gray-600">Scanned: {scanResult} {method !== 'none' && <em className="ml-2 text-xs text-gray-500">via {method}</em>}</p>
             </div>
           </div>
@@ -349,11 +286,11 @@ export default function BarcodeScanner() {
 
         {!product ? (
           <div className="space-y-6">
-            {/* Scanner card */}
+            {/* scanner card */}
             <div className="bg-white/80 backdrop-blur-lg rounded-2xl border border-white/20 shadow-sm">
               <div className="px-4 py-4 sm:px-6 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900">Choose Scanning Method</h2>
-                <p className="text-sm text-gray-600">All options stay inside this page</p>
+                <h2 className="text-lg font-semibold text-gray-900">Scan a Barcode</h2>
+                <p className="text-sm text-gray-600">Stays inside this page</p>
               </div>
 
               <div className="p-4 sm:p-6 space-y-4">
@@ -366,26 +303,19 @@ export default function BarcodeScanner() {
                       muted
                       className="w-full h-80 rounded-2xl object-cover bg-gray-900"
                     />
-                    {/* Overlay */}
+                    {/* overlay */}
                     <div className="absolute inset-0 border-4 border-white/30 rounded-2xl pointer-events-none">
                       <div className="absolute inset-0 grid place-items-center">
-                        <div className="w-48 h-32 border-4 border-blue-500 rounded-lg bg-blue-500/10" />
+                        <div className="w-64 h-28 border-4 border-blue-500 rounded bg-blue-500/10" />
                       </div>
                     </div>
 
                     <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-3">
-                      <button onClick={stopAll} className="px-6 py-3 rounded-xl font-medium shadow-lg bg-red-500 hover:bg-red-600 text-white">
-                        Stop Camera {method !== 'none' ? `(${method})` : ''}
-                      </button>
                       <button
-                        onClick={() => {
-                          const test = prompt('Enter test barcode:') || '1234567890123'
-                          handleBarcodeResult(test)
-                          stopAll()
-                        }}
-                        className="px-6 py-3 rounded-xl font-medium shadow-lg bg-green-500 hover:bg-green-600 text-white"
+                        onClick={stopAll}
+                        className="px-6 py-3 rounded-xl font-medium shadow-lg bg-red-500 hover:bg-red-600 text-white"
                       >
-                        Test Scan
+                        Stop Camera {method !== 'none' ? `(${method})` : ''}
                       </button>
                     </div>
 
@@ -398,25 +328,13 @@ export default function BarcodeScanner() {
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <button
-                      onClick={scanWithLiffScanner}
-                      disabled={loading}
-                      className="flex items-center gap-4 p-4 rounded-xl font-medium shadow-md transform hover:scale-[1.02] hover:shadow-lg disabled:opacity-50 bg-gradient-to-r from-indigo-500 to-blue-600 text-white"
-                    >
-                      {loading ? <div className="animate-spin rounded-full h-6 w-6 border-2 border-white border-t-transparent" /> : <ScanLineIcon className="h-6 w-6" />}
-                      <div className="text-left">
-                        <div className="font-semibold text-lg">LINE Scanner</div>
-                        <div className="text-indigo-200 text-sm">Use LINE’s built-in camera</div>
-                      </div>
-                    </button>
-
-                    <button
                       onClick={startCamera}
                       className="flex items-center gap-4 p-4 rounded-xl font-medium shadow-md transform hover:scale-[1.02] hover:shadow-lg bg-gradient-to-r from-gray-600 to-gray-700 text-white"
                     >
                       <CameraIcon className="h-6 w-6" />
                       <div className="text-left">
                         <div className="font-semibold text-lg">Camera Scanner</div>
-                        <div className="text-gray-200 text-sm">Live decoding in-page</div>
+                        <div className="text-gray-200 text-sm">Live barcode decoding</div>
                       </div>
                     </button>
 
@@ -433,20 +351,41 @@ export default function BarcodeScanner() {
                         <div className="text-green-100 text-sm">Type barcode number</div>
                       </div>
                     </button>
+
+                    <button
+                      onClick={async () => {
+                        // optional: LIFF scanner if available (you can remove this button entirely)
+                        try {
+                          if (window?.liff?.scanCode) {
+                            const res = await window.liff.scanCode()
+                            await handleBarcodeResult(res.value)
+                          } else {
+                            alert('LIFF scanner not available.')
+                          }
+                        } catch {}
+                      }}
+                      className="flex items-center gap-4 p-4 rounded-xl font-medium shadow-md transform hover:scale-[1.02] hover:shadow-lg bg-gradient-to-r from-indigo-500 to-blue-600 text-white"
+                    >
+                      <ScanLineIcon className="h-6 w-6" />
+                      <div className="text-left">
+                        <div className="font-semibold text-lg">LINE Scanner (Optional)</div>
+                        <div className="text-indigo-200 text-sm">Use LINE’s built-in camera</div>
+                      </div>
+                    </button>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Recent Scans */}
+            {/* recent scans */}
             {recentScans.length > 0 && (
               <div className="bg-white/80 backdrop-blur-lg rounded-2xl border border-white/20 shadow-sm">
                 <div className="px-4 py-4 sm:px-6 border-b border-gray-200">
                   <h3 className="text-lg font-semibold text-gray-900">Recent Scans</h3>
                 </div>
                 <div className="divide-y divide-gray-200">
-                  {recentScans.map((scan, i) => (
-                    <div key={i} className="px-4 py-4 sm:px-6 flex items-center justify-between">
+                  {recentScans.map((scan, index) => (
+                    <div key={index} className="px-4 py-4 sm:px-6 flex items-center justify-between">
                       <div className="flex items-center gap-4">
                         <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
                           scan.action === 'created' ? 'bg-blue-100 text-blue-600' :
@@ -471,7 +410,7 @@ export default function BarcodeScanner() {
             )}
           </div>
         ) : (
-          // Record Transaction
+          // record transaction
           <div className="bg-white/80 backdrop-blur-lg rounded-2xl border border-white/20 shadow-sm">
             <div className="px-4 py-4 sm:px-6 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900">Record Transaction</h2>
@@ -495,7 +434,6 @@ export default function BarcodeScanner() {
                 </div>
               </div>
 
-              {/* Type */}
               <div>
                 <label className="block text-sm font-semibold mb-3 text-gray-900">Transaction Type</label>
                 <div className="grid grid-cols-3 gap-3">
@@ -520,11 +458,10 @@ export default function BarcodeScanner() {
                 </div>
               </div>
 
-              {/* Qty */}
               <div>
                 <label className="block text-sm font-semibold mb-3 text-gray-900">Quantity</label>
                 <div className="flex items-center gap-3">
-                  <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-12 h-12 rounded-xl font-bold transition-colors bg-gray-200 hover:bg-gray-300 text-gray-700">-</button>
+                  <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-12 h-12 rounded-xl font-bold bg-gray-200 hover:bg-gray-300 text-gray-700">-</button>
                   <input
                     type="number"
                     value={quantity}
@@ -532,11 +469,10 @@ export default function BarcodeScanner() {
                     min={1}
                     className="flex-1 text-center text-2xl font-bold rounded-xl py-3 px-4 bg-white border-2 border-gray-200 focus:border-blue-500 focus:outline-none text-gray-900"
                   />
-                  <button onClick={() => setQuantity(quantity + 1)} className="w-12 h-12 rounded-xl font-bold transition-colors bg-gray-200 hover:bg-gray-300 text-gray-700">+</button>
+                  <button onClick={() => setQuantity(quantity + 1)} className="w-12 h-12 rounded-xl font-bold bg-gray-200 hover:bg-gray-300 text-gray-700">+</button>
                 </div>
               </div>
 
-              {/* Actions */}
               <div className="flex flex-col sm:flex-row gap-4 pt-4">
                 <button
                   onClick={recordTransaction}
@@ -546,7 +482,7 @@ export default function BarcodeScanner() {
                   {loading ? <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" /> : <CheckCircleIcon className="h-5 w-5" />}
                   Record Transaction
                 </button>
-                <button onClick={() => { setProduct(null); setScanResult('') }} className="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-4 px-6 rounded-xl font-semibold transition-colors flex items-center justify-center gap-2">
+                <button onClick={() => { setProduct(null); setScanResult('') }} className="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-4 px-6 rounded-xl font-semibold flex items-center justify-center gap-2">
                   <XCircleIcon className="h-5 w-5" /> Cancel
                 </button>
               </div>
@@ -554,14 +490,14 @@ export default function BarcodeScanner() {
           </div>
         )}
 
-        {/* Tips */}
+        {/* notes */}
         <div className="bg-white/60 backdrop-blur-lg rounded-2xl border border-white/20 p-4 sm:p-6">
           <h3 className="font-semibold text-gray-900 mb-3">Notes</h3>
           <div className="space-y-2 text-sm text-gray-600">
-            <p>• Runs **in-page** using your device camera.</p>
-            <p>• Tries Native → ZXing → jsQR automatically.</p>
-            <p>• HTTPS required on real devices (localhost is fine for dev).</p>
-            <p>• iOS: `playsInline` + `muted` prevents auto-fullscreen.</p>
+            <p>• **Barcode-only**: EAN-13/8, UPC-A/E, Code128/39/93, ITF.</p>
+            <p>• Uses Native `BarcodeDetector` when available; otherwise **ZXing**.</p>
+            <p>• HTTPS required on real devices (localhost is okay for dev).</p>
+            <p>• iOS: `playsInline` + `muted` prevents auto-fullscreen camera.</p>
           </div>
           {cameraError && <div className="mt-3 text-xs text-red-600 bg-red-50 rounded-lg p-2">{cameraError}</div>}
         </div>
