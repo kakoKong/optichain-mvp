@@ -93,7 +93,9 @@ export default function BarcodeScanner() {
   // Initialize component
   useEffect(() => {
     initializeScanner()
-    return () => cleanupScanner()
+    return () => {
+      cleanupScanner()
+    }
   }, [])
 
   const initializeScanner = async () => {
@@ -185,7 +187,7 @@ export default function BarcodeScanner() {
       setScanning(true)
       
       // Try native scanner first, fallback to ZXing, then Quagga
-      if (window.BarcodeDetector) {
+      if ((window as any).BarcodeDetector) {
         await startNativeScanner()
       } else {
         await startZXingScanner()
@@ -636,7 +638,7 @@ export default function BarcodeScanner() {
             method={scanMethod}
             error={cameraError}
           />
-        ) : (
+        ) : product && (
           <TransactionForm 
             product={product}
             form={transactionForm}
@@ -784,7 +786,7 @@ function CameraView({
   method, 
   error 
 }: {
-  videoRef: React.RefObject<HTMLVideoElement>
+  videoRef: React.RefObject<HTMLVideoElement | null>
   onStop: () => void
   method: string
   error: string
