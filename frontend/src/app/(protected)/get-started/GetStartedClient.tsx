@@ -45,8 +45,13 @@ export default function GetStartedClient() {
             }
 
             try {
+                // For dev users: use the databaseUid directly
+                if (user.source === 'dev' && user.databaseUid) {
+                    console.log('[GetStartedClient] Dev user detected, using databaseUid:', user.databaseUid)
+                    setAppUserId(user.databaseUid)
+                }
                 // For LINE: map to app user (public.users.id) by line_user_id
-                if (user.source === 'line') {
+                else if (user.source === 'line') {
                     const { data } = await supabase
                         .from('profiles')
                         .select('id')

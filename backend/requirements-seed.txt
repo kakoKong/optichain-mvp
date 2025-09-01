@@ -1,0 +1,3 @@
+# Requirements for database seeding script
+supabase==2.3.4
+python-dotenv==1.0.0

@@ -81,6 +81,8 @@ export default function BarcodeScanner() {
     successfulScans: 0,
     failedScans: 0
   })
+  const [debugMode, setDebugMode] = useState(false)
+  const [videoKey, setVideoKey] = useState(0)
 
   // Refs for camera and scanning
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -100,21 +102,41 @@ export default function BarcodeScanner() {
     }
   }, [authLoading, user])
 
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      cleanupScanner()
+    }
+  }, [])
+
   // Helper function to resolve app-level user ID
-  const resolveAppUserId = async (u: { id: string; source: 'line' }) => {
+  const resolveAppUserId = async (u: { id: string; source: 'line' | 'dev'; databaseUid?: string }) => {
+    // For dev users: use the databaseUid directly
+    if (u.source === 'dev' && u.databaseUid) {
+      console.log('[resolveAppUserId] Dev user detected, using databaseUid:', u.databaseUid)
+      return u.databaseUid
+    }
+
     // For LINE: map liff profile id to your app user (public.users.id)
     // NOTE: this expects `public.users.line_user_id` to exist.
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('line_user_id', u.id)
-      .single()
+    if (u.source === 'line') {
+      console.log('[resolveAppUserId] LINE user detected, mapping from line_user_id:', u.id)
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('line_user_id', u.id)
+        .single()
 
-    if (error) {
-      console.warn('Could not map LINE user to app user:', error)
-      return null
+      if (error) {
+        console.warn('Could not map LINE user to app user:', error)
+        return null
+      }
+      return data?.id ?? null
     }
-    return data?.id ?? null
+
+    console.warn('[resolveAppUserId] Unknown user source:', u.source)
+    return null
   }
 
   // Helper function to fetch business for user (same as dashboard)
@@ -222,7 +244,12 @@ export default function BarcodeScanner() {
     foundBarcodeRef.current = null
 
     try {
+      // Ensure complete cleanup before starting
+      console.log('Starting camera initialization...')
       await cleanupScanner()
+      
+      // Additional wait to ensure cleanup is complete
+      await new Promise(resolve => setTimeout(resolve, 100))
 
       const stream = await navigator.mediaDevices.getUserMedia({
         video: SCANNER_CONFIG.camera,
@@ -235,7 +262,21 @@ export default function BarcodeScanner() {
         videoRef.current.srcObject = stream
         videoRef.current.setAttribute('playsinline', 'true')
         videoRef.current.muted = true
-        await videoRef.current.play()
+        
+        // Wait for video to be ready
+        await new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => reject(new Error('Video load timeout')), 5000)
+          
+          const onLoadedMetadata = () => {
+            clearTimeout(timeout)
+            videoRef.current?.removeEventListener('loadedmetadata', onLoadedMetadata)
+            resolve(true)
+          }
+          
+          videoRef.current?.addEventListener('loadedmetadata', onLoadedMetadata)
+          
+          videoRef.current?.play().catch(reject)
+        })
       }
 
       setScanning(true)
@@ -254,45 +295,80 @@ export default function BarcodeScanner() {
   }
 
   const cleanupScanner = async () => {
+    console.log('Cleaning up scanner...')
+    // Clear any active scan intervals
     if (scanIntervalRef.current) {
       clearInterval(scanIntervalRef.current)
       scanIntervalRef.current = null
     }
 
+    // Stop and cleanup ZXing scanner
     if (zxingReaderRef.current) {
       try {
-        zxingReaderRef.current.stop()
+        if (typeof zxingReaderRef.current.stop === 'function') {
+          zxingReaderRef.current.stop()
+        }
         zxingReaderRef.current = null
       } catch (error) {
         console.warn('ZXing cleanup error:', error)
       }
     }
 
+    // Stop and cleanup Quagga scanner
     if (quaggaRef.current) {
       try {
-        quaggaRef.current.stop()
+        if (typeof quaggaRef.current.stop === 'function') {
+          quaggaRef.current.stop()
+        }
         quaggaRef.current = null
       } catch (error) {
         console.warn('Quagga cleanup error:', error)
       }
     }
 
+    // Stop all media tracks
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop())
+      streamRef.current.getTracks().forEach(track => {
+        track.stop()
+        track.enabled = false
+      })
       streamRef.current = null
     }
 
+    // Reset video element completely
     if (videoRef.current) {
-      videoRef.current.pause()
-      videoRef.current.srcObject = null
-      videoRef.current.removeAttribute('src')
-      videoRef.current.load()
+      try {
+        videoRef.current.pause()
+        videoRef.current.srcObject = null
+        videoRef.current.removeAttribute('src')
+        videoRef.current.load()
+        // Force video element to reset
+        videoRef.current.currentTime = 0
+        videoRef.current.playbackRate = 1
+      } catch (error) {
+        console.warn('Video cleanup error:', error)
+      }
     }
 
+    // Reset canvas
+    if (canvasRef.current) {
+      const ctx = canvasRef.current.getContext('2d')
+      if (ctx) {
+        ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height)
+      }
+    }
+
+    // Reset scanner state
     setScanMethod('none')
     setScanning(false)
+    foundBarcodeRef.current = null
 
-    await new Promise(resolve => setTimeout(resolve, 200))
+    // Increment video key to force re-render
+    setVideoKey(prev => prev + 1)
+
+    // Wait a bit for cleanup to complete
+    await new Promise(resolve => setTimeout(resolve, 300))
+    console.log('Scanner cleanup complete')
   }
 
   // Native BarcodeDetector scanner (most accurate)
@@ -611,6 +687,9 @@ export default function BarcodeScanner() {
     setScanResult('')
     setSuccess(false)
     setTransactionForm({ type: 'stock_in', quantity: 1 })
+    
+    // Ensure complete reset before starting camera
+    await new Promise(resolve => setTimeout(resolve, 100))
     await startCamera()
   }
 
@@ -691,6 +770,7 @@ export default function BarcodeScanner() {
             onStop={cleanupScanner}
             method={scanMethod}
             error={cameraError}
+            videoKey={videoKey}
           />
         ) : product && (
           <TransactionForm 
@@ -705,7 +785,15 @@ export default function BarcodeScanner() {
 
         {/* Scanner Information */}
         <div className="bg-white/60 backdrop-blur-lg rounded-2xl border border-white/20 p-4 sm:p-6">
-          <h3 className="font-semibold text-gray-900 mb-3">Scanner Information</h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-gray-900">Scanner Information</h3>
+            <button
+              onClick={() => setDebugMode(!debugMode)}
+              className="px-3 py-1 text-xs rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors"
+            >
+              {debugMode ? 'Hide Debug' : 'Show Debug'}
+            </button>
+          </div>
           <div className="space-y-2 text-sm text-gray-600">
             <p>• <strong>Native Scanner:</strong> Uses browser's BarcodeDetector API (most accurate)</p>
             <p>• <strong>ZXing Fallback:</strong> JavaScript-based barcode detection</p>
@@ -716,6 +804,36 @@ export default function BarcodeScanner() {
           {cameraError && (
             <div className="mt-3 text-xs text-red-600 bg-red-50 rounded-lg p-2">
               {cameraError}
+            </div>
+          )}
+          
+          {/* Debug Information */}
+          {debugMode && (
+            <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+              <h4 className="font-medium text-gray-900 mb-2">Debug Info</h4>
+              <div className="space-y-1 text-xs text-gray-600">
+                <p><strong>Current Method:</strong> {scanMethod}</p>
+                <p><strong>Scanning State:</strong> {scanning ? 'Active' : 'Inactive'}</p>
+                <p><strong>Video Ready:</strong> {videoRef.current?.readyState === 4 ? 'Yes' : 'No'}</p>
+                <p><strong>Stream Active:</strong> {streamRef.current?.active ? 'Yes' : 'No'}</p>
+                <p><strong>ZXing Instance:</strong> {zxingReaderRef.current ? 'Active' : 'None'}</p>
+                <p><strong>Quagga Instance:</strong> {quaggaRef.current ? 'Active' : 'None'}</p>
+                <p><strong>Found Barcode:</strong> {foundBarcodeRef.current || 'None'}</p>
+              </div>
+              <div className="mt-3 flex gap-2">
+                <button
+                  onClick={() => cleanupScanner()}
+                  className="px-2 py-1 text-xs rounded bg-red-100 hover:bg-red-200 text-red-700 transition-colors"
+                >
+                  Force Cleanup
+                </button>
+                <button
+                  onClick={() => startCamera()}
+                  className="px-2 py-1 text-xs rounded bg-blue-100 hover:bg-blue-200 text-blue-700 transition-colors"
+                >
+                  Restart Camera
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -838,21 +956,44 @@ function CameraView({
   videoRef, 
   onStop, 
   method, 
-  error 
+  error,
+  videoKey
 }: {
   videoRef: React.RefObject<HTMLVideoElement | null>
   onStop: () => void
   method: string
   error: string
+  videoKey: number
 }) {
+  const [isVideoReady, setIsVideoReady] = useState(false)
+
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+
+    const handleLoadedMetadata = () => setIsVideoReady(true)
+    const handleError = () => setIsVideoReady(false)
+
+    video.addEventListener('loadedmetadata', handleLoadedMetadata)
+    video.addEventListener('error', handleError)
+
+    return () => {
+      video.removeEventListener('loadedmetadata', handleLoadedMetadata)
+      video.removeEventListener('error', handleError)
+    }
+  }, [videoRef])
+
   return (
     <div className="relative">
       <video
+        key={videoKey}
         ref={videoRef}
         autoPlay
         playsInline
         muted
         className="w-full h-80 rounded-2xl object-cover bg-gray-900"
+        onLoadedMetadata={() => setIsVideoReady(true)}
+        onError={() => setIsVideoReady(false)}
       />
       
       {/* Scanning overlay */}
@@ -861,6 +1002,13 @@ function CameraView({
           <div className="w-64 h-28 border-4 border-blue-500 rounded bg-blue-500/10" />
         </div>
       </div>
+      
+      {/* Video status indicator */}
+      {!isVideoReady && (
+        <div className="absolute top-3 left-3 px-3 py-2 rounded-md text-sm bg-yellow-50 text-yellow-700 border border-yellow-200">
+          Initializing camera...
+        </div>
+      )}
       
       {/* Controls */}
       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-3">

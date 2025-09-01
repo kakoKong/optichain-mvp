@@ -54,7 +54,12 @@ export default function ProductsPage() {
     const [business, setBusiness] = useState<any>(null)
 
     // Debug: Log user object
-    console.log('[DEBUG] ProductsPage user state:', { user: user?.id, source: user?.source, authLoading })
+    console.log('[DEBUG] ProductsPage user state:', { 
+        user: user, 
+        source: user?.source, 
+        authLoading,
+        databaseUid: user?.databaseUid 
+    })
 
     // Form states
     const [formData, setFormData] = useState({
@@ -67,26 +72,45 @@ export default function ProductsPage() {
         min_stock_level: ''
     })
 
+    // Call filterAndSortProducts whenever relevant state changes
+    useEffect(() => {
+        console.log('[DEBUG] useEffect triggered - products:', products.length, 'searchTerm:', searchTerm, 'filterBy:', filterBy)
+        filterAndSortProducts()
+    }, [products, searchTerm, filterBy, sortBy, sortOrder])
+
     useEffect(() => {
         if (authLoading || !user) return
         initializeAndLoad()
     }, [authLoading, user])
 
     // Helper function to resolve app-level user ID
-    const resolveAppUserId = async (u: { id: string; source: 'line' }) => {
+    const resolveAppUserId = async (u: { id: string; source: 'line' | 'dev'; databaseUid?: string }) => {
+        // For dev users: use the databaseUid directly
+        if (u.source === 'dev' && u.databaseUid) {
+            console.log('[resolveAppUserId] Dev user detected, using databaseUid:', u.databaseUid)
+            return u.databaseUid
+        }
+
         // For LINE: map liff profile id to your app user (public.users.id)
         // NOTE: this expects `public.users.line_user_id` to exist.
-        const { data, error } = await supabase
-            .from('profiles')
-            .select('id')
-            .eq('line_user_id', u.id)
-            .single()
+        if (u.source === 'line') {
+            console.log('[resolveAppUserId] LINE user detected, mapping from line_user_id:', u.id)
 
-        if (error) {
-            console.warn('Could not map LINE user to app user:', error)
-            return null
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('id')
+                .eq('line_user_id', u.id)
+                .single()
+
+            if (error) {
+                console.warn('Could not map LINE user to app user:', error)
+                return null
+            }
+            return data?.id ?? null
         }
-        return data?.id ?? null
+
+        console.warn('[resolveAppUserId] Unknown user source:', u.source)
+        return null
     }
 
     // Helper function to fetch business for user (same as dashboard)
@@ -113,10 +137,31 @@ export default function ProductsPage() {
         }
         
         console.log('[fetchBusinessForUser] Owned businesses found:', owned?.length || 0)
+        console.log('[fetchBusinessForUser] Raw owned data:', owned)
         
         if (owned && owned.length > 0) {
             console.log('[fetchBusinessForUser] Using owned business:', owned[0])
-            return { business: owned[0], products: owned[0].products || [] }
+            console.log('[fetchBusinessForUser] Products in owned business:', owned[0].products?.length || 0)
+            console.log('[fetchBusinessForUser] Products data:', owned[0].products)
+            
+            // If products join didn't work, try fetching products separately
+            let products = owned[0].products || []
+            if (!products || products.length === 0) {
+                console.log('[fetchBusinessForUser] No products from join, fetching separately...')
+                const { data: productsData, error: productsErr } = await supabase
+                    .from('products')
+                    .select('*, inventory(*)')
+                    .eq('business_id', owned[0].id)
+                
+                if (productsErr) {
+                    console.error('[fetchBusinessForUser] Error fetching products separately:', productsErr)
+                } else {
+                    products = productsData || []
+                    console.log('[fetchBusinessForUser] Products fetched separately:', products.length)
+                }
+            }
+            
+            return { business: owned[0], products: products }
         }
 
         // Fallback: first business where the user is a member
@@ -159,7 +204,7 @@ export default function ProductsPage() {
         setLoading(true)
         try {
             if (!user) { setLoading(false); return }
-
+            console.log('user is: ', user)
             // 1) Resolve app-level user id used in your public schema
             const appUserId = await resolveAppUserId(user)
             console.log('[DEBUG] Resolved appUserId:', appUserId)
@@ -192,27 +237,27 @@ export default function ProductsPage() {
     }
 
 
-    const loadUserBusinessAndProducts = async (lineUserId: string) => {
+    const loadUserBusinessAndProducts = async () => {
+        if (!user) return
+        
         try {
-            const { data: userData } = await supabase
-                .from('profiles')
-                .select(`
-          *,
-          businesses (
-            id,
-            name,
-            products (
-              *,
-              inventory (*)
-            )
-          )
-        `)
-                .eq('line_user_id', lineUserId)
-                .single()
+            // Resolve app-level user id
+            const appUserId = await resolveAppUserId(user)
+            if (!appUserId) {
+                console.warn('Could not resolve app user id')
+                return
+            }
 
-            if (userData?.businesses?.[0]) {
-                setBusiness(userData.businesses[0])
-                setProducts(userData.businesses[0].products || [])
+            // Fetch business and products using the resolved app user ID
+            const { business: biz, products: prods } = await fetchBusinessForUser(appUserId)
+            
+            if (biz) {
+                setBusiness({ 
+                    id: Array.isArray(biz) ? biz[0].id : biz.id, 
+                    name: Array.isArray(biz) ? biz[0].name : biz.name 
+                })
+                console.log('[DEBUG] Setting products:', prods?.length || 0, 'products')
+                setProducts(prods || [])
             }
         } catch (error) {
             console.error('Error loading products:', error)
@@ -222,6 +267,7 @@ export default function ProductsPage() {
     }
 
     const filterAndSortProducts = () => {
+        console.log('[DEBUG] filterAndSortProducts called with products:', products.length)
         let filtered = [...products]
 
         // Apply search filter
@@ -277,6 +323,7 @@ export default function ProductsPage() {
             }
         })
 
+        console.log('[DEBUG] filterAndSortProducts result:', filtered.length, 'filtered products')
         setFilteredProducts(filtered)
     }
 
@@ -329,7 +376,7 @@ export default function ProductsPage() {
                     ])
 
                 // Reload products
-                await loadUserBusinessAndProducts(business.line_user_id || '')
+                await loadUserBusinessAndProducts()
                 setShowAddModal(false)
                 resetForm()
             }
@@ -369,7 +416,7 @@ export default function ProductsPage() {
             if (inventoryError) throw inventoryError
 
             // Reload products
-            await loadUserBusinessAndProducts(business.line_user_id || '')
+            await loadUserBusinessAndProducts()
             setEditingProduct(null)
             resetForm()
         } catch (error) {

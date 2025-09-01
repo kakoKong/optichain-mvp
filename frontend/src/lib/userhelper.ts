@@ -6,18 +6,19 @@ export async function resolveOwnerId(): Promise<string | null> {
   console.warn('[userhelper] resolveOwnerId is deprecated. Use useAuth() hook instead.')
   
   try {
-    // First, check if we have a stored LINE user
+    // First, check if we have a stored user (LINE or dev)
     if (typeof window !== 'undefined') {
-      const storedLineUser = localStorage.getItem('lineUser')
-      if (storedLineUser) {
+      const storedUser = localStorage.getItem('devUser') || localStorage.getItem('lineUser')
+      if (storedUser) {
         try {
-          const lineUser = JSON.parse(storedLineUser)
-          if (lineUser.id) {
-            console.log('[userhelper] Using LINE user ID:', lineUser.id)
-            return lineUser.id
+          const user = JSON.parse(storedUser)
+          if (user.id) {
+            console.log('[userhelper] Using stored user ID:', user.id, 'source:', user.source)
+            return user.id
           }
         } catch (parseError) {
-          console.error('[userhelper] Failed to parse stored LINE user:', parseError)
+          console.error('[userhelper] Failed to parse stored user:', parseError)
+          localStorage.removeItem('devUser')
           localStorage.removeItem('lineUser')
         }
       }
@@ -47,14 +48,37 @@ export function getCurrentUserId(): string | null {
   if (typeof window === 'undefined') return null
   
   try {
-    const storedLineUser = localStorage.getItem('lineUser')
-    if (storedLineUser) {
-      const lineUser = JSON.parse(storedLineUser)
-      return lineUser.id
+            // Check for dev user first, then LINE user
+        const storedUser = localStorage.getItem('devUser') || localStorage.getItem('lineUser')
+        
+        // If no stored user but we're in dev mode, return the dev user ID
+        if (!storedUser && typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+            return '50d054d6-4e1c-4157-b231-5b8e9d321913'
+        }
+    if (storedUser) {
+      const user = JSON.parse(storedUser)
+      return user.id
     }
   } catch (error) {
     console.error('[userhelper] Error getting current user ID:', error)
   }
   
   return null
+}
+
+// Helper function to check if current user is a dev user
+export function isDevUser(): boolean {
+  if (typeof window === 'undefined') return false
+  
+  try {
+    const storedUser = localStorage.getItem('devUser')
+    if (storedUser) {
+      const user = JSON.parse(storedUser)
+      return user.source === 'dev'
+    }
+  } catch (error) {
+    console.error('[userhelper] Error checking dev user status:', error)
+  }
+  
+  return false
 }
