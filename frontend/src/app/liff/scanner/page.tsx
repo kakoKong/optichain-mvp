@@ -34,8 +34,10 @@ export default function BarcodeScanner() {
   const rafRef = useRef<number | null>(null)
   const zxingStopRef = useRef<null | (() => void)>(null)
   const foundOnceRef = useRef(false)
+  const zxingControlsRef = useRef<null | { stop: () => void }>(null)
+
   useEffect(() => {
-    (async () => {
+    const fetchData = async () => {
       const ownerId = await resolveOwnerId()
       if (!ownerId) return
       const { data, error } = await supabase
@@ -48,72 +50,108 @@ export default function BarcodeScanner() {
         return
       }
       setBusiness(data?.[0] || null)
-    })()
+    }
+
+    fetchData()
     setRecentScans(prev => prev.length ? prev : [{
       barcode: '1234567890123', productName: 'Demo Item', action: 'stock_in', quantity: 1,
       scannedAt: new Date(Date.now() - 120000).toISOString()
     }])
-    return () => stopAll()
+
+    return () => {
+      stopAll()
+    }
   }, [])
   const saveToRecentScans = (scanData: any) => {
     const newScan = { ...scanData, scannedAt: new Date().toISOString() }
     setRecentScans(prev => [newScan, ...prev.slice(0, 4)])
   }
   const startCamera = async () => {
-    if (!business) {
-      alert('No business found for this user.')
-      return
-    }
+    if (!business) { alert('No business found for this user.'); return }
     setCameraError('')
     foundOnceRef.current = false
     try {
-      stopAll()
+      await stopAll() // ← ensure previous session is really gone
+
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
         audio: false
       })
+
       streamRef.current = stream
       const v = videoRef.current
       if (v) {
+        // @ts-ignore
         v.srcObject = stream
         v.setAttribute('playsinline', 'true')
         v.muted = true
         await v.play()
       }
       setScanning(true)
-      if (window.BarcodeDetector) {
-        startNativeLoop()
-      } else {
-        await startZXing()
-      }
+
+      if (window.BarcodeDetector) startNativeLoop()
+      else await startZXing()
     } catch (e) {
       console.error(e)
       setCameraError('Camera access denied or unavailable.')
-      stopAll()
+      await stopAll()
     }
   }
-  const stopAll = () => {
-    if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null }
-    if (zxingStopRef.current) { zxingStopRef.current(); zxingStopRef.current = null }
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(t => t.stop())
+
+  const stopAll = async () => {
+    // stop scan loops
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current)
+      rafRef.current = null
+    }
+
+    // stop ZXing if running
+    try {
+      if (zxingControlsRef.current) {
+        zxingControlsRef.current.stop()
+        zxingControlsRef.current = null
+      }
+    } catch { }
+
+    // stop media tracks
+    const stream = streamRef.current
+    if (stream) {
+      try {
+        stream.getTracks().forEach(t => t.stop())
+      } catch { }
       streamRef.current = null
     }
+
+    // fully release the <video>
     const v = videoRef.current
-    if (v) v.srcObject = null
+    if (v) {
+      try {
+        v.pause()
+        // @ts-ignore – older TS lib doesn’t have srcObject
+        v.srcObject = null
+        v.removeAttribute('src')
+        v.load() // important on iOS
+      } catch { }
+    }
+
     setMethod('none')
     setScanning(false)
+
+    // small cooldown to let UA release the device
+    await new Promise(res => setTimeout(res, 150))
   }
+
   const startNativeLoop = () => {
     try {
       const detector = new (window as any).BarcodeDetector({
         formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_93', 'code_39', 'itf']
       })
       setMethod('native')
+
       let last = 0
       const loop = async (ts: number) => {
         if (!scanning || !videoRef.current) return
-        if (ts - last < 100) { rafRef.current = requestAnimationFrame(loop); return } // ~10fps
+        if (ts - last < 100) { rafRef.current = requestAnimationFrame(loop); return }
         last = ts
         try {
           const v = videoRef.current
@@ -124,20 +162,26 @@ export default function BarcodeScanner() {
             const ctx = c.getContext('2d')!
             ctx.drawImage(v, 0, 0, w, h)
             const bmp = await createImageBitmap(c)
-            const results = await detector.detect(bmp)
-            if (results?.length && !foundOnceRef.current) {
-              const value = results[0]?.rawValue || ''
-              if (value) {
-                foundOnceRef.current = true
-                stopAll()
-                await handleBarcodeResult(value)
-                return
+            try {
+              const results = await detector.detect(bmp)
+              if (results?.length && !foundOnceRef.current) {
+                const value = results[0]?.rawValue || ''
+                if (value) {
+                  foundOnceRef.current = true
+                  await stopAll()
+                  await handleBarcodeResult(value)
+                  return
+                }
               }
+            } finally {
+              // release the bitmap to avoid leaks
+              // @ts-ignore older TS may not know close()
+              bmp.close?.()
             }
           }
         } catch (err) {
           console.warn('Native failed → ZXing', err)
-          startZXing().catch(() => setCameraError('Scanner not supported. Use Manual Entry.'))
+          try { await startZXing() } catch { setCameraError('Scanner not supported. Use Manual Entry.') }
           return
         }
         rafRef.current = requestAnimationFrame(loop)
@@ -148,27 +192,36 @@ export default function BarcodeScanner() {
       startZXing().catch(() => setCameraError('Scanner not supported. Use Manual Entry.'))
     }
   }
+
   const startZXing = async () => {
     setMethod('zxing')
     const { BrowserMultiFormatReader } = await import('@zxing/browser')
     if (!videoRef.current) throw new Error('no video')
+
     const reader = new BrowserMultiFormatReader()
-    const controls = reader.decodeFromVideoDevice(undefined, videoRef.current, async (result, err, _controls) => {
-      if (result && !foundOnceRef.current) {
-        const fmt = (result as any).getBarcodeFormat?.()
-        if (fmt && String(fmt).toUpperCase().includes('QR')) return // ignore QR entirely
-        const value = (result as any).getText?.() || ''
-        if (value) {
-          foundOnceRef.current = true
-          _controls.stop()
-          zxingStopRef.current = null
-          stopAll()
-          await handleBarcodeResult(value)
+    // Await the controls and keep them in a ref so we can stop later even if no result occurs
+    const controls = await reader.decodeFromVideoDevice(
+      undefined,
+      videoRef.current,
+      async (result, err, _controls) => {
+        if (result && !foundOnceRef.current) {
+          const fmt = (result as any).getBarcodeFormat?.()
+          if (fmt && String(fmt).toUpperCase().includes('QR')) return // ignore QR
+          const value = (result as any).getText?.() || ''
+          if (value) {
+            foundOnceRef.current = true
+            try { _controls?.stop?.() } catch { }
+            zxingControlsRef.current = null
+            await stopAll()
+            await handleBarcodeResult(value)
+          }
         }
       }
-    })
-    zxingStopRef.current = async () => (await controls).stop()
+    )
+
+    zxingControlsRef.current = controls
   }
+
   const scanWithLiffScanner = async () => {
     if (!business) {
       alert('No business found for this user.')
@@ -271,14 +324,15 @@ export default function BarcodeScanner() {
   }
 
   // --- UI Section (start from here) ---
-  const handleResetAndScanAgain = () => {
+  const handleResetAndScanAgain = async () => {
     setProduct(null)
     setScanResult('')
     setSuccess(false)
     setQuantity(1)
     setTransactionType('stock_in')
-    startCamera()
+    await startCamera() // ensure it’s awaited
   }
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 relative overflow-hidden">
@@ -377,11 +431,10 @@ export default function BarcodeScanner() {
                   {recentScans.map((scan, index) => (
                     <div key={index} className="px-4 py-4 sm:px-6 flex items-center justify-between">
                       <div className="flex items-center gap-4">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                          scan.action === 'created' ? 'bg-blue-100 text-blue-600' :
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${scan.action === 'created' ? 'bg-blue-100 text-blue-600' :
                           scan.action === 'stock_in' ? 'bg-green-100 text-green-600' :
-                          scan.action === 'stock_out' ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-600'
-                        }`}>
+                            scan.action === 'stock_out' ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-600'
+                          }`}>
                           <PackageIcon className="h-5 w-5" />
                         </div>
                         <div>
