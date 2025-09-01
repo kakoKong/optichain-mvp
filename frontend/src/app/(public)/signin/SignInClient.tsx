@@ -15,15 +15,45 @@ export default function SignInPage() {
   const [liffLoading, setLiffLoading] = useState(false)
   const router = useRouter()
 
+  // For testing: manually switch to LINE mode
+  const forceLiffMode = () => {
+    console.log('[SignInClient] Forcing LIFF mode for testing')
+    setMode('liff')
+  }
+
+  // For testing: manually switch to web mode
+  const forceWebMode = () => {
+    console.log('[SignInClient] Forcing web mode for testing')
+    setMode('web')
+  }
+
   useEffect(() => {
     let mounted = true
     const decide = async () => {
       if (typeof window === 'undefined') return
 
+      console.log('[SignInClient] Checking LINE context...')
+      console.log('[SignInClient] URL:', window.location.href)
+      console.log('[SignInClient] Referrer:', document.referrer)
+      console.log('[SignInClient] User Agent:', navigator.userAgent)
+
       const params = new URLSearchParams(window.location.search)
-      const looksLikeLiff = params.has('liff.state') || /liff\.line\.me/i.test(document.referrer)
+      const hasLiffState = params.has('liff.state')
+      const hasLiffReferrer = /liff\.line\.me/i.test(document.referrer)
+      const isInLineApp = /line/i.test(navigator.userAgent) || window.location.hostname.includes('liff.line.me')
+      
+      console.log('[SignInClient] LINE detection:', {
+        hasLiffState,
+        hasLiffReferrer,
+        isInLineApp,
+        liffId: process.env.NEXT_PUBLIC_LINE_LIFF_ID
+      })
+
+      // More comprehensive LINE detection
+      const looksLikeLiff = hasLiffState || hasLiffReferrer || isInLineApp
 
       if (looksLikeLiff && process.env.NEXT_PUBLIC_LINE_LIFF_ID) {
+        console.log('[SignInClient] LINE context detected, initializing LIFF...')
         try {
           await liff.init({
             liffId: process.env.NEXT_PUBLIC_LINE_LIFF_ID,
@@ -32,20 +62,25 @@ export default function SignInPage() {
           
           if (!mounted) return
           
+          console.log('[SignInClient] LIFF initialized successfully')
+          
           // Check if user is already logged in to LINE
           if (liff.isLoggedIn()) {
+            console.log('[SignInClient] User already logged in to LINE, authenticating with Supabase...')
             // User is logged in to LINE, try to authenticate with Supabase
             await authenticateWithSupabase()
             return
           }
           
+          console.log('[SignInClient] Setting mode to LIFF')
           setMode('liff')
         } catch (error) {
-          console.error('LIFF initialization failed:', error)
+          console.error('[SignInClient] LIFF initialization failed:', error)
           setLiffError('Failed to initialize LINE login')
           setMode('web')
         }
       } else {
+        console.log('[SignInClient] No LINE context detected, setting mode to web')
         setMode('web')
       }
     }
@@ -149,6 +184,28 @@ export default function SignInPage() {
           {mode === 'loading' && (
             <div className="grid place-items-center py-4">
               <div className="animate-spin h-8 w-8 rounded-full border-4 border-gray-300 border-t-transparent" />
+            </div>
+          )}
+
+          {/* Debug mode switcher (only in development) */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-sm text-yellow-800 mb-2">🔧 Debug Mode Switcher</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={forceWebMode}
+                  className="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600"
+                >
+                  Force Web Mode
+                </button>
+                <button
+                  onClick={forceLiffMode}
+                  className="px-3 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600"
+                >
+                  Force LINE Mode
+                </button>
+              </div>
+              <p className="text-xs text-yellow-600 mt-1">Current mode: {mode}</p>
             </div>
           )}
 
