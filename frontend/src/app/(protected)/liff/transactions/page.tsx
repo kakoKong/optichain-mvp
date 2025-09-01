@@ -63,7 +63,7 @@ export default function TransactionsPage() {
     useEffect(() => {
         if (authLoading || !user) return
         initializeAndLoad()
-    }, [authLoading, user, dateRange])
+    }, [authLoading, user])
 
     useEffect(() => {
         filterTransactions()
