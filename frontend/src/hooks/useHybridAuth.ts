@@ -1,4 +1,4 @@
-// hooks/useHybridAuth.ts
+// hooks/useHybridAuth.ts (updated)
 'use client'
 import { useEffect, useState } from 'react'
 import liff from '@line/liff'
@@ -14,61 +14,73 @@ export function useHybridAuth() {
 
     useEffect(() => {
         const init = async () => {
-            try {
-                // 1) Prefer Supabase session (no redirects)
-                const { data: { session } } = await supabase.auth.getSession()
-                if (session?.user) {
-                    const u = session.user
-                    setUser({
-                        id: u.id,
-                        displayName: u.user_metadata?.full_name || u.user_metadata?.name || u.email || 'User',
-                        source: 'supabase',
-                        raw: u,
-                    })
-                    setLoading(false)
-                    return
+            setLoading(true)
+
+            // 1) Prefer Supabase session
+            const { data: { session } } = await supabase.auth.getSession()
+            if (session?.user) {
+                const u = session.user
+                setUser({
+                    id: u.id,
+                    displayName: u.user_metadata?.full_name || u.user_metadata?.name || u.email || 'User',
+                    source: 'supabase',
+                    raw: u,
+                })
+                setLoading(false)
+                return
+            }
+
+            // 2) LIFF path
+            const hasWindow = typeof window !== 'undefined'
+            const hasLiffOnWindow = hasWindow && !!(window as any).liff
+
+            const skipFlag = hasWindow && localStorage.getItem('skipLiffAutoLogin') === '1'
+            const shouldUseLiff = hasLiffOnWindow && !skipFlag
+
+            if (shouldUseLiff) {
+                await liff.init({ liffId: process.env.NEXT_PUBLIC_LINE_LIFF_ID! })
+
+                if (!liff.isLoggedIn()) {
+                    liff.login()
+                    return // liff.login() will redirect, so we exit
                 }
-
-                // 2) LIFF path
-                const hasWindow = typeof window !== 'undefined'
-                const hasLiffOnWindow = hasWindow && !!(window as any).liff
-
-                // Do we already have LIFF tokens saved for this origin? (like your screenshot)
-                const hasLiffTokens = hasWindow && Object.keys(localStorage).some(k => k.startsWith('LIFF_STORE:'))
-
-                // Only respect skip flag if there are no tokens
-                const skipFlag = hasWindow && localStorage.getItem('skipLiffAutoLogin') === '1'
-                const shouldUseLiff = hasLiffOnWindow && (!skipFlag || hasLiffTokens)
-
-                if (shouldUseLiff) {
-                    await liff.init({ liffId: process.env.NEXT_PUBLIC_LINE_LIFF_ID! })
-
-                    if (!liff.isLoggedIn()) {
-                        liff.login()
-                        return
+                
+                // Get the ID token and exchange it for a Supabase session
+                try {
+                    const idToken = liff.getIDToken()
+                    if (idToken) {
+                        const { data: { session: supabaseSession }, error } = await supabase.auth.signInWithIdToken({
+                            provider: 'line',
+                            token: idToken,
+                        });
+                        if (supabaseSession) {
+                            // Supabase session is now active, will be picked up by the next getSession() call
+                            // You can set user here if you want immediate feedback
+                            setUser({
+                                id: supabaseSession.user.id,
+                                displayName: supabaseSession.user.user_metadata?.full_name || 'User',
+                                source: 'supabase',
+                                raw: supabaseSession.user,
+                            });
+                        } else {
+                            throw error;
+                        }
                     }
-
-                    // We’re logged in via LINE
-                    const profile = await liff.getProfile()
-
-                    // Make sure future visits can auto-login via LINE
-                    localStorage.removeItem('skipLiffAutoLogin')
-
+                } catch (e) {
+                    console.error('Failed to create Supabase session from LIFF token:', e);
+                    // Fallback to LIFF user but this is temporary
+                    const profile = await liff.getProfile();
                     setUser({
                         id: profile.userId,
                         displayName: profile.displayName,
                         source: 'line',
                         raw: profile,
-                    })
-                    setLoading(false)
-                    return
+                    });
+                } finally {
+                    setLoading(false);
                 }
-
+            } else {
                 // 3) No session anywhere
-                setUser(null)
-                setLoading(false)
-            } catch (e) {
-                console.error('Hybrid auth error:', e)
                 setUser(null)
                 setLoading(false)
             }
@@ -92,7 +104,6 @@ export function useHybridAuth() {
         })
         return () => sub.subscription.unsubscribe()
     }, [])
-
 
     return { user, loading }
 }
