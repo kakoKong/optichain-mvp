@@ -1,19 +1,17 @@
+// frontend/app/liff/scanner/page.tsx
 'use client'
+
 import { useEffect, useRef, useState } from 'react'
+import { supabase } from '@/lib/supabase'
+import { resolveOwnerId } from '@/lib/userhelper'
 import {
   ScanLineIcon, CameraIcon, KeyboardIcon, CheckCircleIcon, XCircleIcon, PackageIcon,
   TrendingUpIcon, TrendingDownIcon, SettingsIcon, ArrowLeftIcon
 } from 'lucide-react'
 
-// --- mock data (unchanged) ---
-const mockProducts = [
-  { id: 1, name: 'Sample Product A', barcode: '1234567890123', cost_price: 10.5, selling_price: 15, inventory: [{ current_stock: 25, min_stock_level: 5 }] },
-  { id: 2, name: 'Sample Product B', barcode: '9876543210987', cost_price: 8.25, selling_price: 12, inventory: [{ current_stock: 12, min_stock_level: 3 }] },
-]
-
 declare global {
   interface Window {
-    liff: any
+    liff?: any
     BarcodeDetector?: any
   }
 }
@@ -23,7 +21,7 @@ export default function BarcodeScanner() {
   const [product, setProduct] = useState<any>(null)
   const [quantity, setQuantity] = useState(1)
   const [transactionType, setTransactionType] = useState<'stock_in'|'stock_out'|'adjustment'>('stock_in')
-  const [business] = useState({ id: 1, name: 'Demo Business' }) // mock
+  const [business, setBusiness] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [recentScans, setRecentScans] = useState<any[]>([])
@@ -38,11 +36,29 @@ export default function BarcodeScanner() {
   const zxingStopRef = useRef<null | (() => void)>(null)
   const foundOnceRef = useRef(false)
 
-  // demo: seed a recent scan
+  // Load the current user's business (first one)
   useEffect(() => {
-    setRecentScans([
-      { barcode: '1234567890123', productName: 'Sample Product A', action: 'stock_in', quantity: 5, scannedAt: new Date(Date.now()-300000).toISOString() },
-    ])
+    (async () => {
+      const ownerId = await resolveOwnerId()
+      if (!ownerId) return
+      const { data, error } = await supabase
+        .from('businesses')
+        .select('id,name')
+        .eq('owner_id', ownerId)
+        .limit(1)
+      if (error) {
+        console.error('Load business error:', error)
+        return
+      }
+      setBusiness(data?.[0] || null)
+    })()
+
+    // seed recent scans (optional)
+    setRecentScans(prev => prev.length ? prev : [{
+      barcode: '1234567890123', productName: 'Demo Item', action: 'stock_in', quantity: 1,
+      scannedAt: new Date(Date.now() - 120000).toISOString()
+    }])
+
     return () => stopAll()
   }, [])
 
@@ -51,8 +67,12 @@ export default function BarcodeScanner() {
     setRecentScans(prev => [newScan, ...prev.slice(0,4)])
   }
 
-  // ---------- camera ----------
+  // ---- Camera start/stop
   const startCamera = async () => {
+    if (!business) {
+      alert('No business found for this user.')
+      return
+    }
     setCameraError('')
     foundOnceRef.current = false
     try {
@@ -65,7 +85,7 @@ export default function BarcodeScanner() {
       const v = videoRef.current
       if (v) {
         v.srcObject = stream
-        v.setAttribute('playsinline', 'true') // iOS inline
+        v.setAttribute('playsinline', 'true')
         v.muted = true
         await v.play()
       }
@@ -96,15 +116,12 @@ export default function BarcodeScanner() {
     setScanning(false)
   }
 
-  // ---------- decoders (barcode only) ----------
-  // 1) Native BarcodeDetector with only 1D formats
+  // ---- Decoders (barcode only)
   const startNativeLoop = () => {
     try {
-      const formats = [
-        'ean_13','ean_8','upc_a','upc_e',
-        'code_128','code_93','code_39','itf'
-      ] // no QR here
-      const detector = new (window as any).BarcodeDetector({ formats })
+      const detector = new (window as any).BarcodeDetector({
+        formats: ['ean_13','ean_8','upc_a','upc_e','code_128','code_93','code_39','itf']
+      })
       setMethod('native')
 
       let last = 0
@@ -113,7 +130,7 @@ export default function BarcodeScanner() {
         if (ts - last < 100) { rafRef.current = requestAnimationFrame(loop); return } // ~10fps
         last = ts
         try {
-          // draw to canvas -> detect on ImageBitmap (reliable across UA)
+          // draw to canvas and detect from bitmap (more consistent)
           const v = videoRef.current
           const w = v.videoWidth, h = v.videoHeight
           if (w && h) {
@@ -147,19 +164,15 @@ export default function BarcodeScanner() {
     }
   }
 
-  // 2) ZXing fallback; ignore QR_CODE results
   const startZXing = async () => {
     setMethod('zxing')
     const { BrowserMultiFormatReader } = await import('@zxing/browser')
-    // (We’ll filter QR below; hints optional)
     if (!videoRef.current) throw new Error('no video')
     const reader = new BrowserMultiFormatReader()
     const controls = reader.decodeFromVideoDevice(undefined, videoRef.current, async (result, err, _controls) => {
-      // ZXing calls back on every decode; keep running unless we accept a result
       if (result && !foundOnceRef.current) {
         const fmt = (result as any).getBarcodeFormat?.()
-        // If library returns QR_CODE, ignore it to stay "barcode-only"
-        if (fmt && String(fmt).toUpperCase().includes('QR')) return
+        if (fmt && String(fmt).toUpperCase().includes('QR')) return // ignore QR entirely
         const value = (result as any).getText?.() || ''
         if (value) {
           foundOnceRef.current = true
@@ -173,80 +186,130 @@ export default function BarcodeScanner() {
     zxingStopRef.current = async () => (await controls).stop()
   }
 
-  // ---------- LIFF (optional) ----------
+  // ---- LIFF (optional)
   const scanWithLiffScanner = async () => {
+    if (!business) {
+      alert('No business found for this user.')
+      return
+    }
     setLoading(true)
     try {
       if (window?.liff?.scanCode) {
-        const result = await window.liff.scanCode()
-        // If LIFF returns a QR string, you can decide to ignore;
-        // here we accept whatever comes from LIFF (or add your own filter).
-        await handleBarcodeResult(result.value)
+        const res = await window.liff.scanCode()
+        await handleBarcodeResult(res.value)
       } else {
         const barcode = prompt('Enter barcode manually:')
-        if (barcode?.trim()) handleBarcodeResult(barcode.trim())
+        if (barcode?.trim()) await handleBarcodeResult(barcode.trim())
       }
-    } catch (e) {
-      const barcode = prompt('Enter barcode manually:')
-      if (barcode?.trim()) handleBarcodeResult(barcode.trim())
     } finally {
       setLoading(false)
     }
   }
 
-  // ---------- business logic (mock) ----------
+  // ---- Supabase: lookup product by barcode for this business
+  const fetchProductWithInventory = async (barcode: string) => {
+    const { data, error } = await supabase
+      .from('products')
+      .select('id,name,barcode,cost_price,selling_price,unit, inventory(id,current_stock,min_stock_level)')
+      .eq('business_id', business.id)
+      .eq('barcode', barcode)
+      .maybeSingle()
+    if (error) throw error
+    return data
+  }
+
+  // ---- Supabase: create product and initial inventory (your pattern)
+  const createProductInSupabase = async (barcode: string, name: string) => {
+    // Feel free to replace defaults with your own UI/inputs
+    const unit = 'piece'
+    const cost_price = 0
+    const selling_price = 0
+
+    const { data: inserted, error } = await supabase
+      .from('products')
+      .insert([{ business_id: business.id, name, barcode, cost_price, selling_price, unit }])
+      .select()
+      .single()
+    if (error) throw error
+
+    // initial inventory row
+    const { error: invErr } = await supabase
+      .from('inventory')
+      .insert([{ business_id: business.id, product_id: inserted.id, current_stock: 0, min_stock_level: 0 }])
+    if (invErr) throw invErr
+
+    // fetch with inventory to show in UI
+    const reloaded = await fetchProductWithInventory(barcode)
+    return reloaded || { ...inserted, inventory: [{ current_stock: 0, min_stock_level: 0 }] }
+  }
+
+  // ---- Handle a scanned barcode
   const handleBarcodeResult = async (barcode: string) => {
     if (!business) return
     setLoading(true)
     setScanResult(barcode)
     try {
-      const found = mockProducts.find(p => p.barcode === barcode)
-      if (found) {
-        setProduct(found)
-        saveToRecentScans({ barcode, productName: found.name, action: 'found' })
+      const existing = await fetchProductWithInventory(barcode)
+      if (existing) {
+        setProduct(existing)
+        saveToRecentScans({ barcode, productName: existing.name, action: 'found' })
       } else {
-        const name = prompt(`Product ${barcode} not found. Enter name to create:`)
-        if (name?.trim()) await createNewProduct(barcode, name.trim())
+        const name = prompt(`Product ${barcode} not found.\nEnter product name to create:`)
+        if (!name || !name.trim()) return
+        try {
+          const created = await createProductInSupabase(barcode, name.trim())
+          setProduct(created)
+          saveToRecentScans({ barcode, productName: created.name, action: 'created' })
+          alert('Product created.')
+        } catch (e: any) {
+          console.error('Create product error:', e?.message || e)
+          alert('Failed to create product')
+        }
       }
+    } catch (e: any) {
+      console.error('Lookup error:', e?.message || e)
+      alert('Lookup failed. Please try again.')
     } finally {
       setLoading(false)
     }
   }
 
-  const createNewProduct = async (barcode: string, name: string) => {
-    setLoading(true)
-    try {
-      const newProduct = { id: Date.now(), name, barcode, cost_price: 0, selling_price: 0, inventory: [{ current_stock: 0, min_stock_level: 0 }] }
-      mockProducts.push(newProduct as any)
-      setProduct(newProduct)
-      saveToRecentScans({ barcode, productName: name, action: 'created' })
-      alert('New product created.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
+  // ---- (Optional) Record transaction to your backend API; unchanged logic
   const recordTransaction = async () => {
     if (!product || !business) return
     setLoading(true)
     try {
-      await new Promise(r => setTimeout(r, 700)) // mock
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/inventory/transactions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          business_id: business.id,
+          product_id: product.id,
+          transaction_type: transactionType,
+          quantity,
+          reason: `${transactionType.replace('_',' ')} via scanner`
+        })
+      })
+      if (!res.ok) throw new Error('Failed to record transaction')
       setSuccess(true)
       saveToRecentScans({ barcode: product.barcode, productName: product.name, action: transactionType, quantity })
       setTimeout(() => { setProduct(null); setQuantity(1); setSuccess(false); setScanResult('') }, 1500)
+    } catch (e) {
+      console.error('Transaction error:', e)
+      alert('Failed to record transaction')
     } finally {
       setLoading(false)
     }
   }
 
-  // ---------- UI ----------
+  // ---- UI
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 relative overflow-hidden">
       {/* hidden canvas for native path */}
       <canvas ref={canvasRef} className="hidden" />
 
       <div className="relative z-10 p-4 sm:p-6 space-y-6 sm:space-y-8">
-        {/* header */}
+        {/* Header */}
         <div className="bg-white/80 backdrop-blur-lg rounded-2xl border border-white/20 shadow-xl overflow-hidden">
           <div className="bg-gradient-to-r from-blue-500 to-indigo-600 h-1" />
           <div className="p-4 sm:p-6 flex items-start sm:items-center justify-between gap-4">
@@ -263,7 +326,7 @@ export default function BarcodeScanner() {
           </div>
         </div>
 
-        {/* banner */}
+        {/* Scan result banner */}
         {scanResult && (
           <div className="bg-white/80 backdrop-blur-lg rounded-2xl border border-green-200 p-4 sm:p-6 flex items-center gap-4">
             <CheckCircleIcon className="h-8 w-8 text-green-500" />
@@ -286,7 +349,7 @@ export default function BarcodeScanner() {
 
         {!product ? (
           <div className="space-y-6">
-            {/* scanner card */}
+            {/* Scanner card */}
             <div className="bg-white/80 backdrop-blur-lg rounded-2xl border border-white/20 shadow-sm">
               <div className="px-4 py-4 sm:px-6 border-b border-gray-200">
                 <h2 className="text-lg font-semibold text-gray-900">Scan a Barcode</h2>
@@ -311,10 +374,7 @@ export default function BarcodeScanner() {
                     </div>
 
                     <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-3">
-                      <button
-                        onClick={stopAll}
-                        className="px-6 py-3 rounded-xl font-medium shadow-lg bg-red-500 hover:bg-red-600 text-white"
-                      >
+                      <button onClick={stopAll} className="px-6 py-3 rounded-xl font-medium shadow-lg bg-red-500 hover:bg-red-600 text-white">
                         Stop Camera {method !== 'none' ? `(${method})` : ''}
                       </button>
                     </div>
@@ -353,17 +413,7 @@ export default function BarcodeScanner() {
                     </button>
 
                     <button
-                      onClick={async () => {
-                        // optional: LIFF scanner if available (you can remove this button entirely)
-                        try {
-                          if (window?.liff?.scanCode) {
-                            const res = await window.liff.scanCode()
-                            await handleBarcodeResult(res.value)
-                          } else {
-                            alert('LIFF scanner not available.')
-                          }
-                        } catch {}
-                      }}
+                      onClick={scanWithLiffScanner}
                       className="flex items-center gap-4 p-4 rounded-xl font-medium shadow-md transform hover:scale-[1.02] hover:shadow-lg bg-gradient-to-r from-indigo-500 to-blue-600 text-white"
                     >
                       <ScanLineIcon className="h-6 w-6" />
@@ -377,7 +427,7 @@ export default function BarcodeScanner() {
               </div>
             </div>
 
-            {/* recent scans */}
+            {/* Recent scans */}
             {recentScans.length > 0 && (
               <div className="bg-white/80 backdrop-blur-lg rounded-2xl border border-white/20 shadow-sm">
                 <div className="px-4 py-4 sm:px-6 border-b border-gray-200">
@@ -410,7 +460,7 @@ export default function BarcodeScanner() {
             )}
           </div>
         ) : (
-          // record transaction
+          // Record transaction
           <div className="bg-white/80 backdrop-blur-lg rounded-2xl border border-white/20 shadow-sm">
             <div className="px-4 py-4 sm:px-6 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900">Record Transaction</h2>
@@ -426,14 +476,15 @@ export default function BarcodeScanner() {
                     <h3 className="text-xl font-semibold text-gray-900">{product.name}</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-700">
                       <p><span className="font-medium text-gray-900">Barcode:</span> {product.barcode}</p>
-                      <p><span className="font-medium text-gray-900">Current Stock:</span> {product.inventory?.[0]?.current_stock || 0} units</p>
-                      <p><span className="font-medium text-gray-900">Min. Level:</span> {product.inventory?.[0]?.min_stock_level || 0} units</p>
-                      <p><span className="font-medium text-gray-900">Price:</span> ${product.selling_price || 0}</p>
+                      <p><span className="font-medium text-gray-900">Current Stock:</span> {product.inventory?.[0]?.current_stock ?? 0} units</p>
+                      <p><span className="font-medium text-gray-900">Min. Level:</span> {product.inventory?.[0]?.min_stock_level ?? 0} units</p>
+                      <p><span className="font-medium text-gray-900">Price:</span> ${product.selling_price ?? 0}</p>
                     </div>
                   </div>
                 </div>
               </div>
 
+              {/* Type */}
               <div>
                 <label className="block text-sm font-semibold mb-3 text-gray-900">Transaction Type</label>
                 <div className="grid grid-cols-3 gap-3">
@@ -458,6 +509,7 @@ export default function BarcodeScanner() {
                 </div>
               </div>
 
+              {/* Qty */}
               <div>
                 <label className="block text-sm font-semibold mb-3 text-gray-900">Quantity</label>
                 <div className="flex items-center gap-3">
@@ -473,6 +525,7 @@ export default function BarcodeScanner() {
                 </div>
               </div>
 
+              {/* Actions */}
               <div className="flex flex-col sm:flex-row gap-4 pt-4">
                 <button
                   onClick={recordTransaction}
@@ -482,7 +535,7 @@ export default function BarcodeScanner() {
                   {loading ? <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" /> : <CheckCircleIcon className="h-5 w-5" />}
                   Record Transaction
                 </button>
-                <button onClick={() => { setProduct(null); setScanResult('') }} className="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-4 px-6 rounded-xl font-semibold flex items-center justify-center gap-2">
+                <button onClick={() => { setProduct(null); setScanResult('') }} className="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-4 px-6 rounded-xl font-semibold transition-colors flex items-center justify-center gap-2">
                   <XCircleIcon className="h-5 w-5" /> Cancel
                 </button>
               </div>
@@ -490,14 +543,13 @@ export default function BarcodeScanner() {
           </div>
         )}
 
-        {/* notes */}
+        {/* Notes */}
         <div className="bg-white/60 backdrop-blur-lg rounded-2xl border border-white/20 p-4 sm:p-6">
           <h3 className="font-semibold text-gray-900 mb-3">Notes</h3>
           <div className="space-y-2 text-sm text-gray-600">
-            <p>• **Barcode-only**: EAN-13/8, UPC-A/E, Code128/39/93, ITF.</p>
-            <p>• Uses Native `BarcodeDetector` when available; otherwise **ZXing**.</p>
-            <p>• HTTPS required on real devices (localhost is okay for dev).</p>
-            <p>• iOS: `playsInline` + `muted` prevents auto-fullscreen camera.</p>
+            <p>• Inserts into <code>products</code> then creates an <code>inventory</code> row if not found.</p>
+            <p>• Barcode-only: EAN/UPC/Code128/39/93/ITF. QR is ignored.</p>
+            <p>• HTTPS required for camera (localhost is fine in dev).</p>
           </div>
           {cameraError && <div className="mt-3 text-xs text-red-600 bg-red-50 rounded-lg p-2">{cameraError}</div>}
         </div>
