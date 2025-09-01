@@ -11,7 +11,7 @@ import {
 
 declare global {
   interface Window {
-    liff?: any
+    liff: any
     BarcodeDetector?: any
   }
 }
