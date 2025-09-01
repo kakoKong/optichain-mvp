@@ -52,7 +52,20 @@ export function useHybridAuth() {
             const hasLiffReferrer = /liff\.line\.me/i.test(document.referrer)
             const isInLineApp = /line/i.test(navigator.userAgent) || window.location.hostname.includes('liff.line.me')
             
-            const looksLikeLiff = hasLiffState || hasLiffReferrer || isInLineApp
+            // Also check if we're on a LIFF route (like /liff/scanner, /liff/products, etc.)
+            const isLiffRoute = window.location.pathname.startsWith('/liff')
+            
+            const looksLikeLiff = hasLiffState || hasLiffReferrer || isInLineApp || isLiffRoute
+            
+            console.log('[useHybridAuth] LINE context check:', {
+                hasLiffState,
+                hasLiffReferrer,
+                isInLineApp,
+                isLiffRoute,
+                pathname: window.location.pathname,
+                looksLikeLiff,
+                liffId: process.env.NEXT_PUBLIC_LINE_LIFF_ID
+            })
             
             if (looksLikeLiff && process.env.NEXT_PUBLIC_LINE_LIFF_ID) {
                 console.log('[useHybridAuth] LINE context detected')
@@ -90,15 +103,33 @@ export function useHybridAuth() {
                 console.log('[useHybridAuth] LIFF user authenticated:', userData)
                 setUser(userData)
                 setAuthSource('line')
+                
+                // Store LINE user info in localStorage for persistence across page navigation
+                localStorage.setItem('lineUser', JSON.stringify(userData))
             } else {
                 console.log('[useHybridAuth] LIFF user not logged in')
                 setUser(null)
                 setAuthSource('line')
+                localStorage.removeItem('lineUser')
             }
         } catch (error) {
             console.error('[useHybridAuth] LIFF initialization failed:', error)
-            // Fallback to Supabase
-            await initSupabaseAuth()
+            // Try to get user from localStorage if LIFF init fails
+            const storedUser = localStorage.getItem('lineUser')
+            if (storedUser) {
+                try {
+                    const userData = JSON.parse(storedUser)
+                    console.log('[useHybridAuth] Using stored LINE user:', userData)
+                    setUser(userData)
+                    setAuthSource('line')
+                } catch (parseError) {
+                    console.error('[useHybridAuth] Failed to parse stored user:', parseError)
+                    localStorage.removeItem('lineUser')
+                }
+            } else {
+                // Fallback to Supabase
+                await initSupabaseAuth()
+            }
         } finally {
             setLoading(false)
         }

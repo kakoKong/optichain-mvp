@@ -93,6 +93,17 @@ export default function SignInPage() {
       setLiffError(null)
       setLiffLoading(true)
       
+      // Always try to initialize LIFF if not already done
+      try {
+        await liff.init({
+          liffId: process.env.NEXT_PUBLIC_LINE_LIFF_ID!,
+          withLoginOnExternalBrowser: true,
+        })
+      } catch (initError) {
+        // If already initialized, this will fail but that's okay
+        console.log('[SignInClient] LIFF already initialized or init failed:', initError)
+      }
+      
       if (!liff.isLoggedIn()) {
         // This will redirect to LINE login
         liff.login({ 
