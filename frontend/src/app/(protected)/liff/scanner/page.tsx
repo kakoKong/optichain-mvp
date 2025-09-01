@@ -100,6 +100,59 @@ export default function BarcodeScanner() {
     }
   }, [authLoading, user])
 
+  // Helper function to resolve app-level user ID (same as dashboard)
+  const resolveAppUserId = async (u: { id: string; source: 'supabase' | 'line' }) => {
+    // For Supabase OAuth: auth.uid() == public.users.id
+    if (u.source === 'supabase') return u.id
+
+    // For LINE: map liff profile id to your app user (public.users.id)
+    // NOTE: this expects `public.users.line_user_id` to exist.
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('line_user_id', u.id)
+      .single()
+
+    if (error) {
+      console.warn('Could not map LINE user to app user:', error)
+      return null
+    }
+    return data?.id ?? null
+  }
+
+  // Helper function to fetch business for user (same as dashboard)
+  const fetchBusinessForUser = async (appUserId: string) => {
+    // Try owner first
+    const { data: owned, error: ownedErr } = await supabase
+      .from('businesses')
+      .select('id, name')
+      .eq('owner_id', appUserId)
+      .limit(1)
+
+    if (ownedErr) throw ownedErr
+    if (owned && owned.length > 0) {
+      return owned[0]
+    }
+
+    // Fallback: first business where the user is a member
+    const { data: membership, error: memErr } = await supabase
+      .from('business_members')
+      .select(`
+        business:business_id (
+          id, name
+        )
+      `)
+      .eq('user_id', appUserId)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle()
+
+    if (memErr) throw memErr
+    if (!membership?.business) return null
+
+    return membership.business
+  }
+
   const initializeScanner = async () => {
     try {
       if (!user) {
@@ -107,18 +160,21 @@ export default function BarcodeScanner() {
         return
       }
 
-      const { data, error } = await supabase
-        .from('businesses')
-        .select('id, name')
-        .eq('owner_id', user.id)
-        .limit(1)
-
-      if (error) {
-        console.error('Failed to load business:', error)
+      // 1) Resolve app-level user id used in your public schema
+      const appUserId = await resolveAppUserId(user)
+      if (!appUserId) {
+        console.warn('Could not resolve app user id')
         return
       }
 
-      setBusiness(data?.[0] || null)
+      // 2) Fetch business for this user (owner first, else member)
+      const businessData = await fetchBusinessForUser(appUserId)
+      if (!businessData) {
+        console.error('No business found for this user')
+        return
+      }
+
+      setBusiness(Array.isArray(businessData) ? businessData[0] : businessData)
       loadRecentScans()
     } catch (error) {
       console.error('Initialization error:', error)

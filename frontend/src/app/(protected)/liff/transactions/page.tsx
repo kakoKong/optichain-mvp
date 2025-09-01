@@ -58,33 +58,94 @@ export default function TransactionsPage() {
         totalValue: 0
     })
 
+
+
     useEffect(() => {
+        if (authLoading || !user) return
         initializeAndLoad()
-    }, [dateRange])
+    }, [authLoading, user, dateRange])
 
     useEffect(() => {
         filterTransactions()
         calculateStats()
     }, [transactions, searchTerm, filterType])
 
+    // Helper function to resolve app-level user ID (same as dashboard)
+    const resolveAppUserId = async (u: { id: string; source: 'supabase' | 'line' }) => {
+        // For Supabase OAuth: auth.uid() == public.users.id
+        if (u.source === 'supabase') return u.id
+
+        // For LINE: map liff profile id to your app user (public.users.id)
+        // NOTE: this expects `public.users.line_user_id` to exist.
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('line_user_id', u.id)
+            .single()
+
+        if (error) {
+            console.warn('Could not map LINE user to app user:', error)
+            return null
+        }
+        return data?.id ?? null
+    }
+
+    // Helper function to fetch business for user (same as dashboard)
+    const fetchBusinessForUser = async (appUserId: string) => {
+        // Try owner first
+        const { data: owned, error: ownedErr } = await supabase
+            .from('businesses')
+            .select('id, name')
+            .eq('owner_id', appUserId)
+            .limit(1)
+
+        if (ownedErr) throw ownedErr
+        if (owned && owned.length > 0) {
+            return owned[0]
+        }
+
+        // Fallback: first business where the user is a member
+        const { data: membership, error: memErr } = await supabase
+            .from('business_members')
+            .select(`
+                business:business_id (
+                    id, name
+                )
+            `)
+            .eq('user_id', appUserId)
+            .order('created_at', { ascending: true })
+            .limit(1)
+            .maybeSingle()
+
+        if (memErr) throw memErr
+        if (!membership?.business) return null
+
+        return membership.business
+    }
+
     const initializeAndLoad = async () => {
         setLoading(true)
         try {
-            const { user } = useAuth()
             if (!user) { setLoading(false); return }
 
-            const ownerId = user.id
+            // 1) Resolve app-level user id used in your public schema
+            const appUserId = await resolveAppUserId(user)
+            if (!appUserId) {
+                console.warn('Could not resolve app user id')
+                setLoading(false)
+                return
+            }
 
-            const { data: bizRows, error: bizErr } = await supabase
-                .from('businesses')
-                .select('id, name')
-                .eq('owner_id', ownerId)
-                .limit(1)
-            if (bizErr) throw bizErr
+            // 2) Fetch business for this user (owner first, else member)
+            const businessData = await fetchBusinessForUser(appUserId)
+            if (!businessData) {
+                setBusiness(null)
+                setTransactions([])
+                setLoading(false)
+                return
+            }
 
-            const biz = bizRows?.[0]
-            if (!biz) { setBusiness(null); setTransactions([]); setLoading(false); return }
-
+            const biz = Array.isArray(businessData) ? businessData[0] : businessData
             setBusiness(biz)
 
             const daysBack = dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : dateRange === '90d' ? 90 : 365

@@ -69,34 +69,98 @@ export default function ProductsPage() {
         initializeAndLoad()
     }, [authLoading, user])
 
-    useEffect(() => {
-        filterAndSortProducts()
-    }, [products, searchTerm, sortBy, sortOrder, filterBy])
+    // Helper function to resolve app-level user ID (same as dashboard)
+    const resolveAppUserId = async (u: { id: string; source: 'supabase' | 'line' }) => {
+        // For Supabase OAuth: auth.uid() == public.users.id
+        if (u.source === 'supabase') return u.id
+
+        // For LINE: map liff profile id to your app user (public.users.id)
+        // NOTE: this expects `public.users.line_user_id` to exist.
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('line_user_id', u.id)
+            .single()
+
+        if (error) {
+            console.warn('Could not map LINE user to app user:', error)
+            return null
+        }
+        return data?.id ?? null
+    }
+
+    // Helper function to fetch business for user (same as dashboard)
+    const fetchBusinessForUser = async (appUserId: string) => {
+        // Try owner first
+        const { data: owned, error: ownedErr } = await supabase
+            .from('businesses')
+            .select(`
+                id,
+                name,
+                products (
+                    *,
+                    inventory (*)
+                )
+            `)
+            .eq('owner_id', appUserId)
+            .limit(1)
+
+        if (ownedErr) throw ownedErr
+        if (owned && owned.length > 0) {
+            return { business: owned[0], products: owned[0].products || [] }
+        }
+
+        // Fallback: first business where the user is a member
+        const { data: membership, error: memErr } = await supabase
+            .from('business_members')
+            .select(`
+                business:business_id (
+                    id,
+                    name,
+                    products (
+                        *,
+                        inventory (*)
+                    )
+                )
+            `)
+            .eq('user_id', appUserId)
+            .order('created_at', { ascending: true })
+            .limit(1)
+            .maybeSingle()
+
+        if (memErr) throw memErr
+        if (!membership?.business) return { business: null, products: [] }
+
+        return { business: membership.business, products: Array.isArray(membership.business) ? [] : (membership.business as { products: any[] })?.products ?? [] }
+    }
 
     const initializeAndLoad = async () => {
         setLoading(true)
         try {
             if (!user) { setLoading(false); return }
 
-            const { data: bizRows, error: bizErr } = await supabase
-                .from('businesses')
-                .select(`
-          id,
-          name,
-          products (
-            *,
-            inventory (*)
-          )
-        `)
-                .eq('owner_id', user.id)
-                .limit(1)
+            // 1) Resolve app-level user id used in your public schema
+            const appUserId = await resolveAppUserId(user)
+            if (!appUserId) {
+                console.warn('Could not resolve app user id')
+                setLoading(false)
+                return
+            }
 
-            if (bizErr) throw bizErr
-            const biz = bizRows?.[0]
-            if (!biz) { setBusiness(null); setProducts([]); setLoading(false); return }
+            // 2) Fetch business for this user (owner first, else member)
+            const { business: biz, products: prods } = await fetchBusinessForUser(appUserId)
+            if (!biz) {
+                setBusiness(null)
+                setProducts([])
+                setLoading(false)
+                return
+            }
 
-            setBusiness({ id: biz.id, name: biz.name })
-            setProducts(biz.products || [])
+            setBusiness({ 
+                id: Array.isArray(biz) ? biz[0].id : biz.id, 
+                name: Array.isArray(biz) ? biz[0].name : biz.name 
+            })
+            setProducts(prods || [])
         } catch (e) {
             console.error('LIFF products init failed:', e)
         } finally {
