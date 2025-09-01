@@ -281,6 +281,25 @@ export default function BarcodeScanner() {
 
       setScanning(true)
       
+      // Wait for video element to be ready before initializing scanners
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      // Verify video element is ready
+      if (!videoRef.current) {
+        console.error('Video element not ready after delay')
+        setCameraError('Video element not ready. Please try again.')
+        await cleanupScanner()
+        return
+      }
+      
+      // Additional checks for video element
+      console.log('Video element details:', {
+        readyState: videoRef.current.readyState,
+        videoWidth: videoRef.current.videoWidth,
+        videoHeight: videoRef.current.videoHeight,
+        srcObject: !!videoRef.current.srcObject
+      })
+      
       // Try native scanner first, fallback to ZXing, then Quagga
       if ((window as any).BarcodeDetector) {
         await startNativeScanner()
@@ -482,7 +501,21 @@ export default function BarcodeScanner() {
       setScanMethod('quagga')
       console.log('Using Quagga scanner')
 
+      // Check if video element is ready
+      if (!videoRef.current) {
+        console.error('Video element not ready for Quagga scanner')
+        setCameraError('Video element not available. Use Manual Entry.')
+        return
+      }
+
       const Quagga = await import('quagga')
+      
+      // Check if Quagga is properly loaded
+      if (!Quagga || typeof Quagga.init !== 'function') {
+        throw new Error('Quagga library not properly loaded')
+      }
+      
+      console.log('Quagga library loaded successfully')
       
       Quagga.init({
         inputStream: {
@@ -513,6 +546,7 @@ export default function BarcodeScanner() {
           return
         }
 
+        console.log('Quagga initialized successfully')
         Quagga.start()
         quaggaRef.current = Quagga
 
@@ -529,7 +563,18 @@ export default function BarcodeScanner() {
       })
     } catch (error) {
       console.error('All scanners failed:', error)
-      setCameraError('Scanner not supported. Use Manual Entry.')
+      console.error('Error details:', {
+        name: error instanceof Error ? error.name : 'Unknown',
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : 'No stack trace'
+      })
+      setCameraError('All scanners failed. Use Manual Entry.')
+      // Automatically show manual entry option
+      setTimeout(() => {
+        if (confirm('All scanners failed. Would you like to enter the barcode manually?')) {
+          handleManualEntry()
+        }
+      }, 1000)
     }
   }
 
