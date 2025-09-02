@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
-import { Modal } from '@/components/ui/Modal'
+
 import { useAuth } from '@/hooks/useAuth'
 import { useBusiness } from '@/hooks/useBusiness'
 import { supabase } from '@/lib/supabase'
@@ -32,30 +32,11 @@ export const ProductsPage: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [showAddModal, setShowAddModal] = useState(false)
-  const [prefilledBarcode, setPrefilledBarcode] = useState<string | null>(null)
 
-  // Form state
-  const [formData, setFormData] = useState({
-    name: '',
-    barcode: '',
-    cost_price: '',
-    selling_price: '',
-    unit: 'pcs'
-  })
 
-  // Check for barcode parameter from URL
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search)
-    const barcode = urlParams.get('barcode')
-    const mode = urlParams.get('mode')
-    
-    if (barcode && mode === 'add') {
-      setPrefilledBarcode(barcode)
-      setFormData(prev => ({ ...prev, barcode }))
-      setShowAddModal(true)
-    }
-  }, [])
+
+
+
 
   // Load products
   useEffect(() => {
@@ -95,116 +76,7 @@ export const ProductsPage: React.FC = () => {
     loadProducts()
   }, [user, business, authLoading, businessLoading])
 
-  // Add product function
-  const addProduct = async () => {
-    if (!business || !user) return
 
-    // Validate form
-    if (!formData.name.trim() || !formData.barcode.trim()) {
-      alert('Please fill in product name and barcode')
-      return
-    }
-
-    const costPrice = parseFloat(formData.cost_price) || 0
-    const sellingPrice = parseFloat(formData.selling_price) || 0
-
-    if (sellingPrice <= 0) {
-      alert('Selling price must be greater than 0')
-      return
-    }
-
-    setLoading(true)
-
-    try {
-      // Resolve user ID
-      let appUserId = null
-      if (user.source === 'dev' && user.databaseUid) {
-        appUserId = user.databaseUid
-      } else if (user.source === 'line') {
-        const { data: userData, error } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('line_user_id', user.id)
-          .single()
-        
-        if (error || !userData) {
-          throw new Error('Unable to resolve user ID')
-        }
-        appUserId = userData.id
-      }
-
-      if (!appUserId) {
-        throw new Error('Unable to resolve user ID')
-      }
-
-      // Create product
-      const { data: product, error: productError } = await supabase
-        .from('products')
-        .insert([{
-          business_id: business.id,
-          name: formData.name.trim(),
-          barcode: formData.barcode.trim(),
-          cost_price: costPrice,
-          selling_price: sellingPrice,
-          unit: formData.unit
-        }])
-        .select()
-        .single()
-
-      if (productError) {
-        throw productError
-      }
-
-      // Create inventory record
-      const { error: inventoryError } = await supabase
-        .from('inventory')
-        .insert([{
-          business_id: business.id,
-          product_id: product.id,
-          current_stock: 0,
-          min_stock_level: 0
-        }])
-
-      if (inventoryError) {
-        throw inventoryError
-      }
-
-      // Reload products
-      const { data: productsData, error: productsError } = await supabase
-        .from('products')
-        .select(`
-          *,
-          inventory (
-            current_stock,
-            min_stock_level
-          )
-        `)
-        .eq('business_id', business.id)
-
-      if (productsError) {
-        throw productsError
-      }
-
-      setProducts(productsData || [])
-      setShowAddModal(false)
-      setFormData({
-        name: '',
-        barcode: '',
-        cost_price: '',
-        selling_price: '',
-        unit: 'pcs'
-      })
-      setPrefilledBarcode(null)
-
-      alert('Product added successfully!')
-
-    } catch (err) {
-      console.error('[ProductsPage] Error adding product:', err)
-      alert(`Failed to add product: ${err instanceof Error ? err.message : 'Unknown error'}`)
-    } finally {
-      setLoading(false)
-    }
-  }
 
   // Filter products
   const filteredProducts = products.filter(product =>
@@ -239,7 +111,7 @@ export const ProductsPage: React.FC = () => {
         subtitle={`${products.length} products in inventory`}
         onBack={() => window.history.back()}
         action={
-          <Button onClick={() => setShowAddModal(true)}>
+          <Button onClick={() => window.location.href = '/liff/products/add'}>
             <PlusCircleIcon className="h-4 w-4 mr-2" />
             Add Product
           </Button>
@@ -337,129 +209,7 @@ export const ProductsPage: React.FC = () => {
         )}
       </Card>
 
-      {/* Add Product Modal */}
-      <Modal
-        isOpen={showAddModal}
-        onClose={() => {
-          setShowAddModal(false)
-          setFormData({
-            name: '',
-            barcode: '',
-            cost_price: '',
-            selling_price: '',
-            unit: 'pcs'
-          })
-          setPrefilledBarcode(null)
-        }}
-        title="Add New Product"
-      >
-        <div className="space-y-4">
-          {prefilledBarcode && (
-            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm text-blue-700">
-                Barcode <strong>{prefilledBarcode}</strong> was scanned from the scanner. Please complete the product details below.
-              </p>
-            </div>
-          )}
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Product Name *
-            </label>
-            <Input
-              type="text"
-              value={formData.name}
-              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-              placeholder="Enter product name"
-            />
-          </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Barcode *
-            </label>
-            <Input
-              type="text"
-              value={formData.barcode}
-              onChange={(e) => setFormData(prev => ({ ...prev, barcode: e.target.value }))}
-              placeholder="Enter barcode"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Cost Price
-              </label>
-              <Input
-                type="number"
-                step="0.01"
-                value={formData.cost_price}
-                onChange={(e) => setFormData(prev => ({ ...prev, cost_price: e.target.value }))}
-                placeholder="0.00"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Selling Price *
-              </label>
-              <Input
-                type="number"
-                step="0.01"
-                value={formData.selling_price}
-                onChange={(e) => setFormData(prev => ({ ...prev, selling_price: e.target.value }))}
-                placeholder="0.00"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Unit
-            </label>
-            <select
-              value={formData.unit}
-              onChange={(e) => setFormData(prev => ({ ...prev, unit: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="pcs">Pieces</option>
-              <option value="kg">Kilograms</option>
-              <option value="g">Grams</option>
-              <option value="l">Liters</option>
-              <option value="ml">Milliliters</option>
-              <option value="box">Box</option>
-              <option value="pack">Pack</option>
-            </select>
-          </div>
-
-          <div className="flex gap-3 pt-4">
-            <Button
-              onClick={addProduct}
-              disabled={loading}
-              className="flex-1"
-            >
-              {loading ? 'Adding...' : 'Add Product'}
-            </Button>
-            <Button
-              onClick={() => {
-                setShowAddModal(false)
-                setFormData({
-                  name: '',
-                  barcode: '',
-                  cost_price: '',
-                  selling_price: '',
-                  unit: 'pcs'
-                })
-                setPrefilledBarcode(null)
-              }}
-              variant="secondary"
-              className="flex-1"
-            >
-              Cancel
-            </Button>
-          </div>
-        </div>
-      </Modal>
     </PageLayout>
   )
 }

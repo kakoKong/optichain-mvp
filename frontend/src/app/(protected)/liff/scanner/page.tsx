@@ -774,8 +774,8 @@ export default function BarcodeScanner() {
         }
         setScanStats(prev => ({ ...prev, successfulScans: prev.successfulScans + 1 }))
       } else {
-        // Both modes: redirect to product page with barcode pre-filled for new products
-        window.location.href = `/liff/products?barcode=${barcode}&mode=add`
+        // Both modes: redirect to add product page with barcode pre-filled for new products
+        window.location.href = `/liff/products/add?barcode=${barcode}`
       }
     } catch (error: any) {
       console.error('Product lookup failed:', error)
@@ -792,7 +792,7 @@ export default function BarcodeScanner() {
   // Handle quick add functionality
   const handleQuickAdd = async (product: Product, barcode: string) => {
     try {
-      // Record stock_in transaction - only use required fields
+      // Record stock_in transaction - include required fields
       const { data: transaction, error } = await supabase
         .from('inventory_transactions')
         .insert([{
@@ -801,6 +801,8 @@ export default function BarcodeScanner() {
           user_id: user!.id,
           transaction_type: 'stock_in',
           quantity: 1,
+          previous_stock: product.inventory?.[0]?.current_stock || 0,
+          new_stock: (product.inventory?.[0]?.current_stock || 0) + 1,
           reason: 'Quick scan add',
           notes: 'Added via barcode scanner'
         }])
@@ -936,7 +938,7 @@ export default function BarcodeScanner() {
         throw new Error('Could not resolve user ID')
       }
 
-      // Create transaction record - only use required fields
+      // Create transaction record - include required fields
       const { error: transactionError } = await supabase
         .from('inventory_transactions')
         .insert([{
@@ -945,6 +947,8 @@ export default function BarcodeScanner() {
           user_id: appUserId,
           transaction_type: transactionForm.type,
           quantity: transactionForm.quantity,
+          previous_stock: previousStock,
+          new_stock: newStock,
           reason: `${transactionForm.type.replace('_', ' ')} via scanner`,
           notes: `Transaction recorded via mobile scanner`
         }])
@@ -1233,30 +1237,33 @@ export default function BarcodeScanner() {
           )}
         </div>
 
-        {/* Quick Add Success Modal */}
+        {/* Quick Add Success Popup */}
         {quickAddModal.show && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-2xl max-w-sm w-full p-6 text-center">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CheckCircleIcon className="h-8 w-8 text-green-500" />
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Item Added!</h3>
-              <p className="text-gray-600 mb-4">
-                <span className="font-medium">{quickAddModal.product?.name}</span> has been added to your inventory.
-              </p>
-              <div className="flex gap-3">
+          <div className="fixed top-4 right-4 z-50 animate-slide-in">
+            <div className="bg-white rounded-xl border border-gray-200 shadow-lg max-w-sm p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <CheckCircleIcon className="h-5 w-5 text-green-500" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-semibold text-gray-900 text-sm">Item Added!</h4>
+                  <p className="text-xs text-gray-600 truncate">
+                    {quickAddModal.product?.name} (+1)
+                  </p>
+                </div>
                 <button
                   onClick={handleUndoTransaction}
-                  className="flex-1 bg-red-500 hover:bg-red-600 text-white py-3 px-4 rounded-xl font-medium transition-colors flex items-center justify-center gap-2"
+                  className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg transition-colors flex-shrink-0"
+                  title="Undo"
                 >
                   <RotateCcwIcon className="h-4 w-4" />
-                  Undo
                 </button>
                 <button
                   onClick={() => setQuickAddModal({ show: false, product: null, barcode: '' })}
-                  className="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-3 px-4 rounded-xl font-medium transition-colors"
+                  className="text-gray-400 hover:text-gray-600 p-1 flex-shrink-0"
+                  title="Close"
                 >
-                  OK
+                  <XIcon className="h-4 w-4" />
                 </button>
               </div>
             </div>
