@@ -1,8 +1,8 @@
 // frontend/app/liff/products/page.tsx
 'use client'
 
-import { ProductsPageSimple } from '@/components/pages/ProductsPageSimple'
+import { ProductsPage } from '@/components/pages/ProductsPage'
 
 export default function ProductsPageRoute() {
-  return <ProductsPageSimple />
+  return <ProductsPage />
 }

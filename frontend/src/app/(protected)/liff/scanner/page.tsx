@@ -774,30 +774,8 @@ export default function BarcodeScanner() {
         }
         setScanStats(prev => ({ ...prev, successfulScans: prev.successfulScans + 1 }))
       } else {
-        if (currentMode === 'quick_add') {
-          // Quick add mode: redirect to product page with barcode pre-filled
-          window.location.href = `/liff/products?barcode=${barcode}&mode=add`
-        } else {
-          // Transaction mode: prompt to create product
-          const name = prompt(`Product ${barcode} not found.\nEnter product name to create:`)
-          if (!name?.trim()) return
-
-          try {
-            const created = await createProductInSupabase(barcode, name.trim())
-            setProduct(created)
-            saveRecentScan({
-              barcode,
-              productName: created.name,
-              action: 'created'
-            })
-            setScanStats(prev => ({ ...prev, successfulScans: prev.successfulScans + 1 }))
-            alert('Product created successfully!')
-          } catch (error: any) {
-            console.error('Product creation failed:', error)
-            alert('Failed to create product. Please try again.')
-            setScanStats(prev => ({ ...prev, failedScans: prev.failedScans + 1 }))
-          }
-        }
+        // Both modes: redirect to product page with barcode pre-filled for new products
+        window.location.href = `/liff/products?barcode=${barcode}&mode=add`
       }
     } catch (error: any) {
       console.error('Product lookup failed:', error)
@@ -814,7 +792,7 @@ export default function BarcodeScanner() {
   // Handle quick add functionality
   const handleQuickAdd = async (product: Product, barcode: string) => {
     try {
-      // Record stock_in transaction
+      // Record stock_in transaction - only use required fields
       const { data: transaction, error } = await supabase
         .from('inventory_transactions')
         .insert([{
@@ -823,11 +801,8 @@ export default function BarcodeScanner() {
           user_id: user!.id,
           transaction_type: 'stock_in',
           quantity: 1,
-          previous_stock: product.inventory?.[0]?.current_stock || 0,
-          new_stock: (product.inventory?.[0]?.current_stock || 0) + 1,
           reason: 'Quick scan add',
-          notes: 'Added via barcode scanner',
-          created_at: new Date().toISOString()
+          notes: 'Added via barcode scanner'
         }])
         .select()
         .single()
@@ -961,7 +936,7 @@ export default function BarcodeScanner() {
         throw new Error('Could not resolve user ID')
       }
 
-      // Create transaction record
+      // Create transaction record - only use required fields
       const { error: transactionError } = await supabase
         .from('inventory_transactions')
         .insert([{
@@ -970,13 +945,8 @@ export default function BarcodeScanner() {
           user_id: appUserId,
           transaction_type: transactionForm.type,
           quantity: transactionForm.quantity,
-          previous_stock: previousStock,
-          new_stock: newStock,
-          unit_cost: null, // Could be enhanced to include cost tracking
           reason: `${transactionForm.type.replace('_', ' ')} via scanner`,
-          notes: `Transaction recorded via mobile scanner`,
-          reference_number: `${transactionForm.type.toUpperCase()}-${Date.now()}`,
-          metadata: { source: 'mobile_scanner', timestamp: new Date().toISOString() }
+          notes: `Transaction recorded via mobile scanner`
         }])
 
       if (transactionError) {
