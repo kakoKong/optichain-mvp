@@ -388,11 +388,12 @@ export default function Dashboard() {
                 {/* Key Metrics */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div
-                        className="p-5 rounded-2xl shadow-sm border backdrop-blur-xl"
+                        className="p-5 rounded-2xl shadow-sm border backdrop-blur-xl cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-lg"
                         style={{
                             background: 'var(--card-bg)',
                             borderColor: 'var(--card-border)',
                         }}
+                        onClick={() => router.push('/liff/products')}
                     >
                         <div className="flex items-center justify-between">
                             <div>
@@ -407,11 +408,12 @@ export default function Dashboard() {
                         </div>
                     </div>
                     <div
-                        className="p-5 rounded-2xl shadow-sm border backdrop-blur-xl"
+                        className="p-5 rounded-2xl shadow-sm border backdrop-blur-xl cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-lg"
                         style={{
                             background: 'var(--card-bg)',
                             borderColor: 'var(--card-border)',
                         }}
+                        onClick={() => router.push('/liff/analytics')}
                     >
                         <div className="flex items-center justify-between">
                             <div>
@@ -424,11 +426,12 @@ export default function Dashboard() {
                         </div>
                     </div>
                     <div
-                        className="p-5 rounded-2xl shadow-sm border backdrop-blur-xl"
+                        className="p-5 rounded-2xl shadow-sm border backdrop-blur-xl cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-lg"
                         style={{
                             background: 'var(--card-bg)',
                             borderColor: 'var(--card-border)',
                         }}
+                        onClick={() => router.push('/liff/products')}
                     >
                         <div className="flex items-center justify-between">
                             <div>
@@ -443,11 +446,12 @@ export default function Dashboard() {
                         </div>
                     </div>
                     <div
-                        className="p-5 rounded-2xl shadow-sm border backdrop-blur-xl"
+                        className="p-5 rounded-2xl shadow-sm border backdrop-blur-xl cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-lg"
                         style={{
                             background: 'var(--card-bg)',
                             borderColor: 'var(--card-border)',
                         }}
+                        onClick={() => router.push('/liff/analytics')}
                     >
                         <div className="flex items-center justify-between">
                             <div>

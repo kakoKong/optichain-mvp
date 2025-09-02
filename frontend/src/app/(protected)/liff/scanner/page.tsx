@@ -110,6 +110,16 @@ export default function BarcodeScanner() {
     }
   }, [authLoading, user])
 
+  // Auto-start camera when business is loaded
+  useEffect(() => {
+    if (business && !scanning && !product) {
+      // Small delay to ensure UI is ready
+      setTimeout(() => {
+        startCamera()
+      }, 500)
+    }
+  }, [business])
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -285,6 +295,28 @@ export default function BarcodeScanner() {
           
           videoRef.current?.play().catch(reject)
         })
+      }
+
+      // Apply focus settings for close-range scanning
+      try {
+        const videoTrack = stream.getVideoTracks()[0]
+        if (videoTrack && videoTrack.getCapabilities) {
+          const capabilities = videoTrack.getCapabilities() as any
+          console.log('Camera capabilities:', capabilities)
+          
+          // Try to set focus mode for close-range scanning (only if supported)
+          if (capabilities.focusMode && capabilities.focusMode.includes('continuous')) {
+            await videoTrack.applyConstraints({
+              advanced: [
+                { focusMode: 'continuous' } as any
+              ]
+            })
+            console.log('Applied continuous focus mode')
+          }
+        }
+      } catch (focusError) {
+        console.warn('Could not apply focus settings:', focusError)
+        // Continue without focus settings - not critical
       }
 
       setScanning(true)
@@ -850,14 +882,6 @@ export default function BarcodeScanner() {
               >
                 <ArrowLeftIcon className="h-5 w-5 text-gray-700" />
               </button>
-              <div>
-                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">
-                  Smart Scanner
-                </h1>
-                <p className="mt-1 text-sm sm:text-base text-gray-600">
-                  High-accuracy barcode scanning with multiple engines
-                </p>
-              </div>
             </div>
             <ScanLineIcon className="h-10 w-10 text-blue-500" />
           </div>
