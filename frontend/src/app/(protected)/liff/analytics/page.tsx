@@ -258,6 +258,7 @@ export default function Analytics() {
 
     const generateDailySalesData = (transactions: any[]) => {
         const daysBack = timeRange === '7d' ? 7 : timeRange === '30d' ? 30 : 90
+        
         const dailyData = Array.from({ length: daysBack }, (_, i) => {
             const date = new Date()
             date.setDate(date.getDate() - (daysBack - 1 - i))
@@ -598,6 +599,9 @@ export default function Analytics() {
                                     <div className="text-center">
                                         <BarChart3Icon className="h-12 w-12 mx-auto mb-3" style={{ color: 'var(--muted)' }} />
                                         <p className="text-sm" style={{ color: 'var(--muted)' }}>No sales data available</p>
+                                        <p className="text-xs mt-2" style={{ color: 'var(--muted)' }}>
+                                            Try making some sales to see trends
+                                        </p>
                                     </div>
                                 </div>
                             )}
