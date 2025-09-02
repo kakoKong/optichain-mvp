@@ -508,7 +508,7 @@ export default function BarcodeScanner() {
                   if (barcode && barcode.length >= 8) {
                     console.log('✅ Native scanner detected:', barcode, 'confidence:', confidence)
                     foundBarcodeRef.current = barcode
-                    await handleBarcodeResult(barcode)
+                    await handleBarcodeResult(barcode, currentMode)
                     return
                   } else {
                     console.log('❌ Barcode too short:', barcode, 'length:', barcode?.length)
@@ -582,7 +582,7 @@ export default function BarcodeScanner() {
             if (barcode && barcode.length >= 8 && !format.toString().toUpperCase().includes('QR')) {
               console.log('✅ ZXing detected:', barcode, 'format:', format)
               foundBarcodeRef.current = barcode
-              await handleBarcodeResult(barcode)
+              await handleBarcodeResult(barcode, currentMode)
             } else {
               console.log('❌ ZXing barcode rejected:', {
                 reason: barcode.length < 8 ? 'too short' : 'QR code detected',
@@ -672,7 +672,7 @@ export default function BarcodeScanner() {
             if (barcode && barcode.length >= 8) {
               console.log('✅ Quagga detected:', barcode, 'format:', format)
               foundBarcodeRef.current = barcode
-              handleBarcodeResult(barcode)
+              handleBarcodeResult(barcode, currentMode)
             } else {
               console.log('❌ Quagga barcode rejected (too short):', barcode, 'length:', barcode?.length)
             }
@@ -700,7 +700,7 @@ export default function BarcodeScanner() {
   const handleManualEntry = () => {
     const barcode = prompt('Enter barcode manually:')
     if (barcode?.trim()) {
-      handleBarcodeResult(barcode.trim())
+      handleBarcodeResult(barcode.trim(), currentMode)
     }
   }
 
@@ -752,7 +752,7 @@ export default function BarcodeScanner() {
   }
 
   // Handle barcode scan result
-  const handleBarcodeResult = async (barcode: string) => {
+  const handleBarcodeResult = async (barcode: string, mode?: 'transaction' | 'quick_add') => {
     if (!business) return
 
     // Prevent duplicate scans in quick succession (3 second cooldown)
@@ -769,14 +769,19 @@ export default function BarcodeScanner() {
     setScanStats(prev => ({ ...prev, attempts: prev.attempts + 1 }))
 
     try {
+      const activeMode = mode || currentMode
+      console.log('[handleBarcodeResult] Current mode:', currentMode, 'Passed mode:', mode, 'Active mode:', activeMode, 'Barcode:', barcode)
       const existing = await fetchProductWithInventory(barcode)
       
       if (existing) {
-        if (currentMode === 'quick_add') {
+        console.log('[handleBarcodeResult] Product found:', existing.name, 'Active mode:', activeMode)
+        if (activeMode === 'quick_add') {
           // Quick add mode: automatically add 1 to stock
+          console.log('[handleBarcodeResult] Calling handleQuickAdd')
           await handleQuickAdd(existing, barcode)
         } else {
           // Transaction mode: show product for manual transaction
+          console.log('[handleBarcodeResult] Setting product for transaction mode')
           setProduct(existing)
           saveRecentScan({
             barcode,
@@ -787,6 +792,7 @@ export default function BarcodeScanner() {
         setScanStats(prev => ({ ...prev, successfulScans: prev.successfulScans + 1 }))
       } else {
         // Both modes: redirect to add product page with barcode pre-filled for new products
+        console.log('[handleBarcodeResult] Product not found, redirecting to add product page')
         window.location.href = `/liff/products/add?barcode=${barcode}`
       }
     } catch (error: any) {
@@ -796,7 +802,8 @@ export default function BarcodeScanner() {
     } finally {
       setLoading(false)
       // Only stop camera in transaction mode, keep it running in quick add mode
-      if (currentMode === 'transaction') {
+      const activeMode = mode || currentMode
+      if (activeMode === 'transaction') {
         await cleanupScanner()
       }
       // In quick add mode, camera stays running for continuous scanning
@@ -1173,7 +1180,10 @@ export default function BarcodeScanner() {
           <div className="p-4 sm:p-6 space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <button
-                onClick={() => setCurrentMode('transaction')}
+                onClick={() => {
+                  console.log('[Mode Selector] Setting mode to transaction')
+                  setCurrentMode('transaction')
+                }}
                 className={`p-4 rounded-xl border-2 transition-all ${
                   currentMode === 'transaction'
                     ? 'bg-blue-100 border-blue-500 text-blue-700'
@@ -1189,7 +1199,10 @@ export default function BarcodeScanner() {
                 </div>
               </button>
               <button
-                onClick={() => setCurrentMode('quick_add')}
+                onClick={() => {
+                  console.log('[Mode Selector] Setting mode to quick_add')
+                  setCurrentMode('quick_add')
+                }}
                 className={`p-4 rounded-xl border-2 transition-all ${
                   currentMode === 'quick_add'
                     ? 'bg-green-100 border-green-500 text-green-700'
@@ -1330,7 +1343,7 @@ export default function BarcodeScanner() {
                   Restart Camera
                 </button>
                 <button
-                  onClick={() => handleBarcodeResult('1234567890123')}
+                  onClick={() => handleBarcodeResult('1234567890123', currentMode)}
                   className="px-2 py-1 text-xs rounded bg-green-100 hover:bg-green-200 text-green-700 transition-colors"
                 >
                   Test Barcode
