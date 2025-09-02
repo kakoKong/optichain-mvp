@@ -108,6 +108,8 @@ export default function BarcodeScanner() {
     transactionId: string
     quantity: number
   } | null>(null)
+  const [lastScannedBarcode, setLastScannedBarcode] = useState<string | null>(null)
+  const [lastScanTime, setLastScanTime] = useState<number>(0)
 
   // Refs for camera and scanning
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -752,6 +754,15 @@ export default function BarcodeScanner() {
   const handleBarcodeResult = async (barcode: string) => {
     if (!business) return
 
+    // Prevent duplicate scans in quick succession (3 second cooldown)
+    const now = Date.now()
+    if (barcode === lastScannedBarcode && (now - lastScanTime) < 3000) {
+      console.log('[handleBarcodeResult] Ignoring duplicate scan within cooldown period')
+      return
+    }
+
+    setLastScannedBarcode(barcode)
+    setLastScanTime(now)
     setLoading(true)
     setScanResult(barcode)
     setScanStats(prev => ({ ...prev, attempts: prev.attempts + 1 }))
@@ -783,9 +794,11 @@ export default function BarcodeScanner() {
       setScanStats(prev => ({ ...prev, failedScans: prev.failedScans + 1 }))
     } finally {
       setLoading(false)
+      // Only stop camera in transaction mode, keep it running in quick add mode
       if (currentMode === 'transaction') {
         await cleanupScanner()
       }
+      // In quick add mode, camera stays running for continuous scanning
     }
   }
 
@@ -801,6 +814,9 @@ export default function BarcodeScanner() {
       }
       
       console.log('[handleQuickAdd] Resolved app user ID:', appUserId)
+      
+      // Clear the found barcode ref so scanning can continue
+      foundBarcodeRef.current = null
 
       // Record stock_in transaction - include required fields
       const { data: transaction, error } = await supabase
@@ -857,10 +873,16 @@ export default function BarcodeScanner() {
         quantity: 1
       })
 
-      // Auto-hide modal after 2 seconds
+      // Auto-hide modal after 2 seconds, but keep camera running
       setTimeout(() => {
         setQuickAddModal(prev => ({ ...prev, show: false }))
+        // Don't stop the camera - keep it running for continuous scanning
       }, 2000)
+      
+      // Clear scan result after a short delay to allow continuous scanning
+      setTimeout(() => {
+        setScanResult('')
+      }, 1000)
 
       saveRecentScan({
         barcode,
@@ -1294,6 +1316,9 @@ export default function BarcodeScanner() {
                   <p className="text-xs text-gray-600 truncate">
                     {quickAddModal.product?.name} (+1)
                   </p>
+                  <p className="text-xs text-blue-600 mt-1">
+                    📷 Camera ready for next scan
+                  </p>
                 </div>
                 <button
                   onClick={handleUndoTransaction}
@@ -1492,6 +1517,13 @@ function CameraView({
       {!isVideoReady && (
         <div className="absolute top-3 left-3 px-3 py-2 rounded-md text-sm bg-yellow-50 text-yellow-700 border border-yellow-200">
           Initializing camera...
+        </div>
+      )}
+      
+      {/* Continuous scanning indicator */}
+      {isVideoReady && (
+        <div className="absolute top-3 left-3 px-3 py-2 rounded-md text-sm bg-green-50 text-green-700 border border-green-200">
+          📷 Ready to scan
         </div>
       )}
       
