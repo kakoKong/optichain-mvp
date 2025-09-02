@@ -583,25 +583,27 @@ export default function ProductsPage() {
                         style={{ background: 'linear-gradient(90deg, transparent, var(--accentA), var(--accentB), transparent)' }}
                     />
                     <div className="p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                        <div className="flex items-center gap-4 min-w-0">
+                        <div className="flex items-center gap-4 min-w-0 flex-1">
                             <button
                                 onClick={() => window.history.back()}
-                                className="p-3 rounded-xl bg-gray-100 border border-gray-200 hover:bg-gray-200 transition-colors"
+                                className="p-3 rounded-xl bg-gray-100 border border-gray-200 hover:bg-gray-200 transition-colors flex-shrink-0"
                             >
                                 <ArrowLeftIcon className="h-5 w-5 text-gray-700" />
                             </button>
-                            <div className="min-w-0">
+                            <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-2">
                                     <h1
-                                        className="text-2xl sm:text-3xl font-bold tracking-tight truncate flex items-center gap-3"
+                                        className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight truncate flex items-center gap-2 sm:gap-3"
                                         style={{ color: 'var(--text)' }}
                                     >
-                                        <PackageIcon className="h-8 w-8" />
-                                        Product Management
+                                        <PackageIcon className="h-6 w-6 sm:h-8 sm:w-8 flex-shrink-0" />
+                                        <span className="hidden sm:inline">Product Management</span>
+                                        <span className="sm:hidden">Products</span>
                                     </h1>
                                 </div>
-                                <p className="mt-1 text-sm sm:text-base truncate" style={{ color: 'var(--muted)' }}>
-                                    {products.length} products in inventory
+                                <p className="mt-1 text-xs sm:text-sm lg:text-base truncate" style={{ color: 'var(--muted)' }}>
+                                    <span className="hidden sm:inline">{products.length} products in inventory</span>
+                                    <span className="sm:hidden">{products.length} items</span>
                                 </p>
                             </div>
                         </div>
@@ -610,9 +612,9 @@ export default function ProductsPage() {
                                 resetForm()
                                 setShowAddModal(true)
                             }}
-                            className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-xl font-medium transition-colors flex items-center gap-2"
+                            className="bg-white/20 hover:bg-white/30 text-white px-3 sm:px-4 py-2 rounded-xl font-medium transition-colors flex items-center gap-2 flex-shrink-0"
                         >
-                            <PlusCircleIcon className="h-5 w-5" />
+                            <PlusCircleIcon className="h-4 w-4 sm:h-5 sm:w-5" />
                             <span className="hidden sm:inline">Add Product</span>
                             <span className="sm:hidden">Add</span>
                         </button>

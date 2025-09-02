@@ -564,26 +564,26 @@ export default function Analytics() {
                         </div>
                     </div>
                     <div className="p-4 sm:p-6">
-                        <div className="h-64 relative">
-                            {analytics?.salesData && (
-                                <div className="flex items-end justify-between h-full gap-2">
+                        <div className="h-48 sm:h-64 relative">
+                            {analytics?.salesData && analytics.salesData.length > 0 ? (
+                                <div className="flex items-end justify-between h-full gap-1 sm:gap-2">
                                     {analytics.salesData.map((day, index) => {
                                         const maxRevenue = Math.max(...analytics.salesData.map(d => d.revenue))
-                                        const height = maxRevenue > 0 ? (day.revenue / maxRevenue) * 100 : 0
+                                        const height = maxRevenue > 0 ? Math.max((day.revenue / maxRevenue) * 100, 5) : 5
 
                                         return (
-                                            <div key={index} className="flex-1 flex flex-col items-center gap-2">
+                                            <div key={index} className="flex-1 flex flex-col items-center gap-1 sm:gap-2 min-w-0">
                                                 <div
-                                                    className="w-full bg-gradient-to-t from-purple-500 to-purple-400 rounded-t-lg relative group cursor-pointer transition-all hover:from-purple-600 hover:to-purple-500"
-                                                    style={{ height: `${height}%`, minHeight: height > 0 ? '8px' : '2px' }}
+                                                    className="w-full bg-gradient-to-t from-purple-500 to-purple-400 rounded-t-sm sm:rounded-t-lg relative group cursor-pointer transition-all hover:from-purple-600 hover:to-purple-500"
+                                                    style={{ height: `${height}%` }}
                                                 >
-                                                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 bg-gray-900 text-white text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                                                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 bg-gray-900 text-white text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
                                                         {formatCurrency(day.revenue)}
                                                         <br />
                                                         {day.transactions} orders
                                                     </div>
                                                 </div>
-                                                <div className="text-xs text-gray-500 text-center">
+                                                <div className="text-xs text-center truncate w-full" style={{ color: 'var(--muted)' }}>
                                                     {new Date(day.date).toLocaleDateString('en', {
                                                         month: 'short',
                                                         day: 'numeric'
@@ -592,6 +592,13 @@ export default function Analytics() {
                                             </div>
                                         )
                                     })}
+                                </div>
+                            ) : (
+                                <div className="flex items-center justify-center h-full">
+                                    <div className="text-center">
+                                        <BarChart3Icon className="h-12 w-12 mx-auto mb-3" style={{ color: 'var(--muted)' }} />
+                                        <p className="text-sm" style={{ color: 'var(--muted)' }}>No sales data available</p>
+                                    </div>
                                 </div>
                             )}
                         </div>
