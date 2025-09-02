@@ -58,7 +58,11 @@ const SCANNER_CONFIG = {
     frameRate: { ideal: 30, min: 15 },
     // Add more specific constraints for better barcode scanning
     aspectRatio: { ideal: 16/9 },
-    resizeMode: 'crop-and-scale' as any
+    resizeMode: 'crop-and-scale' as any,
+    // Close range focus settings
+    focusMode: 'continuous' as any,
+    focusDistance: { ideal: 0.1, min: 0.05, max: 0.5 }, // Close range (5cm to 50cm)
+    zoom: { ideal: 1.5, min: 1.0, max: 2.0 } // Slight zoom for better close-up scanning
   },
   barcodeFormats: [
     'ean_13', 'ean_8', 'upc_a', 'upc_e', 
@@ -327,14 +331,28 @@ export default function BarcodeScanner() {
           const capabilities = videoTrack.getCapabilities() as any
           console.log('Camera capabilities:', capabilities)
           
-          // Try to set focus mode for close-range scanning (only if supported)
+          // Try to set focus mode for close-range scanning
+          const focusConstraints: any = {}
+          
           if (capabilities.focusMode && capabilities.focusMode.includes('continuous')) {
+            focusConstraints.focusMode = 'continuous'
+          }
+          
+          // Try to set focus distance for close range (if supported)
+          if (capabilities.focusDistance) {
+            focusConstraints.focusDistance = 0.1 // 10cm focus distance
+          }
+          
+          // Try to set zoom for better close-up scanning (if supported)
+          if (capabilities.zoom) {
+            focusConstraints.zoom = 1.5 // 1.5x zoom
+          }
+          
+          if (Object.keys(focusConstraints).length > 0) {
             await videoTrack.applyConstraints({
-              advanced: [
-                { focusMode: 'continuous' } as any
-              ]
+              advanced: [focusConstraints]
             })
-            console.log('Applied continuous focus mode')
+            console.log('Applied close-range focus settings:', focusConstraints)
           }
         }
       } catch (focusError) {
@@ -792,13 +810,23 @@ export default function BarcodeScanner() {
   // Handle quick add functionality
   const handleQuickAdd = async (product: Product, barcode: string) => {
     try {
+      console.log('[handleQuickAdd] Starting quick add for product:', product.name, 'barcode:', barcode)
+      
+      // Resolve app user ID
+      const appUserId = await resolveAppUserId(user!)
+      if (!appUserId) {
+        throw new Error('Could not resolve user ID')
+      }
+      
+      console.log('[handleQuickAdd] Resolved app user ID:', appUserId)
+
       // Record stock_in transaction - include required fields
       const { data: transaction, error } = await supabase
         .from('inventory_transactions')
         .insert([{
           business_id: business!.id,
           product_id: product.id,
-          user_id: user!.id,
+          user_id: appUserId,
           transaction_type: 'stock_in',
           quantity: 1,
           previous_stock: product.inventory?.[0]?.current_stock || 0,
@@ -809,10 +837,15 @@ export default function BarcodeScanner() {
         .select()
         .single()
 
-      if (error) throw error
+      if (error) {
+        console.error('[handleQuickAdd] Transaction insert error:', error)
+        throw error
+      }
+      
+      console.log('[handleQuickAdd] Transaction created successfully:', transaction)
 
       // Update inventory
-      await supabase
+      const { error: updateError } = await supabase
         .from('inventory')
         .update({ 
           current_stock: (product.inventory?.[0]?.current_stock || 0) + 1,
@@ -820,6 +853,13 @@ export default function BarcodeScanner() {
         })
         .eq('product_id', product.id)
         .eq('business_id', business!.id)
+        
+      if (updateError) {
+        console.error('[handleQuickAdd] Inventory update error:', updateError)
+        throw updateError
+      }
+      
+      console.log('[handleQuickAdd] Inventory updated successfully')
 
       // Show success modal
       setQuickAddModal({
@@ -848,8 +888,8 @@ export default function BarcodeScanner() {
       })
 
     } catch (error: any) {
-      console.error('Quick add failed:', error)
-      alert('Failed to add item. Please try again.')
+      console.error('[handleQuickAdd] Quick add failed:', error)
+      alert(`Failed to add item: ${error.message || 'Unknown error'}`)
     }
   }
 
@@ -1019,6 +1059,25 @@ export default function BarcodeScanner() {
     await startCamera()
   }
 
+  // Manual focus trigger for close-range scanning
+  const triggerFocus = async () => {
+    try {
+      const videoTrack = streamRef.current?.getVideoTracks()[0]
+      if (videoTrack && videoTrack.getCapabilities) {
+        const capabilities = videoTrack.getCapabilities() as any
+        
+        if (capabilities.focusMode && capabilities.focusMode.includes('single-shot')) {
+          await videoTrack.applyConstraints({
+            advanced: [{ focusMode: 'single-shot' } as any]
+          })
+          console.log('Triggered single-shot focus for close range')
+        }
+      }
+    } catch (error) {
+      console.warn('Could not trigger focus:', error)
+    }
+  }
+
   // Update transaction form
   const updateTransactionForm = (updates: Partial<TransactionForm>) => {
     setTransactionForm(prev => ({ ...prev, ...updates }))
@@ -1144,6 +1203,7 @@ export default function BarcodeScanner() {
             method={scanMethod}
             error={cameraError}
             videoKey={videoKey}
+            onFocus={triggerFocus}
           />
         ) : product && (
           <TransactionForm 
@@ -1396,13 +1456,15 @@ function CameraView({
   onStop, 
   method, 
   error,
-  videoKey
+  videoKey,
+  onFocus
 }: {
   videoRef: React.RefObject<HTMLVideoElement | null>
   onStop: () => void
   method: string
   error: string
   videoKey: number
+  onFocus?: () => void
 }) {
   const [isVideoReady, setIsVideoReady] = useState(false)
 
@@ -1451,6 +1513,15 @@ function CameraView({
       
       {/* Controls */}
       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-3">
+        {onFocus && (
+          <button 
+            onClick={onFocus} 
+            className="px-4 py-3 rounded-xl font-medium shadow-lg bg-blue-500 hover:bg-blue-600 text-white transition-colors"
+            title="Focus for close range"
+          >
+            📷 Focus
+          </button>
+        )}
         <button 
           onClick={onStop} 
           className="px-6 py-3 rounded-xl font-medium shadow-lg bg-red-500 hover:bg-red-600 text-white transition-colors"
