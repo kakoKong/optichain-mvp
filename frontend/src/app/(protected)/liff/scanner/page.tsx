@@ -58,11 +58,9 @@ const SCANNER_CONFIG = {
     frameRate: { ideal: 30, min: 15 },
     // Add more specific constraints for better barcode scanning
     aspectRatio: { ideal: 16/9 },
-    resizeMode: 'crop-and-scale' as any,
-    // Close range focus settings
-    focusMode: 'continuous' as any,
-    focusDistance: { ideal: 0.1, min: 0.05, max: 0.5 }, // Close range (5cm to 50cm)
-    zoom: { ideal: 1.5, min: 1.0, max: 2.0 } // Slight zoom for better close-up scanning
+    resizeMode: 'crop-and-scale' as any
+    // Note: Focus settings removed from initial constraints to avoid camera startup issues
+    // Focus will be applied after camera starts
   },
   barcodeFormats: [
     'ean_13', 'ean_8', 'upc_a', 'upc_e', 
@@ -324,39 +322,23 @@ export default function BarcodeScanner() {
         })
       }
 
-      // Apply focus settings for close-range scanning
+      // Apply focus settings for close-range scanning (optional)
       try {
         const videoTrack = stream.getVideoTracks()[0]
         if (videoTrack && videoTrack.getCapabilities) {
           const capabilities = videoTrack.getCapabilities() as any
           console.log('Camera capabilities:', capabilities)
           
-          // Try to set focus mode for close-range scanning
-          const focusConstraints: any = {}
-          
+          // Only try continuous focus mode if supported
           if (capabilities.focusMode && capabilities.focusMode.includes('continuous')) {
-            focusConstraints.focusMode = 'continuous'
-          }
-          
-          // Try to set focus distance for close range (if supported)
-          if (capabilities.focusDistance) {
-            focusConstraints.focusDistance = 0.1 // 10cm focus distance
-          }
-          
-          // Try to set zoom for better close-up scanning (if supported)
-          if (capabilities.zoom) {
-            focusConstraints.zoom = 1.5 // 1.5x zoom
-          }
-          
-          if (Object.keys(focusConstraints).length > 0) {
             await videoTrack.applyConstraints({
-              advanced: [focusConstraints]
+              advanced: [{ focusMode: 'continuous' } as any]
             })
-            console.log('Applied close-range focus settings:', focusConstraints)
+            console.log('Applied continuous focus mode for close-range scanning')
           }
         }
       } catch (focusError) {
-        console.warn('Could not apply focus settings:', focusError)
+        console.warn('Could not apply focus settings (this is normal on some devices):', focusError)
         // Continue without focus settings - not critical
       }
 
@@ -1071,6 +1053,8 @@ export default function BarcodeScanner() {
             advanced: [{ focusMode: 'single-shot' } as any]
           })
           console.log('Triggered single-shot focus for close range')
+        } else {
+          console.log('Single-shot focus not supported on this device')
         }
       }
     } catch (error) {
