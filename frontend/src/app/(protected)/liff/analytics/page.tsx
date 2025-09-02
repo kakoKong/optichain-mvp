@@ -331,49 +331,98 @@ export default function Analytics() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-100">
-            {/* Header */}
-            <div className="bg-gradient-to-r from-purple-600 to-blue-700 shadow-lg">
-                <div className="px-6 py-6">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
+        <div className="min-h-screen relative overflow-hidden" style={{
+            backgroundImage: 'linear-gradient(to bottom right, var(--bg-from), var(--bg-via), var(--bg-to))',
+        }}>
+            {/* Animated background blobs, tinted by theme */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                <div
+                    className="absolute -top-40 -right-40 w-80 h-80 rounded-full mix-blend-multiply blur-xl opacity-40 animate-blob"
+                    style={{ background: 'var(--accentA)' }}
+                />
+                <div
+                    className="absolute -bottom-40 -left-40 w-80 h-80 rounded-full mix-blend-multiply blur-xl opacity-40 animate-blob animation-delay-2000"
+                    style={{ background: 'var(--accentB)' }}
+                />
+                <div
+                    className="absolute top-40 left-40 w-80 h-80 rounded-full mix-blend-multiply blur-xl opacity-40 animate-blob animation-delay-4000"
+                    style={{ background: 'var(--accentC)' }}
+                />
+            </div>
+            {/* Subtle grid overlay */}
+            <div
+                className="absolute inset-0 opacity-70"
+                style={{
+                    backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.06'%3E%3Ccircle cx='30' cy='30' r='1.5'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+                }}
+            />
+            
+            <div className="relative z-10 p-4 sm:p-6 space-y-6 sm:space-y-8 pb-20 sm:pb-6">
+                {/* Header */}
+                <div
+                    className="relative overflow-hidden rounded-2xl border shadow-xl backdrop-blur-lg"
+                    style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}
+                >
+                    {/* Accent bar */}
+                    <div
+                        className="pointer-events-none absolute inset-x-0 top-0 h-1 opacity-60"
+                        style={{ background: 'linear-gradient(90deg, transparent, var(--accentA), var(--accentB), transparent)' }}
+                    />
+                    <div className="p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div className="flex items-center gap-4 min-w-0">
                             <button
                                 onClick={() => window.history.back()}
-                                className="p-2 bg-white/20 rounded-xl text-white hover:bg-white/30 transition-colors"
+                                className="p-3 rounded-xl bg-gray-100 border border-gray-200 hover:bg-gray-200 transition-colors"
                             >
-                                <ArrowLeftIcon className="h-5 w-5" />
+                                <ArrowLeftIcon className="h-5 w-5 text-gray-700" />
                             </button>
-                            <div>
-                                <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-                                    <BarChart3Icon className="h-8 w-8" />
-                                    Analytics Dashboard
-                                </h1>
-                                <p className="text-purple-100 mt-1">Business insights and performance metrics</p>
+                            <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                    <h1
+                                        className="text-2xl sm:text-3xl font-bold tracking-tight truncate flex items-center gap-3"
+                                        style={{ color: 'var(--text)' }}
+                                    >
+                                        <BarChart3Icon className="h-8 w-8" />
+                                        Analytics Dashboard
+                                    </h1>
+                                </div>
+                                <p className="mt-1 text-sm sm:text-base truncate" style={{ color: 'var(--muted)' }}>
+                                    Business insights and performance metrics
+                                </p>
                             </div>
                         </div>
                         <div className="flex items-center gap-3">
                             <select
                                 value={timeRange}
                                 onChange={(e) => setTimeRange(e.target.value)}
-                                className="bg-white/20 text-white border border-white/30 rounded-xl px-4 py-2 focus:outline-none focus:bg-white/30"
+                                className="rounded-xl px-4 py-2 focus:outline-none focus:ring-2 transition-all"
+                                style={{
+                                    background: 'var(--input-bg)',
+                                    border: '1px solid var(--input-border)',
+                                    color: 'var(--text)',
+                                    
+                                }}
                             >
-                                <option value="7d" className="text-gray-900">Last 7 days</option>
-                                <option value="30d" className="text-gray-900">Last 30 days</option>
-                                <option value="90d" className="text-gray-900">Last 90 days</option>
+                                <option value="7d">Last 7 days</option>
+                                <option value="30d">Last 30 days</option>
+                                <option value="90d">Last 90 days</option>
                             </select>
                         </div>
                     </div>
                 </div>
-            </div>
-
-            <div className="px-6 py-6 space-y-8">
                 {/* Key Metrics */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                    <div
+                        className="p-4 sm:p-6 rounded-2xl shadow-sm border backdrop-blur-xl"
+                        style={{
+                            background: 'var(--card-bg)',
+                            borderColor: 'var(--card-border)',
+                        }}
+                    >
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-sm font-medium text-gray-600">Total Revenue</p>
-                                <p className="text-2xl font-bold text-green-600 mt-2">
+                                <p className="text-sm font-medium" style={{ color: 'var(--muted)' }}>Total Revenue</p>
+                                <p className="text-xl sm:text-2xl font-bold text-green-600 mt-1 sm:mt-2">
                                     {formatCurrency(analytics?.totalRevenue || 0)}
                                 </p>
                                 {analytics?.monthlyComparison && (
@@ -394,11 +443,17 @@ export default function Analytics() {
                         </div>
                     </div>
 
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                    <div
+                        className="p-4 sm:p-6 rounded-2xl shadow-sm border backdrop-blur-xl"
+                        style={{
+                            background: 'var(--card-bg)',
+                            borderColor: 'var(--card-border)',
+                        }}
+                    >
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-sm font-medium text-gray-600">Transactions</p>
-                                <p className="text-2xl font-bold text-blue-600 mt-2">
+                                <p className="text-sm font-medium" style={{ color: 'var(--muted)' }}>Transactions</p>
+                                <p className="text-xl sm:text-2xl font-bold text-blue-600 mt-1 sm:mt-2">
                                     {analytics?.totalTransactions || 0}
                                 </p>
                                 {analytics?.monthlyComparison && (
@@ -419,11 +474,17 @@ export default function Analytics() {
                         </div>
                     </div>
 
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                    <div
+                        className="p-4 sm:p-6 rounded-2xl shadow-sm border backdrop-blur-xl"
+                        style={{
+                            background: 'var(--card-bg)',
+                            borderColor: 'var(--card-border)',
+                        }}
+                    >
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-sm font-medium text-gray-600">Avg Order Value</p>
-                                <p className="text-2xl font-bold text-purple-600 mt-2">
+                                <p className="text-sm font-medium" style={{ color: 'var(--muted)' }}>Avg Order Value</p>
+                                <p className="text-xl sm:text-2xl font-bold text-purple-600 mt-1 sm:mt-2">
                                     {formatCurrency(analytics?.avgOrderValue || 0)}
                                 </p>
                             </div>
@@ -433,11 +494,17 @@ export default function Analytics() {
                         </div>
                     </div>
 
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                    <div
+                        className="p-4 sm:p-6 rounded-2xl shadow-sm border backdrop-blur-xl"
+                        style={{
+                            background: 'var(--card-bg)',
+                            borderColor: 'var(--card-border)',
+                        }}
+                    >
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-sm font-medium text-gray-600">Stock Turnover</p>
-                                <p className="text-2xl font-bold text-orange-600 mt-2">
+                                <p className="text-sm font-medium" style={{ color: 'var(--muted)' }}>Stock Turnover</p>
+                                <p className="text-xl sm:text-2xl font-bold text-orange-600 mt-1 sm:mt-2">
                                     {(analytics?.stockTurnover || 0).toFixed(1)}x
                                 </p>
                             </div>
@@ -449,17 +516,23 @@ export default function Analytics() {
                 </div>
 
                 {/* Sales Chart */}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
-                    <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-                        <h3 className="text-lg font-semibold text-gray-900">Sales Trend</h3>
+                <div
+                    className="rounded-2xl shadow-sm border backdrop-blur-xl"
+                    style={{
+                        background: 'var(--card-bg)',
+                        borderColor: 'var(--card-border)',
+                    }}
+                >
+                    <div className="px-4 sm:px-6 py-4 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border)' }}>
+                        <h3 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>Sales Trend</h3>
                         <div className="flex items-center gap-2">
                             <div className="flex items-center gap-1">
                                 <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
-                                <span className="text-sm text-gray-600">Revenue</span>
+                                <span className="text-sm" style={{ color: 'var(--muted)' }}>Revenue</span>
                             </div>
                         </div>
                     </div>
-                    <div className="p-6">
+                    <div className="p-4 sm:p-6">
                         <div className="h-64 relative">
                             {analytics?.salesData && (
                                 <div className="flex items-end justify-between h-full gap-2">
@@ -497,11 +570,17 @@ export default function Analytics() {
                 {/* Top Products and Low Stock */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Top Products */}
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
-                        <div className="px-6 py-4 border-b border-gray-100">
-                            <h3 className="text-lg font-semibold text-gray-900">Top Products by Revenue</h3>
+                    <div
+                        className="rounded-2xl shadow-sm border backdrop-blur-xl"
+                        style={{
+                            background: 'var(--card-bg)',
+                            borderColor: 'var(--card-border)',
+                        }}
+                    >
+                        <div className="px-4 sm:px-6 py-4" style={{ borderBottom: '1px solid var(--border)' }}>
+                            <h3 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>Top Products by Revenue</h3>
                         </div>
-                        <div className="p-6">
+                        <div className="p-4 sm:p-6">
                             <div className="space-y-4">
                                 {analytics?.topProducts.slice(0, 5).map((product, index) => {
                                     const maxRevenue = Math.max(...(analytics?.topProducts.map(p => p.revenue) || [1]))
@@ -514,10 +593,10 @@ export default function Analytics() {
                                             </div>
                                             <div className="flex-1">
                                                 <div className="flex items-center justify-between mb-1">
-                                                    <p className="font-medium text-gray-900 truncate">{product.name}</p>
-                                                    <p className="font-semibold text-gray-900">{formatCurrency(product.revenue)}</p>
+                                                    <p className="font-medium truncate" style={{ color: 'var(--text)' }}>{product.name}</p>
+                                                    <p className="font-semibold" style={{ color: 'var(--text)' }}>{formatCurrency(product.revenue)}</p>
                                                 </div>
-                                                <div className="w-full bg-gray-200 rounded-full h-2">
+                                                <div className="w-full rounded-full h-2" style={{ background: 'var(--muted-bg)' }}>
                                                     <div
                                                         className="bg-gradient-to-r from-purple-500 to-blue-500 h-2 rounded-full transition-all duration-500"
                                                         style={{ width: `${percentage}%` }}
@@ -529,8 +608,8 @@ export default function Analytics() {
                                 })}
                                 {(!analytics?.topProducts || analytics.topProducts.length === 0) && (
                                     <div className="text-center py-8">
-                                        <PackageIcon className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                                        <p className="text-gray-500">No sales data available</p>
+                                        <PackageIcon className="h-12 w-12 mx-auto mb-3" style={{ color: 'var(--muted)' }} />
+                                        <p style={{ color: 'var(--muted)' }}>No sales data available</p>
                                     </div>
                                 )}
                             </div>
@@ -538,9 +617,15 @@ export default function Analytics() {
                     </div>
 
                     {/* Low Stock Alerts */}
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
-                        <div className="px-6 py-4 border-b border-gray-100">
-                            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <div
+                        className="rounded-2xl shadow-sm border backdrop-blur-xl"
+                        style={{
+                            background: 'var(--card-bg)',
+                            borderColor: 'var(--card-border)',
+                        }}
+                    >
+                        <div className="px-4 sm:px-6 py-4" style={{ borderBottom: '1px solid var(--border)' }}>
+                            <h3 className="text-lg font-semibold flex items-center gap-2" style={{ color: 'var(--text)' }}>
                                 Low Stock Alerts
                                 {analytics?.lowStockAlerts.length ? (
                                     <span className="bg-red-100 text-red-600 text-xs font-medium px-2 py-1 rounded-full">
@@ -549,7 +634,7 @@ export default function Analytics() {
                                 ) : null}
                             </h3>
                         </div>
-                        <div className="p-6">
+                        <div className="p-4 sm:p-6">
                             <div className="space-y-4">
                                 {analytics?.lowStockAlerts.slice(0, 8).map((alert, index) => (
                                     <div key={index} className="flex items-center justify-between p-3 bg-red-50 rounded-xl border border-red-200">
@@ -558,7 +643,7 @@ export default function Analytics() {
                                                 <PackageIcon className="h-4 w-4 text-red-600" />
                                             </div>
                                             <div>
-                                                <p className="font-medium text-gray-900">{alert.name}</p>
+                                                <p className="font-medium" style={{ color: 'var(--text)' }}>{alert.name}</p>
                                                 <p className="text-sm text-red-600">
                                                     {alert.current} / {alert.minimum} units
                                                 </p>
@@ -583,7 +668,7 @@ export default function Analytics() {
                                         <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
                                             <PackageIcon className="h-6 w-6 text-green-600" />
                                         </div>
-                                        <p className="text-gray-500">All products are well stocked!</p>
+                                        <p style={{ color: 'var(--muted)' }}>All products are well stocked!</p>
                                     </div>
                                 )}
                             </div>
@@ -593,10 +678,16 @@ export default function Analytics() {
 
                 {/* Monthly Comparison */}
                 {analytics?.monthlyComparison && (
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
-                        <div className="px-6 py-4 border-b border-gray-100">
-                            <h3 className="text-lg font-semibold text-gray-900">Monthly Performance</h3>
-                            <p className="text-sm text-gray-600">Current month vs previous month</p>
+                    <div
+                        className="rounded-2xl shadow-sm border backdrop-blur-xl"
+                        style={{
+                            background: 'var(--card-bg)',
+                            borderColor: 'var(--card-border)',
+                        }}
+                    >
+                        <div className="px-4 sm:px-6 py-4" style={{ borderBottom: '1px solid var(--border)' }}>
+                            <h3 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>Monthly Performance</h3>
+                            <p className="text-sm" style={{ color: 'var(--muted)' }}>Current month vs previous month</p>
                         </div>
                         <div className="p-6">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -691,12 +782,22 @@ export default function Analytics() {
                 )}
 
                 {/* Action Buttons */}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
-                    <div className="p-6">
+                <div
+                    className="rounded-2xl shadow-sm border backdrop-blur-xl"
+                    style={{
+                        background: 'var(--card-bg)',
+                        borderColor: 'var(--card-border)',
+                    }}
+                >
+                    <div className="p-4 sm:p-6">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <button
                                 onClick={() => window.location.href = '/liff/products'}
-                                className="flex items-center justify-center gap-3 p-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl font-medium hover:from-blue-600 hover:to-indigo-700 transition-all shadow-md"
+                                className="flex items-center justify-center gap-3 p-4 rounded-xl font-medium transition-all shadow-md hover:scale-[1.02]"
+                                style={{
+                                    background: 'linear-gradient(to right, var(--accentA), var(--accentB))',
+                                    color: 'white',
+                                }}
                             >
                                 <PackageIcon className="h-5 w-5" />
                                 <span>Manage Inventory</span>
@@ -704,7 +805,11 @@ export default function Analytics() {
 
                             <button
                                 onClick={() => window.location.href = '/liff/scanner'}
-                                className="flex items-center justify-center gap-3 p-4 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-xl font-medium hover:from-purple-600 hover:to-purple-700 transition-all shadow-md"
+                                className="flex items-center justify-center gap-3 p-4 rounded-xl font-medium transition-all shadow-md hover:scale-[1.02]"
+                                style={{
+                                    background: 'linear-gradient(to right, var(--accentB), var(--accentC))',
+                                    color: 'white',
+                                }}
                             >
                                 <BarChart3Icon className="h-5 w-5" />
                                 <span>Quick Scan</span>
@@ -729,7 +834,11 @@ export default function Analytics() {
                                     a.click()
                                     URL.revokeObjectURL(url)
                                 }}
-                                className="flex items-center justify-center gap-3 p-4 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl font-medium hover:from-green-600 hover:to-green-700 transition-all shadow-md"
+                                className="flex items-center justify-center gap-3 p-4 rounded-xl font-medium transition-all shadow-md hover:scale-[1.02]"
+                                style={{
+                                    background: 'linear-gradient(to right, var(--accentC), var(--accentA))',
+                                    color: 'white',
+                                }}
                             >
                                 <DownloadIcon className="h-5 w-5" />
                                 <span>Export Report</span>

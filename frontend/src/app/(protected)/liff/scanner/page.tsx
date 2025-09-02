@@ -48,15 +48,18 @@ const SCANNER_CONFIG = {
     facingMode: 'environment' as const,
     width: { ideal: 1920, min: 1280 },
     height: { ideal: 1080, min: 720 },
-    frameRate: { ideal: 30, min: 15 }
+    frameRate: { ideal: 30, min: 15 },
+    // Add more specific constraints for better barcode scanning
+    aspectRatio: { ideal: 16/9 },
+    resizeMode: 'crop-and-scale' as any
   },
   barcodeFormats: [
     'ean_13', 'ean_8', 'upc_a', 'upc_e', 
     'code_128', 'code_93', 'code_39', 'itf',
     'codabar', 'data_matrix', 'pdf_417'
   ],
-  scanInterval: 100, // ms between scans
-  confidenceThreshold: 0.8, // minimum confidence for detection
+  scanInterval: 200, // Increased interval for better performance
+  confidenceThreshold: 0.6, // Lowered threshold for better detection
   maxRetries: 3
 }
 
@@ -341,9 +344,12 @@ export default function BarcodeScanner() {
       })
       
       // Try native scanner first, fallback to ZXing, then Quagga
+      console.log('Checking for BarcodeDetector support:', !!(window as any).BarcodeDetector)
       if ((window as any).BarcodeDetector) {
+        console.log('Attempting to start native scanner...')
         await startNativeScanner()
       } else {
+        console.log('BarcodeDetector not supported, trying ZXing...')
         await startZXingScanner()
       }
     } catch (error) {
@@ -433,12 +439,13 @@ export default function BarcodeScanner() {
   // Native BarcodeDetector scanner (most accurate)
   const startNativeScanner = async () => {
     try {
+      console.log('Initializing native BarcodeDetector with formats:', SCANNER_CONFIG.barcodeFormats)
       const detector = new (window as any).BarcodeDetector({
         formats: SCANNER_CONFIG.barcodeFormats
       })
       
       setScanMethod('native')
-      console.log('Using native BarcodeDetector')
+      console.log('Native BarcodeDetector initialized successfully')
 
       const scanFrame = async () => {
         if (!scanning || !videoRef.current || foundBarcodeRef.current) return
@@ -463,17 +470,28 @@ export default function BarcodeScanner() {
               const results = await detector.detect(imageBitmap)
               
               if (results?.length > 0) {
+                console.log('Native scanner found', results.length, 'potential barcodes')
                 const bestResult = results[0]
                 const confidence = bestResult.confidence || 1.0
+                
+                console.log('Best result:', {
+                  rawValue: bestResult.rawValue,
+                  confidence: confidence,
+                  format: bestResult.format
+                })
                 
                 if (confidence >= SCANNER_CONFIG.confidenceThreshold) {
                   const barcode = bestResult.rawValue
                   if (barcode && barcode.length >= 8) {
-                    console.log('Native scanner detected:', barcode, 'confidence:', confidence)
+                    console.log('✅ Native scanner detected:', barcode, 'confidence:', confidence)
                     foundBarcodeRef.current = barcode
                     await handleBarcodeResult(barcode)
                     return
+                  } else {
+                    console.log('❌ Barcode too short:', barcode, 'length:', barcode?.length)
                   }
+                } else {
+                  console.log('❌ Confidence too low:', confidence, 'threshold:', SCANNER_CONFIG.confidenceThreshold)
                 }
               }
             } finally {
@@ -481,6 +499,8 @@ export default function BarcodeScanner() {
                 imageBitmap.close()
               }
             }
+          } else {
+            console.log('❌ Video dimensions not ready:', { width, height })
           }
         } catch (error) {
           console.warn('Native scanner frame error:', error)
@@ -491,9 +511,11 @@ export default function BarcodeScanner() {
         }
       }
 
+      console.log('Starting native scanner frame loop...')
       scanFrame()
     } catch (error) {
-      console.warn('Native scanner failed, falling back to ZXing:', error)
+      console.error('Native scanner initialization failed:', error)
+      console.log('Falling back to ZXing scanner...')
       await startZXingScanner()
     }
   }
@@ -502,35 +524,58 @@ export default function BarcodeScanner() {
   const startZXingScanner = async () => {
     try {
       setScanMethod('zxing')
-      console.log('Using ZXing scanner')
+      console.log('Initializing ZXing scanner...')
 
       const { BrowserMultiFormatReader } = await import('@zxing/browser')
       
-      if (!videoRef.current) throw new Error('Video element not available')
+      if (!videoRef.current) {
+        throw new Error('Video element not available for ZXing')
+      }
 
+      console.log('Creating ZXing BrowserMultiFormatReader...')
       const reader = new BrowserMultiFormatReader()
       zxingReaderRef.current = reader
 
+      console.log('Starting ZXing decodeFromVideoDevice...')
       const controls = await reader.decodeFromVideoDevice(
         undefined,
         videoRef.current,
         async (result: any, error: any) => {
+          if (error) {
+            console.log('ZXing error (normal during scanning):', error.message || error)
+            return
+          }
+          
           if (result && !foundBarcodeRef.current) {
             const barcode = result.getText?.() || result.text || ''
             const format = result.getBarcodeFormat?.() || result.format || ''
             
+            console.log('ZXing found potential barcode:', {
+              barcode,
+              format,
+              length: barcode?.length
+            })
+            
             if (barcode && barcode.length >= 8 && !format.toString().toUpperCase().includes('QR')) {
-              console.log('ZXing detected:', barcode, 'format:', format)
+              console.log('✅ ZXing detected:', barcode, 'format:', format)
               foundBarcodeRef.current = barcode
               await handleBarcodeResult(barcode)
+            } else {
+              console.log('❌ ZXing barcode rejected:', {
+                reason: barcode.length < 8 ? 'too short' : 'QR code detected',
+                barcode,
+                format
+              })
             }
           }
         }
       )
 
       zxingReaderRef.current = controls
+      console.log('ZXing scanner started successfully')
     } catch (error) {
-      console.warn('ZXing failed, trying Quagga:', error)
+      console.error('ZXing scanner failed:', error)
+      console.log('Falling back to Quagga scanner...')
       await startQuaggaScanner()
     }
   }
@@ -593,10 +638,20 @@ export default function BarcodeScanner() {
         Quagga.onDetected((result: any) => {
           if (!foundBarcodeRef.current) {
             const barcode = result.codeResult.code
+            const format = result.codeResult.format
+            
+            console.log('Quagga found potential barcode:', {
+              barcode,
+              format,
+              length: barcode?.length
+            })
+            
             if (barcode && barcode.length >= 8) {
-              console.log('Quagga detected:', barcode)
+              console.log('✅ Quagga detected:', barcode, 'format:', format)
               foundBarcodeRef.current = barcode
               handleBarcodeResult(barcode)
+            } else {
+              console.log('❌ Quagga barcode rejected (too short):', barcode, 'length:', barcode?.length)
             }
           }
         })
@@ -980,7 +1035,7 @@ export default function BarcodeScanner() {
                 <p><strong>Quagga Instance:</strong> {quaggaRef.current ? 'Active' : 'None'}</p>
                 <p><strong>Found Barcode:</strong> {foundBarcodeRef.current || 'None'}</p>
               </div>
-              <div className="mt-3 flex gap-2">
+              <div className="mt-3 flex gap-2 flex-wrap">
                 <button
                   onClick={() => cleanupScanner()}
                   className="px-2 py-1 text-xs rounded bg-red-100 hover:bg-red-200 text-red-700 transition-colors"
@@ -992,6 +1047,32 @@ export default function BarcodeScanner() {
                   className="px-2 py-1 text-xs rounded bg-blue-100 hover:bg-blue-200 text-blue-700 transition-colors"
                 >
                   Restart Camera
+                </button>
+                <button
+                  onClick={() => handleBarcodeResult('1234567890123')}
+                  className="px-2 py-1 text-xs rounded bg-green-100 hover:bg-green-200 text-green-700 transition-colors"
+                >
+                  Test Barcode
+                </button>
+                <button
+                  onClick={() => {
+                    console.log('=== SCANNER DEBUG INFO ===')
+                    console.log('Video element:', videoRef.current)
+                    console.log('Video ready state:', videoRef.current?.readyState)
+                    console.log('Video dimensions:', {
+                      width: videoRef.current?.videoWidth,
+                      height: videoRef.current?.videoHeight
+                    })
+                    console.log('Stream active:', streamRef.current?.active)
+                    console.log('Scanning state:', scanning)
+                    console.log('Scan method:', scanMethod)
+                    console.log('Found barcode ref:', foundBarcodeRef.current)
+                    console.log('BarcodeDetector support:', !!(window as any).BarcodeDetector)
+                    console.log('========================')
+                  }}
+                  className="px-2 py-1 text-xs rounded bg-purple-100 hover:bg-purple-200 text-purple-700 transition-colors"
+                >
+                  Debug Info
                 </button>
               </div>
             </div>

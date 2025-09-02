@@ -545,24 +545,64 @@ export default function ProductsPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-100">
-            {/* Header */}
-            <div className="bg-gradient-to-r from-green-600 to-blue-700 shadow-lg">
-                <div className="px-6 py-6">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
+        <div className="min-h-screen relative overflow-hidden" style={{
+            backgroundImage: 'linear-gradient(to bottom right, var(--bg-from), var(--bg-via), var(--bg-to))',
+        }}>
+            {/* Animated background blobs, tinted by theme */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                <div
+                    className="absolute -top-40 -right-40 w-80 h-80 rounded-full mix-blend-multiply blur-xl opacity-40 animate-blob"
+                    style={{ background: 'var(--accentA)' }}
+                />
+                <div
+                    className="absolute -bottom-40 -left-40 w-80 h-80 rounded-full mix-blend-multiply blur-xl opacity-40 animate-blob animation-delay-2000"
+                    style={{ background: 'var(--accentB)' }}
+                />
+                <div
+                    className="absolute top-40 left-40 w-80 h-80 rounded-full mix-blend-multiply blur-xl opacity-40 animate-blob animation-delay-4000"
+                    style={{ background: 'var(--accentC)' }}
+                />
+            </div>
+            {/* Subtle grid overlay */}
+            <div
+                className="absolute inset-0 opacity-70"
+                style={{
+                    backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.06'%3E%3Ccircle cx='30' cy='30' r='1.5'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+                }}
+            />
+            
+            <div className="relative z-10 p-4 sm:p-6 space-y-6 sm:space-y-8 pb-20 sm:pb-6">
+                {/* Header */}
+                <div
+                    className="relative overflow-hidden rounded-2xl border shadow-xl backdrop-blur-lg"
+                    style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}
+                >
+                    {/* Accent bar */}
+                    <div
+                        className="pointer-events-none absolute inset-x-0 top-0 h-1 opacity-60"
+                        style={{ background: 'linear-gradient(90deg, transparent, var(--accentA), var(--accentB), transparent)' }}
+                    />
+                    <div className="p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div className="flex items-center gap-4 min-w-0">
                             <button
                                 onClick={() => window.history.back()}
-                                className="p-2 bg-white/20 rounded-xl text-white hover:bg-white/30 transition-colors"
+                                className="p-3 rounded-xl bg-gray-100 border border-gray-200 hover:bg-gray-200 transition-colors"
                             >
-                                <ArrowLeftIcon className="h-5 w-5" />
+                                <ArrowLeftIcon className="h-5 w-5 text-gray-700" />
                             </button>
-                            <div>
-                                <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-                                    <PackageIcon className="h-8 w-8" />
-                                    Product Management
-                                </h1>
-                                <p className="text-green-100 mt-1">{products.length} products in inventory</p>
+                            <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                    <h1
+                                        className="text-2xl sm:text-3xl font-bold tracking-tight truncate flex items-center gap-3"
+                                        style={{ color: 'var(--text)' }}
+                                    >
+                                        <PackageIcon className="h-8 w-8" />
+                                        Product Management
+                                    </h1>
+                                </div>
+                                <p className="mt-1 text-sm sm:text-base truncate" style={{ color: 'var(--muted)' }}>
+                                    {products.length} products in inventory
+                                </p>
                             </div>
                         </div>
                         <button
@@ -573,89 +613,129 @@ export default function ProductsPage() {
                             className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-xl font-medium transition-colors flex items-center gap-2"
                         >
                             <PlusCircleIcon className="h-5 w-5" />
-                            Add Product
+                            <span className="hidden sm:inline">Add Product</span>
+                            <span className="sm:hidden">Add</span>
                         </button>
                     </div>
                 </div>
-            </div>
 
-            <div className="px-6 py-6 space-y-6">
                 {/* Search and Filters */}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-                    <div className="flex flex-col md:flex-row gap-4">
-                        {/* Search */}
-                        <div className="flex-1 relative">
-                            <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                            <input
-                                type="text"
-                                placeholder="Search products or barcodes..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                            />
-                        </div>
+                <div
+                    className="rounded-2xl shadow-sm border backdrop-blur-xl"
+                    style={{
+                        background: 'var(--card-bg)',
+                        borderColor: 'var(--card-border)',
+                    }}
+                >
+                    <div className="p-4 sm:p-6">
+                        <div className="flex flex-col lg:flex-row gap-4">
+                            {/* Search */}
+                            <div className="flex-1 relative">
+                                <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5" style={{ color: 'var(--muted)' }} />
+                                <input
+                                    type="text"
+                                    placeholder="Search products or barcodes..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="w-full pl-10 pr-4 py-3 rounded-xl focus:outline-none focus:ring-2 transition-all"
+                                    style={{
+                                        background: 'var(--input-bg)',
+                                        border: '1px solid var(--input-border)',
+                                        color: 'var(--text)',
+                                        
+                                    }}
+                                />
+                            </div>
 
-                        {/* Filter */}
-                        <div className="flex items-center gap-3">
-                            <select
-                                value={filterBy}
-                                onChange={(e) => setFilterBy(e.target.value as any)}
-                                className="border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500"
-                            >
-                                <option value="all">All Products</option>
-                                <option value="low_stock">Low Stock</option>
-                                <option value="no_stock">Out of Stock</option>
-                            </select>
+                            {/* Filter Controls */}
+                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                                <select
+                                    value={filterBy}
+                                    onChange={(e) => setFilterBy(e.target.value as any)}
+                                    className="rounded-xl px-4 py-3 focus:outline-none focus:ring-2 transition-all"
+                                    style={{
+                                        background: 'var(--input-bg)',
+                                        border: '1px solid var(--input-border)',
+                                        color: 'var(--text)',
+                                        
+                                    }}
+                                >
+                                    <option value="all">All Products</option>
+                                    <option value="low_stock">Low Stock</option>
+                                    <option value="no_stock">Out of Stock</option>
+                                </select>
 
-                            <select
-                                value={sortBy}
-                                onChange={(e) => setSortBy(e.target.value as any)}
-                                className="border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500"
-                            >
-                                <option value="name">Sort by Name</option>
-                                <option value="stock">Sort by Stock</option>
-                                <option value="value">Sort by Value</option>
-                            </select>
+                                <select
+                                    value={sortBy}
+                                    onChange={(e) => setSortBy(e.target.value as any)}
+                                    className="rounded-xl px-4 py-3 focus:outline-none focus:ring-2 transition-all"
+                                    style={{
+                                        background: 'var(--input-bg)',
+                                        border: '1px solid var(--input-border)',
+                                        color: 'var(--text)',
+                                        
+                                    }}
+                                >
+                                    <option value="name">Sort by Name</option>
+                                    <option value="stock">Sort by Stock</option>
+                                    <option value="value">Sort by Value</option>
+                                </select>
 
-                            <button
-                                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                                className="p-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
-                            >
-                                {sortOrder === 'asc' ? (
-                                    <SortAscIcon className="h-5 w-5 text-gray-600" />
-                                ) : (
-                                    <SortDescIcon className="h-5 w-5 text-gray-600" />
-                                )}
-                            </button>
+                                <button
+                                    onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                                    className="p-3 rounded-xl transition-colors"
+                                    style={{
+                                        background: 'var(--input-bg)',
+                                        border: '1px solid var(--input-border)',
+                                        color: 'var(--text)',
+                                    }}
+                                >
+                                    {sortOrder === 'asc' ? (
+                                        <SortAscIcon className="h-5 w-5" />
+                                    ) : (
+                                        <SortDescIcon className="h-5 w-5" />
+                                    )}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 {/* Products Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
                     {filteredProducts.map((product) => {
                         const stockStatus = getStockStatus(product)
                         const currentStock = product.inventory?.[0]?.current_stock || 0
                         const stockValue = currentStock * (Number(product.selling_price) || 0)
 
                         return (
-                            <div key={product.id} className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+                            <div 
+                                key={product.id} 
+                                className="rounded-2xl shadow-sm border backdrop-blur-xl overflow-hidden hover:shadow-lg transition-all duration-200 hover:scale-[1.02]"
+                                style={{
+                                    background: 'var(--card-bg)',
+                                    borderColor: 'var(--card-border)',
+                                }}
+                            >
                                 {/* Header */}
-                                <div className="p-6 pb-4">
+                                <div className="p-4 sm:p-6 pb-4">
                                     <div className="flex items-start justify-between mb-4">
-                                        <div className="flex-1">
-                                            <h3 className="font-semibold text-gray-900 text-lg mb-1">{product.name}</h3>
+                                        <div className="flex-1 min-w-0">
+                                            <h3 className="font-semibold text-lg mb-1 truncate" style={{ color: 'var(--text)' }}>
+                                                {product.name}
+                                            </h3>
                                             {product.barcode && (
-                                                <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
+                                                <div className="flex items-center gap-2 text-sm mb-2" style={{ color: 'var(--muted)' }}>
                                                     <BarcodeIcon className="h-4 w-4" />
-                                                    <span>{product.barcode}</span>
+                                                    <span className="truncate">{product.barcode}</span>
                                                 </div>
                                             )}
                                         </div>
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-2 ml-2">
                                             <button
                                                 onClick={() => startEdit(product)}
-                                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                className="p-2 rounded-lg transition-colors"
+                                                style={{ color: 'var(--accentA)' }}
                                             >
                                                 <EditIcon className="h-4 w-4" />
                                             </button>
@@ -681,34 +761,34 @@ export default function ProductsPage() {
                                 </div>
 
                                 {/* Details */}
-                                <div className="px-6 pb-6 space-y-4">
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="bg-gray-50 p-3 rounded-xl">
-                                            <p className="text-xs text-gray-600 font-medium">Current Stock</p>
-                                            <p className="text-xl font-bold text-gray-900">{currentStock}</p>
-                                            <p className="text-xs text-gray-500">{product.unit}</p>
+                                <div className="px-4 sm:px-6 pb-4 sm:pb-6 space-y-4">
+                                    <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                                        <div className="p-3 rounded-xl" style={{ background: 'var(--muted-bg)' }}>
+                                            <p className="text-xs font-medium" style={{ color: 'var(--muted)' }}>Current Stock</p>
+                                            <p className="text-lg sm:text-xl font-bold" style={{ color: 'var(--text)' }}>{currentStock}</p>
+                                            <p className="text-xs" style={{ color: 'var(--muted)' }}>{product.unit}</p>
                                         </div>
-                                        <div className="bg-gray-50 p-3 rounded-xl">
-                                            <p className="text-xs text-gray-600 font-medium">Stock Value</p>
-                                            <p className="text-xl font-bold text-green-600">฿{stockValue.toLocaleString()}</p>
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-4 text-sm">
-                                        <div>
-                                            <p className="text-gray-600 font-medium">Cost Price</p>
-                                            <p className="text-gray-900">฿{Number(product.cost_price).toLocaleString()}</p>
-                                        </div>
-                                        <div>
-                                            <p className="text-gray-600 font-medium">Sell Price</p>
-                                            <p className="text-gray-900">฿{Number(product.selling_price).toLocaleString()}</p>
+                                        <div className="p-3 rounded-xl" style={{ background: 'var(--muted-bg)' }}>
+                                            <p className="text-xs font-medium" style={{ color: 'var(--muted)' }}>Stock Value</p>
+                                            <p className="text-lg sm:text-xl font-bold text-green-600">฿{stockValue.toLocaleString()}</p>
                                         </div>
                                     </div>
 
-                                    <div className="pt-2 border-t border-gray-100">
-                                        <div className="flex items-center justify-between text-sm">
-                                            <span className="text-gray-600">Min. Level: {product.inventory?.[0]?.min_stock_level || 0}</span>
-                                            <span className="text-gray-600">
+                                    <div className="grid grid-cols-2 gap-3 sm:gap-4 text-sm">
+                                        <div>
+                                            <p className="font-medium" style={{ color: 'var(--muted)' }}>Cost Price</p>
+                                            <p style={{ color: 'var(--text)' }}>฿{Number(product.cost_price).toLocaleString()}</p>
+                                        </div>
+                                        <div>
+                                            <p className="font-medium" style={{ color: 'var(--muted)' }}>Sell Price</p>
+                                            <p style={{ color: 'var(--text)' }}>฿{Number(product.selling_price).toLocaleString()}</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="pt-2" style={{ borderTop: '1px solid var(--border)' }}>
+                                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-sm">
+                                            <span style={{ color: 'var(--muted)' }}>Min. Level: {product.inventory?.[0]?.min_stock_level || 0}</span>
+                                            <span style={{ color: 'var(--muted)' }}>
                                                 Margin: {product.cost_price > 0 ?
                                                     Math.round(((Number(product.selling_price) - Number(product.cost_price)) / Number(product.selling_price)) * 100)
                                                     : 0}%
@@ -722,10 +802,16 @@ export default function ProductsPage() {
                 </div>
 
                 {filteredProducts.length === 0 && (
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-12 text-center">
-                        <PackageIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">No products found</h3>
-                        <p className="text-gray-500 mb-6">
+                    <div
+                        className="rounded-2xl shadow-sm border backdrop-blur-xl p-8 sm:p-12 text-center"
+                        style={{
+                            background: 'var(--card-bg)',
+                            borderColor: 'var(--card-border)',
+                        }}
+                    >
+                        <PackageIcon className="h-16 w-16 mx-auto mb-4" style={{ color: 'var(--muted)' }} />
+                        <h3 className="text-lg font-medium mb-2" style={{ color: 'var(--text)' }}>No products found</h3>
+                        <p className="mb-6" style={{ color: 'var(--muted)' }}>
                             {searchTerm || filterBy !== 'all'
                                 ? 'Try adjusting your search or filters'
                                 : 'Get started by adding your first product'
@@ -737,7 +823,11 @@ export default function ProductsPage() {
                                     resetForm()
                                     setShowAddModal(true)
                                 }}
-                                className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-xl font-medium transition-colors inline-flex items-center gap-2"
+                                className="px-6 py-3 rounded-xl font-medium transition-colors inline-flex items-center gap-2"
+                                style={{
+                                    background: 'var(--accentA)',
+                                    color: 'white',
+                                }}
                             >
                                 <PlusCircleIcon className="h-5 w-5" />
                                 Add Your First Product

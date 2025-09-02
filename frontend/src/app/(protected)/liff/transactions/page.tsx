@@ -295,143 +295,238 @@ export default function TransactionsPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-100">
-            {/* Header */}
-            <div className="bg-gradient-to-r from-orange-600 to-red-700 shadow-lg">
-                <div className="px-6 py-6">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
+        <div className="min-h-screen relative overflow-hidden" style={{
+            backgroundImage: 'linear-gradient(to bottom right, var(--bg-from), var(--bg-via), var(--bg-to))',
+        }}>
+            {/* Animated background blobs, tinted by theme */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                <div
+                    className="absolute -top-40 -right-40 w-80 h-80 rounded-full mix-blend-multiply blur-xl opacity-40 animate-blob"
+                    style={{ background: 'var(--accentA)' }}
+                />
+                <div
+                    className="absolute -bottom-40 -left-40 w-80 h-80 rounded-full mix-blend-multiply blur-xl opacity-40 animate-blob animation-delay-2000"
+                    style={{ background: 'var(--accentB)' }}
+                />
+                <div
+                    className="absolute top-40 left-40 w-80 h-80 rounded-full mix-blend-multiply blur-xl opacity-40 animate-blob animation-delay-4000"
+                    style={{ background: 'var(--accentC)' }}
+                />
+            </div>
+            {/* Subtle grid overlay */}
+            <div
+                className="absolute inset-0 opacity-70"
+                style={{
+                    backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.06'%3E%3Ccircle cx='30' cy='30' r='1.5'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+                }}
+            />
+            
+            <div className="relative z-10 p-4 sm:p-6 space-y-6 sm:space-y-8 pb-20 sm:pb-6">
+                {/* Header */}
+                <div
+                    className="relative overflow-hidden rounded-2xl border shadow-xl backdrop-blur-lg"
+                    style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}
+                >
+                    {/* Accent bar */}
+                    <div
+                        className="pointer-events-none absolute inset-x-0 top-0 h-1 opacity-60"
+                        style={{ background: 'linear-gradient(90deg, transparent, var(--accentA), var(--accentB), transparent)' }}
+                    />
+                    <div className="p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div className="flex items-center gap-4 min-w-0">
                             <button
                                 onClick={() => window.history.back()}
-                                className="p-2 bg-white/20 rounded-xl text-white hover:bg-white/30 transition-colors"
+                                className="p-3 rounded-xl bg-gray-100 border border-gray-200 hover:bg-gray-200 transition-colors"
                             >
-                                <ArrowLeftIcon className="h-5 w-5" />
+                                <ArrowLeftIcon className="h-5 w-5 text-gray-700" />
                             </button>
-                            <div>
-                                <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-                                    <HistoryIcon className="h-8 w-8" />
-                                    Transaction History
-                                </h1>
-                                <p className="text-orange-100 mt-1">{stats.totalTransactions} transactions in {dateRange}</p>
+                            <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                    <h1
+                                        className="text-2xl sm:text-3xl font-bold tracking-tight truncate flex items-center gap-3"
+                                        style={{ color: 'var(--text)' }}
+                                    >
+                                        <HistoryIcon className="h-8 w-8" />
+                                        Transaction History
+                                    </h1>
+                                </div>
+                                <p className="mt-1 text-sm sm:text-base truncate" style={{ color: 'var(--muted)' }}>
+                                    {stats.totalTransactions} transactions in {dateRange}
+                                </p>
                             </div>
                         </div>
                         <div className="flex items-center gap-3">
                             <select
                                 value={dateRange}
                                 onChange={(e) => setDateRange(e.target.value)}
-                                className="bg-white/20 text-white border border-white/30 rounded-xl px-4 py-2 focus:outline-none focus:bg-white/30"
+                                className="rounded-xl px-4 py-2 focus:outline-none focus:ring-2 transition-all"
+                                style={{
+                                    background: 'var(--input-bg)',
+                                    border: '1px solid var(--input-border)',
+                                    color: 'var(--text)',
+                                    
+                                }}
                             >
-                                <option value="7d" className="text-gray-900">Last 7 days</option>
-                                <option value="30d" className="text-gray-900">Last 30 days</option>
-                                <option value="90d" className="text-gray-900">Last 90 days</option>
-                                <option value="1y" className="text-gray-900">Last year</option>
+                                <option value="7d">Last 7 days</option>
+                                <option value="30d">Last 30 days</option>
+                                <option value="90d">Last 90 days</option>
+                                <option value="1y">Last year</option>
                             </select>
                             <button
                                 onClick={exportTransactions}
                                 className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-xl font-medium transition-colors flex items-center gap-2"
                             >
                                 <DownloadIcon className="h-4 w-4" />
-                                Export
+                                <span className="hidden sm:inline">Export</span>
                             </button>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <div className="px-6 py-6 space-y-6">
                 {/* Stats Cards */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                    <div
+                        className="p-4 sm:p-6 rounded-2xl shadow-sm border backdrop-blur-xl"
+                        style={{
+                            background: 'var(--card-bg)',
+                            borderColor: 'var(--card-border)',
+                        }}
+                    >
                         <div className="flex items-center gap-3">
                             <div className="bg-blue-100 p-3 rounded-xl">
                                 <HistoryIcon className="h-6 w-6 text-blue-600" />
                             </div>
                             <div>
-                                <p className="text-sm text-gray-600 font-medium">Total</p>
-                                <p className="text-2xl font-bold text-gray-900">{stats.totalTransactions}</p>
+                                <p className="text-sm font-medium" style={{ color: 'var(--muted)' }}>Total</p>
+                                <p className="text-xl sm:text-2xl font-bold" style={{ color: 'var(--text)' }}>{stats.totalTransactions}</p>
                             </div>
                         </div>
                     </div>
 
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                    <div
+                        className="p-4 sm:p-6 rounded-2xl shadow-sm border backdrop-blur-xl"
+                        style={{
+                            background: 'var(--card-bg)',
+                            borderColor: 'var(--card-border)',
+                        }}
+                    >
                         <div className="flex items-center gap-3">
                             <div className="bg-green-100 p-3 rounded-xl">
                                 <TrendingUpIcon className="h-6 w-6 text-green-600" />
                             </div>
                             <div>
-                                <p className="text-sm text-gray-600 font-medium">Stock In</p>
-                                <p className="text-2xl font-bold text-green-600">{stats.stockIn}</p>
+                                <p className="text-sm font-medium" style={{ color: 'var(--muted)' }}>Stock In</p>
+                                <p className="text-xl sm:text-2xl font-bold text-green-600">{stats.stockIn}</p>
                             </div>
                         </div>
                     </div>
 
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                    <div
+                        className="p-4 sm:p-6 rounded-2xl shadow-sm border backdrop-blur-xl"
+                        style={{
+                            background: 'var(--card-bg)',
+                            borderColor: 'var(--card-border)',
+                        }}
+                    >
                         <div className="flex items-center gap-3">
                             <div className="bg-red-100 p-3 rounded-xl">
                                 <TrendingDownIcon className="h-6 w-6 text-red-600" />
                             </div>
                             <div>
-                                <p className="text-sm text-gray-600 font-medium">Stock Out</p>
-                                <p className="text-2xl font-bold text-red-600">{stats.stockOut}</p>
+                                <p className="text-sm font-medium" style={{ color: 'var(--muted)' }}>Stock Out</p>
+                                <p className="text-xl sm:text-2xl font-bold text-red-600">{stats.stockOut}</p>
                             </div>
                         </div>
                     </div>
 
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                    <div
+                        className="p-4 sm:p-6 rounded-2xl shadow-sm border backdrop-blur-xl"
+                        style={{
+                            background: 'var(--card-bg)',
+                            borderColor: 'var(--card-border)',
+                        }}
+                    >
                         <div className="flex items-center gap-3">
                             <div className="bg-purple-100 p-3 rounded-xl">
                                 <SettingsIcon className="h-6 w-6 text-purple-600" />
                             </div>
                             <div>
-                                <p className="text-sm text-gray-600 font-medium">Revenue</p>
-                                <p className="text-2xl font-bold text-purple-600">฿{stats.totalValue.toLocaleString()}</p>
+                                <p className="text-sm font-medium" style={{ color: 'var(--muted)' }}>Revenue</p>
+                                <p className="text-xl sm:text-2xl font-bold text-purple-600">฿{stats.totalValue.toLocaleString()}</p>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 {/* Search and Filters */}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-                    <div className="flex flex-col md:flex-row gap-4">
-                        <div className="flex-1 relative">
-                            <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                            <input
-                                type="text"
-                                placeholder="Search products or reasons..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
-                            />
-                        </div>
+                <div
+                    className="rounded-2xl shadow-sm border backdrop-blur-xl"
+                    style={{
+                        background: 'var(--card-bg)',
+                        borderColor: 'var(--card-border)',
+                    }}
+                >
+                    <div className="p-4 sm:p-6">
+                        <div className="flex flex-col lg:flex-row gap-4">
+                            <div className="flex-1 relative">
+                                <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5" style={{ color: 'var(--muted)' }} />
+                                <input
+                                    type="text"
+                                    placeholder="Search products or reasons..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="w-full pl-10 pr-4 py-3 rounded-xl focus:outline-none focus:ring-2 transition-all"
+                                    style={{
+                                        background: 'var(--input-bg)',
+                                        border: '1px solid var(--input-border)',
+                                        color: 'var(--text)',
+                                        
+                                    }}
+                                />
+                            </div>
 
-                        <div className="flex items-center gap-3">
-                            <select
-                                value={filterType}
-                                onChange={(e) => setFilterType(e.target.value as any)}
-                                className="border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-orange-500"
-                            >
-                                <option value="all">All Types</option>
-                                <option value="stock_in">Stock In</option>
-                                <option value="stock_out">Stock Out</option>
-                                <option value="adjustment">Adjustments</option>
-                            </select>
+                            <div className="flex items-center gap-3">
+                                <select
+                                    value={filterType}
+                                    onChange={(e) => setFilterType(e.target.value as any)}
+                                    className="rounded-xl px-4 py-3 focus:outline-none focus:ring-2 transition-all"
+                                    style={{
+                                        background: 'var(--input-bg)',
+                                        border: '1px solid var(--input-border)',
+                                        color: 'var(--text)',
+                                        
+                                    }}
+                                >
+                                    <option value="all">All Types</option>
+                                    <option value="stock_in">Stock In</option>
+                                    <option value="stock_out">Stock Out</option>
+                                    <option value="adjustment">Adjustments</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 {/* Transactions List */}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-200">
-                    <div className="px-6 py-4 border-b border-gray-100">
-                        <h3 className="text-lg font-semibold text-gray-900">
+                <div
+                    className="rounded-2xl shadow-sm border backdrop-blur-xl"
+                    style={{
+                        background: 'var(--card-bg)',
+                        borderColor: 'var(--card-border)',
+                    }}
+                >
+                    <div className="px-4 sm:px-6 py-4" style={{ borderBottom: '1px solid var(--border)' }}>
+                        <h3 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>
                             Recent Transactions ({filteredTransactions.length})
                         </h3>
                     </div>
 
-                    <div className="divide-y divide-gray-100">
+                    <div style={{ borderTop: '1px solid var(--border)' }}>
                         {filteredTransactions.map((transaction) => (
                             <div
                                 key={transaction.id}
-                                className="px-6 py-4 hover:bg-gray-50 transition-colors cursor-pointer"
+                                className="px-4 sm:px-6 py-4 transition-colors cursor-pointer hover:opacity-80"
+                                style={{ borderBottom: '1px solid var(--border)' }}
                                 onClick={() => setSelectedTransaction(transaction)}
                             >
                                 <div className="flex items-center justify-between">
@@ -439,15 +534,15 @@ export default function TransactionsPage() {
                                         <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border ${getTransactionColor(transaction.transaction_type)}`}>
                                             {getTransactionIcon(transaction.transaction_type)}
                                         </div>
-                                        <div className="flex-1">
+                                        <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-3 mb-1">
-                                                <h4 className="font-medium text-gray-900">{transaction.products?.name || 'Unknown product'}</h4>
+                                                <h4 className="font-medium truncate" style={{ color: 'var(--text)' }}>{transaction.products?.name || 'Unknown product'}</h4>
                                                 <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getTransactionColor(transaction.transaction_type)}`}>
                                                     {formatTransactionType(transaction.transaction_type)}
                                                 </span>
                                             </div>
-                                            <p className="text-sm text-gray-600">{transaction.reason || '-'}</p>
-                                            <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                                            <p className="text-sm" style={{ color: 'var(--muted)' }}>{transaction.reason || '-'}</p>
+                                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-2 text-xs" style={{ color: 'var(--muted)' }}>
                                                 <span>Quantity: {transaction.quantity}</span>
                                                 {!!transaction.products?.barcode && (
                                                     <span>Barcode: {transaction.products.barcode}</span>
@@ -459,13 +554,13 @@ export default function TransactionsPage() {
                                         </div>
                                     </div>
                                     <div className="text-right">
-                                        <p className="text-sm text-gray-500">
+                                        <p className="text-sm" style={{ color: 'var(--muted)' }}>
                                             {new Date(transaction.created_at).toLocaleDateString()}
                                         </p>
-                                        <p className="text-xs text-gray-400">
+                                        <p className="text-xs" style={{ color: 'var(--muted)' }}>
                                             {new Date(transaction.created_at).toLocaleTimeString()}
                                         </p>
-                                        <button className="mt-2 text-orange-600 hover:text-orange-700">
+                                        <button className="mt-2" style={{ color: 'var(--accentA)' }}>
                                             <EyeIcon className="h-4 w-4" />
                                         </button>
                                     </div>
@@ -475,10 +570,10 @@ export default function TransactionsPage() {
                     </div>
 
                     {filteredTransactions.length === 0 && (
-                        <div className="px-6 py-12 text-center">
-                            <HistoryIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                            <h3 className="text-lg font-medium text-gray-900 mb-2">No transactions found</h3>
-                            <p className="text-gray-500">
+                        <div className="px-4 sm:px-6 py-12 text-center">
+                            <HistoryIcon className="h-16 w-16 mx-auto mb-4" style={{ color: 'var(--muted)' }} />
+                            <h3 className="text-lg font-medium mb-2" style={{ color: 'var(--text)' }}>No transactions found</h3>
+                            <p style={{ color: 'var(--muted)' }}>
                                 {searchTerm || filterType !== 'all'
                                     ? 'Try adjusting your search or filters'
                                     : 'No transactions recorded yet'
