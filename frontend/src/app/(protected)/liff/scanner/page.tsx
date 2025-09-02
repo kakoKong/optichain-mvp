@@ -98,6 +98,7 @@ export default function BarcodeScanner() {
   
   // New state for scan modes and quick add
   const [currentMode, setCurrentMode] = useState<'transaction' | 'quick_add'>('transaction')
+  const [quickAddType, setQuickAddType] = useState<'stock_in' | 'stock_out'>('stock_in')
   const [quickAddModal, setQuickAddModal] = useState<{
     show: boolean
     product: Product | null
@@ -818,19 +819,33 @@ export default function BarcodeScanner() {
       // Clear the found barcode ref so scanning can continue
       foundBarcodeRef.current = null
 
-      // Record stock_in transaction - include required fields
+      // Calculate new stock based on transaction type
+      const currentStock = product.inventory?.[0]?.current_stock || 0
+      const quantity = 1
+      let newStock = currentStock
+      
+      if (quickAddType === 'stock_in') {
+        newStock = currentStock + quantity
+      } else if (quickAddType === 'stock_out') {
+        if (currentStock < quantity) {
+          throw new Error('Insufficient stock for this transaction')
+        }
+        newStock = currentStock - quantity
+      }
+
+      // Record transaction - include required fields
       const { data: transaction, error } = await supabase
         .from('inventory_transactions')
         .insert([{
           business_id: business!.id,
           product_id: product.id,
           user_id: appUserId,
-          transaction_type: 'stock_in',
-          quantity: 1,
-          previous_stock: product.inventory?.[0]?.current_stock || 0,
-          new_stock: (product.inventory?.[0]?.current_stock || 0) + 1,
-          reason: 'Quick scan add',
-          notes: 'Added via barcode scanner'
+          transaction_type: quickAddType,
+          quantity: quantity,
+          previous_stock: currentStock,
+          new_stock: newStock,
+          reason: `Quick scan ${quickAddType === 'stock_in' ? 'add' : 'remove'}`,
+          notes: `${quickAddType === 'stock_in' ? 'Added' : 'Removed'} via barcode scanner`
         }])
         .select()
         .single()
@@ -846,7 +861,7 @@ export default function BarcodeScanner() {
       const { error: updateError } = await supabase
         .from('inventory')
         .update({ 
-          current_stock: (product.inventory?.[0]?.current_stock || 0) + 1,
+          current_stock: newStock,
           updated_at: new Date().toISOString()
         })
         .eq('product_id', product.id)
@@ -887,7 +902,7 @@ export default function BarcodeScanner() {
       saveRecentScan({
         barcode,
         productName: product.name,
-        action: 'quick_added',
+        action: quickAddType === 'stock_in' ? 'quick_added' : 'quick_removed',
         quantity: 1
       })
 
@@ -1155,7 +1170,7 @@ export default function BarcodeScanner() {
             <h2 className="text-lg font-semibold text-gray-900">Scan Mode</h2>
             <p className="text-sm text-gray-600">Choose how you want to handle scanned items</p>
           </div>
-          <div className="p-4 sm:p-6">
+          <div className="p-4 sm:p-6 space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <button
                 onClick={() => setCurrentMode('transaction')}
@@ -1184,12 +1199,53 @@ export default function BarcodeScanner() {
                 <div className="flex items-center gap-3">
                   <PlusIcon className="h-6 w-6" />
                   <div className="text-left">
-                    <div className="font-semibold">Quick Add Mode</div>
-                    <div className="text-sm opacity-75">Auto +1 to stock</div>
+                    <div className="font-semibold">Quick Mode</div>
+                    <div className="text-sm opacity-75">Auto ±1 to stock</div>
                   </div>
                 </div>
               </button>
             </div>
+            
+            {/* Quick Mode Transaction Type Selector */}
+            {currentMode === 'quick_add' && (
+              <div className="pt-4 border-t border-gray-200">
+                <h3 className="text-sm font-medium text-gray-900 mb-3">Quick Mode Action</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => setQuickAddType('stock_in')}
+                    className={`p-3 rounded-lg border-2 transition-all ${
+                      quickAddType === 'stock_in'
+                        ? 'bg-green-100 border-green-500 text-green-700'
+                        : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <TrendingUpIcon className="h-5 w-5" />
+                      <div className="text-left">
+                        <div className="font-medium text-sm">Stock In</div>
+                        <div className="text-xs opacity-75">+1 to inventory</div>
+                      </div>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => setQuickAddType('stock_out')}
+                    className={`p-3 rounded-lg border-2 transition-all ${
+                      quickAddType === 'stock_out'
+                        ? 'bg-red-100 border-red-500 text-red-700'
+                        : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <TrendingDownIcon className="h-5 w-5" />
+                      <div className="text-left">
+                        <div className="font-medium text-sm">Stock Out</div>
+                        <div className="text-xs opacity-75">-1 from inventory</div>
+                      </div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1201,6 +1257,7 @@ export default function BarcodeScanner() {
             recentScans={recentScans}
             scanStats={scanStats}
             currentMode={currentMode}
+            quickAddType={quickAddType}
           />
         ) : scanning ? (
           <CameraView 
@@ -1308,13 +1365,23 @@ export default function BarcodeScanner() {
           <div className="fixed top-4 right-4 z-50 animate-slide-in">
             <div className="bg-white rounded-xl border border-gray-200 shadow-lg max-w-sm p-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
-                  <CheckCircleIcon className="h-5 w-5 text-green-500" />
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                  quickAddType === 'stock_in' 
+                    ? 'bg-green-100' 
+                    : 'bg-red-100'
+                }`}>
+                  {quickAddType === 'stock_in' ? (
+                    <TrendingUpIcon className="h-5 w-5 text-green-500" />
+                  ) : (
+                    <TrendingDownIcon className="h-5 w-5 text-red-500" />
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h4 className="font-semibold text-gray-900 text-sm">Item Added!</h4>
+                  <h4 className="font-semibold text-gray-900 text-sm">
+                    {quickAddType === 'stock_in' ? 'Item Added!' : 'Item Removed!'}
+                  </h4>
                   <p className="text-xs text-gray-600 truncate">
-                    {quickAddModal.product?.name} (+1)
+                    {quickAddModal.product?.name} ({quickAddType === 'stock_in' ? '+1' : '-1'})
                   </p>
                   <p className="text-xs text-blue-600 mt-1">
                     📷 Camera ready for next scan
@@ -1349,13 +1416,15 @@ function ScannerInterface({
   onManualEntry, 
   recentScans, 
   scanStats,
-  currentMode
+  currentMode,
+  quickAddType
 }: {
   onStartCamera: () => void
   onManualEntry: () => void
   recentScans: ScanResult[]
   scanStats: { attempts: number; successfulScans: number; failedScans: number }
   currentMode: 'transaction' | 'quick_add'
+  quickAddType: 'stock_in' | 'stock_out'
 }) {
   return (
     <div className="space-y-6">
@@ -1365,7 +1434,7 @@ function ScannerInterface({
           <h2 className="text-lg font-semibold text-gray-900">Scan a Barcode</h2>
           <p className="text-sm text-gray-600">
             {currentMode === 'quick_add' 
-              ? 'Items will be automatically added to inventory (+1)' 
+              ? `Items will be automatically ${quickAddType === 'stock_in' ? 'added to' : 'removed from'} inventory (${quickAddType === 'stock_in' ? '+1' : '-1'})` 
               : 'Choose your preferred scanning method'
             }
           </p>
