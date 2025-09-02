@@ -369,44 +369,75 @@ export default function Analytics() {
                         style={{ background: 'linear-gradient(90deg, transparent, var(--accentA), var(--accentB), transparent)' }}
                     />
                     <div className="p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                        <div className="flex items-center gap-4 min-w-0">
+                        <div className="flex items-center gap-4 min-w-0 flex-1">
                             <button
                                 onClick={() => window.history.back()}
-                                className="p-3 rounded-xl bg-gray-100 border border-gray-200 hover:bg-gray-200 transition-colors"
+                                className="p-3 rounded-xl bg-gray-100 border border-gray-200 hover:bg-gray-200 transition-colors flex-shrink-0"
                             >
                                 <ArrowLeftIcon className="h-5 w-5 text-gray-700" />
                             </button>
-                            <div className="min-w-0">
+                            <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-2">
                                     <h1
-                                        className="text-2xl sm:text-3xl font-bold tracking-tight truncate flex items-center gap-3"
+                                        className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight truncate flex items-center gap-2 sm:gap-3"
                                         style={{ color: 'var(--text)' }}
                                     >
-                                        <BarChart3Icon className="h-8 w-8" />
-                                        Analytics Dashboard
+                                        <BarChart3Icon className="h-6 w-6 sm:h-8 sm:w-8 flex-shrink-0" />
+                                        <span className="hidden sm:inline">Analytics Dashboard</span>
+                                        <span className="sm:hidden">Analytics</span>
                                     </h1>
                                 </div>
-                                <p className="mt-1 text-sm sm:text-base truncate" style={{ color: 'var(--muted)' }}>
-                                    Business insights and performance metrics
+                                <p className="mt-1 text-xs sm:text-sm lg:text-base truncate" style={{ color: 'var(--muted)' }}>
+                                    <span className="hidden sm:inline">Business insights and performance metrics</span>
+                                    <span className="sm:hidden">Performance metrics</span>
                                 </p>
                             </div>
                         </div>
-                        <div className="flex items-center gap-3">
-                            <select
-                                value={timeRange}
-                                onChange={(e) => setTimeRange(e.target.value)}
-                                className="rounded-xl px-4 py-2 focus:outline-none focus:ring-2 transition-all"
-                                style={{
-                                    background: 'var(--input-bg)',
-                                    border: '1px solid var(--input-border)',
-                                    color: 'var(--text)',
-                                    
-                                }}
-                            >
-                                <option value="7d">Last 7 days</option>
-                                <option value="30d">Last 30 days</option>
-                                <option value="90d">Last 90 days</option>
-                            </select>
+                        <div className="flex items-center gap-3 w-full sm:w-auto">
+                            <div className="flex overflow-x-auto gap-2 sm:gap-3 pb-2 sm:pb-0">
+                                <button
+                                    onClick={() => setTimeRange('7d')}
+                                    className={`px-3 py-2 rounded-xl text-sm font-medium transition-all whitespace-nowrap ${
+                                        timeRange === '7d' 
+                                            ? 'text-white' 
+                                            : 'text-gray-600 hover:text-gray-900'
+                                    }`}
+                                    style={{
+                                        background: timeRange === '7d' ? 'var(--accentA)' : 'var(--input-bg)',
+                                        border: `1px solid ${timeRange === '7d' ? 'var(--accentA)' : 'var(--input-border)'}`,
+                                    }}
+                                >
+                                    7D
+                                </button>
+                                <button
+                                    onClick={() => setTimeRange('30d')}
+                                    className={`px-3 py-2 rounded-xl text-sm font-medium transition-all whitespace-nowrap ${
+                                        timeRange === '30d' 
+                                            ? 'text-white' 
+                                            : 'text-gray-600 hover:text-gray-900'
+                                    }`}
+                                    style={{
+                                        background: timeRange === '30d' ? 'var(--accentA)' : 'var(--input-bg)',
+                                        border: `1px solid ${timeRange === '30d' ? 'var(--accentA)' : 'var(--input-border)'}`,
+                                    }}
+                                >
+                                    30D
+                                </button>
+                                <button
+                                    onClick={() => setTimeRange('90d')}
+                                    className={`px-3 py-2 rounded-xl text-sm font-medium transition-all whitespace-nowrap ${
+                                        timeRange === '90d' 
+                                            ? 'text-white' 
+                                            : 'text-gray-600 hover:text-gray-900'
+                                    }`}
+                                    style={{
+                                        background: timeRange === '90d' ? 'var(--accentA)' : 'var(--input-bg)',
+                                        border: `1px solid ${timeRange === '90d' ? 'var(--accentA)' : 'var(--input-border)'}`,
+                                    }}
+                                >
+                                    90D
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
