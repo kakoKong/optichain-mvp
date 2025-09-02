@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import {
   ScanLineIcon, CameraIcon, KeyboardIcon, CheckCircleIcon, PackageIcon,
   TrendingUpIcon, TrendingDownIcon, SettingsIcon, ArrowLeftIcon,
+  PlusIcon, XIcon, RotateCcwIcon
 } from 'lucide-react'
 
 // Types for better type safety
@@ -40,6 +41,12 @@ interface ScanResult {
 interface TransactionForm {
   type: 'stock_in' | 'stock_out' | 'adjustment'
   quantity: number
+}
+
+interface ScanMode {
+  type: 'transaction' | 'quick_add'
+  label: string
+  icon: React.ReactNode
 }
 
 // Scanner configuration for better accuracy
@@ -86,6 +93,19 @@ export default function BarcodeScanner() {
   })
   const [debugMode, setDebugMode] = useState(false)
   const [videoKey, setVideoKey] = useState(0)
+  
+  // New state for scan modes and quick add
+  const [currentMode, setCurrentMode] = useState<'transaction' | 'quick_add'>('transaction')
+  const [quickAddModal, setQuickAddModal] = useState<{
+    show: boolean
+    product: Product | null
+    barcode: string
+  }>({ show: false, product: null, barcode: '' })
+  const [undoTransaction, setUndoTransaction] = useState<{
+    productId: string
+    transactionId: string
+    quantity: number
+  } | null>(null)
 
   // Refs for camera and scanning
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -740,31 +760,43 @@ export default function BarcodeScanner() {
       const existing = await fetchProductWithInventory(barcode)
       
       if (existing) {
-        setProduct(existing)
-        saveRecentScan({
-          barcode,
-          productName: existing.name,
-          action: 'found'
-        })
-        setScanStats(prev => ({ ...prev, successfulScans: prev.successfulScans + 1 }))
-      } else {
-        const name = prompt(`Product ${barcode} not found.\nEnter product name to create:`)
-        if (!name?.trim()) return
-
-        try {
-          const created = await createProductInSupabase(barcode, name.trim())
-          setProduct(created)
+        if (currentMode === 'quick_add') {
+          // Quick add mode: automatically add 1 to stock
+          await handleQuickAdd(existing, barcode)
+        } else {
+          // Transaction mode: show product for manual transaction
+          setProduct(existing)
           saveRecentScan({
             barcode,
-            productName: created.name,
-            action: 'created'
+            productName: existing.name,
+            action: 'found'
           })
-          setScanStats(prev => ({ ...prev, successfulScans: prev.successfulScans + 1 }))
-          alert('Product created successfully!')
-        } catch (error: any) {
-          console.error('Product creation failed:', error)
-          alert('Failed to create product. Please try again.')
-          setScanStats(prev => ({ ...prev, failedScans: prev.failedScans + 1 }))
+        }
+        setScanStats(prev => ({ ...prev, successfulScans: prev.successfulScans + 1 }))
+      } else {
+        if (currentMode === 'quick_add') {
+          // Quick add mode: redirect to product page with barcode pre-filled
+          window.location.href = `/liff/products?barcode=${barcode}&mode=add`
+        } else {
+          // Transaction mode: prompt to create product
+          const name = prompt(`Product ${barcode} not found.\nEnter product name to create:`)
+          if (!name?.trim()) return
+
+          try {
+            const created = await createProductInSupabase(barcode, name.trim())
+            setProduct(created)
+            saveRecentScan({
+              barcode,
+              productName: created.name,
+              action: 'created'
+            })
+            setScanStats(prev => ({ ...prev, successfulScans: prev.successfulScans + 1 }))
+            alert('Product created successfully!')
+          } catch (error: any) {
+            console.error('Product creation failed:', error)
+            alert('Failed to create product. Please try again.')
+            setScanStats(prev => ({ ...prev, failedScans: prev.failedScans + 1 }))
+          }
         }
       }
     } catch (error: any) {
@@ -773,7 +805,114 @@ export default function BarcodeScanner() {
       setScanStats(prev => ({ ...prev, failedScans: prev.failedScans + 1 }))
     } finally {
       setLoading(false)
-      await cleanupScanner()
+      if (currentMode === 'transaction') {
+        await cleanupScanner()
+      }
+    }
+  }
+
+  // Handle quick add functionality
+  const handleQuickAdd = async (product: Product, barcode: string) => {
+    try {
+      // Record stock_in transaction
+      const { data: transaction, error } = await supabase
+        .from('inventory_transactions')
+        .insert([{
+          business_id: business!.id,
+          product_id: product.id,
+          user_id: user!.id,
+          transaction_type: 'stock_in',
+          quantity: 1,
+          previous_stock: product.inventory?.[0]?.current_stock || 0,
+          new_stock: (product.inventory?.[0]?.current_stock || 0) + 1,
+          reason: 'Quick scan add',
+          notes: 'Added via barcode scanner',
+          created_at: new Date().toISOString()
+        }])
+        .select()
+        .single()
+
+      if (error) throw error
+
+      // Update inventory
+      await supabase
+        .from('inventory')
+        .update({ 
+          current_stock: (product.inventory?.[0]?.current_stock || 0) + 1,
+          updated_at: new Date().toISOString()
+        })
+        .eq('product_id', product.id)
+        .eq('business_id', business!.id)
+
+      // Show success modal
+      setQuickAddModal({
+        show: true,
+        product,
+        barcode
+      })
+
+      // Store undo information
+      setUndoTransaction({
+        productId: product.id,
+        transactionId: transaction.id,
+        quantity: 1
+      })
+
+      // Auto-hide modal after 2 seconds
+      setTimeout(() => {
+        setQuickAddModal(prev => ({ ...prev, show: false }))
+      }, 2000)
+
+      saveRecentScan({
+        barcode,
+        productName: product.name,
+        action: 'quick_added',
+        quantity: 1
+      })
+
+    } catch (error: any) {
+      console.error('Quick add failed:', error)
+      alert('Failed to add item. Please try again.')
+    }
+  }
+
+  // Handle undo transaction
+  const handleUndoTransaction = async () => {
+    if (!undoTransaction || !business) return
+
+    try {
+      // Delete the transaction
+      await supabase
+        .from('inventory_transactions')
+        .delete()
+        .eq('id', undoTransaction.transactionId)
+
+      // Revert inventory
+      const { data: inventory } = await supabase
+        .from('inventory')
+        .select('current_stock')
+        .eq('product_id', undoTransaction.productId)
+        .eq('business_id', business.id)
+        .single()
+
+      if (inventory) {
+        await supabase
+          .from('inventory')
+          .update({ 
+            current_stock: Math.max(0, inventory.current_stock - undoTransaction.quantity),
+            updated_at: new Date().toISOString()
+          })
+          .eq('product_id', undoTransaction.productId)
+          .eq('business_id', business.id)
+      }
+
+      setQuickAddModal({ show: false, product: null, barcode: '' })
+      setUndoTransaction(null)
+      alert('Transaction undone successfully!')
+
+    } catch (error: any) {
+      console.error('Undo failed:', error)
+      alert('Failed to undo transaction. Please try again.')
     }
   }
 
@@ -971,6 +1110,50 @@ export default function BarcodeScanner() {
           </div>
         )}
 
+        {/* Mode Selector */}
+        <div className="bg-white/80 backdrop-blur-lg rounded-2xl border border-white/20 shadow-sm">
+          <div className="px-4 py-4 sm:px-6 border-b border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-900">Scan Mode</h2>
+            <p className="text-sm text-gray-600">Choose how you want to handle scanned items</p>
+          </div>
+          <div className="p-4 sm:p-6">
+            <div className="grid grid-cols-2 gap-4">
+              <button
+                onClick={() => setCurrentMode('transaction')}
+                className={`p-4 rounded-xl border-2 transition-all ${
+                  currentMode === 'transaction'
+                    ? 'bg-blue-100 border-blue-500 text-blue-700'
+                    : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <SettingsIcon className="h-6 w-6" />
+                  <div className="text-left">
+                    <div className="font-semibold">Transaction Mode</div>
+                    <div className="text-sm opacity-75">Manual quantity & type</div>
+                  </div>
+                </div>
+              </button>
+              <button
+                onClick={() => setCurrentMode('quick_add')}
+                className={`p-4 rounded-xl border-2 transition-all ${
+                  currentMode === 'quick_add'
+                    ? 'bg-green-100 border-green-500 text-green-700'
+                    : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <PlusIcon className="h-6 w-6" />
+                  <div className="text-left">
+                    <div className="font-semibold">Quick Add Mode</div>
+                    <div className="text-sm opacity-75">Auto +1 to stock</div>
+                  </div>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+
         {/* Main Scanner Interface */}
         {!product && !scanning ? (
           <ScannerInterface 
@@ -978,6 +1161,7 @@ export default function BarcodeScanner() {
             onManualEntry={handleManualEntry}
             recentScans={recentScans}
             scanStats={scanStats}
+            currentMode={currentMode}
           />
         ) : scanning ? (
           <CameraView 
@@ -1078,6 +1262,36 @@ export default function BarcodeScanner() {
             </div>
           )}
         </div>
+
+        {/* Quick Add Success Modal */}
+        {quickAddModal.show && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-2xl max-w-sm w-full p-6 text-center">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CheckCircleIcon className="h-8 w-8 text-green-500" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Item Added!</h3>
+              <p className="text-gray-600 mb-4">
+                <span className="font-medium">{quickAddModal.product?.name}</span> has been added to your inventory.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={handleUndoTransaction}
+                  className="flex-1 bg-red-500 hover:bg-red-600 text-white py-3 px-4 rounded-xl font-medium transition-colors flex items-center justify-center gap-2"
+                >
+                  <RotateCcwIcon className="h-4 w-4" />
+                  Undo
+                </button>
+                <button
+                  onClick={() => setQuickAddModal({ show: false, product: null, barcode: '' })}
+                  className="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-3 px-4 rounded-xl font-medium transition-colors"
+                >
+                  OK
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -1088,12 +1302,14 @@ function ScannerInterface({
   onStartCamera, 
   onManualEntry, 
   recentScans, 
-  scanStats 
+  scanStats,
+  currentMode
 }: {
   onStartCamera: () => void
   onManualEntry: () => void
   recentScans: ScanResult[]
   scanStats: { attempts: number; successfulScans: number; failedScans: number }
+  currentMode: 'transaction' | 'quick_add'
 }) {
   return (
     <div className="space-y-6">
@@ -1101,7 +1317,12 @@ function ScannerInterface({
       <div className="bg-white/80 backdrop-blur-lg rounded-2xl border border-white/20 shadow-sm">
         <div className="px-4 py-4 sm:px-6 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900">Scan a Barcode</h2>
-          <p className="text-sm text-gray-600">Choose your preferred scanning method</p>
+          <p className="text-sm text-gray-600">
+            {currentMode === 'quick_add' 
+              ? 'Items will be automatically added to inventory (+1)' 
+              : 'Choose your preferred scanning method'
+            }
+          </p>
         </div>
         <div className="p-4 sm:p-6 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1344,10 +1565,10 @@ function TransactionForm({
         {/* Quantity */}
         <div>
           <label className="block text-sm font-semibold mb-3 text-gray-900">Quantity</label>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 max-w-full">
             <button 
               onClick={() => onUpdateForm({ quantity: Math.max(1, form.quantity - 1) })} 
-              className="w-12 h-12 rounded-xl font-bold bg-gray-200 hover:bg-gray-300 text-gray-700 transition-colors"
+              className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl font-bold bg-gray-200 hover:bg-gray-300 text-gray-700 transition-colors flex-shrink-0"
             >
               -
             </button>
@@ -1356,11 +1577,11 @@ function TransactionForm({
               value={form.quantity}
               onChange={(e) => onUpdateForm({ quantity: Math.max(1, parseInt(e.target.value) || 1) })}
               min={1}
-              className="flex-1 text-center text-2xl font-bold rounded-xl py-3 px-4 bg-white border-2 border-gray-200 focus:border-blue-500 focus:outline-none text-gray-900"
+              className="flex-1 min-w-0 text-center text-lg sm:text-2xl font-bold rounded-xl py-2 sm:py-3 px-2 sm:px-4 bg-white border-2 border-gray-200 focus:border-blue-500 focus:outline-none text-gray-900 max-w-[120px] sm:max-w-none"
             />
             <button 
               onClick={() => onUpdateForm({ quantity: form.quantity + 1 })} 
-              className="w-12 h-12 rounded-xl font-bold bg-gray-200 hover:bg-gray-300 text-gray-700 transition-colors"
+              className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl font-bold bg-gray-200 hover:bg-gray-300 text-gray-700 transition-colors flex-shrink-0"
             >
               +
             </button>
