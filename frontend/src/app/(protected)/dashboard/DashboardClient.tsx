@@ -45,18 +45,17 @@ export default function Dashboard() {
 
     }, [authLoading, user])
 
-    async function resolveAppUserId(u: { id: string; source: 'line' | 'dev'; databaseUid?: string }) {
+        async function resolveAppUserId(u: { id: string; source: 'line' | 'line_browser' | 'dev'; databaseUid?: string }) {
         // For dev users: use the databaseUid directly
         if (u.source === 'dev' && u.databaseUid) {
             console.log('[resolveAppUserId] Dev user detected, using databaseUid:', u.databaseUid)
             return u.databaseUid
         }
 
-        // For LINE: map liff profile id to your app user (public.users.id)
-        // NOTE: this expects `public.users.line_user_id` to exist.
-        if (u.source === 'line') {
+        // For LINE (both LIFF and browser): map line_user_id to your app user (public.profiles.id)
+        if (u.source === 'line' || u.source === 'line_browser') {
             console.log('[resolveAppUserId] LINE user detected, mapping from line_user_id:', u.id)
-
+            
             const { data, error } = await supabase
                 .from('profiles')
                 .select('id')
@@ -119,7 +118,7 @@ export default function Dashboard() {
     }
 
     // --- replace your loadDashboardData with this ---
-    const loadDashboardData = async (u: { id: string; source: 'line' | 'dev'; databaseUid?: string }) => {
+    const loadDashboardData = async (u: { id: string; source: 'line' | 'line_browser' | 'dev'; databaseUid?: string }) => {
         try {
             // 1) Resolve app-level user id used in your public schema
             const appUserId = await resolveAppUserId(u)

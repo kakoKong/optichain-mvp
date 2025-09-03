@@ -6,7 +6,7 @@ import liff from '@line/liff'
 type AuthUser = {
   id: string
   displayName?: string
-  source: 'line' | 'dev'
+  source: 'line' | 'line_browser' | 'dev'
   raw?: any
   databaseUid?: string // Add this field for the actual database UID
 } | null
@@ -17,6 +17,7 @@ type AuthContextType = {
   signOut: () => Promise<void>
   refreshUser: () => Promise<void>
   signInDev: (username: string) => Promise<void>
+  signInLineBrowser: () => Promise<void>
   isDevMode: boolean
 }
 
@@ -48,7 +49,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       try {
         // Check if we have a stored user first
-        const storedUser = localStorage.getItem('devUser') || localStorage.getItem('lineUser')
+        const devUser = localStorage.getItem('devUser')
+        const lineUser = localStorage.getItem('lineUser')
+        const lineBrowserUser = localStorage.getItem('lineBrowserUser')
+        
+        console.log('[AuthContext] Checking stored users:', {
+          devUser: !!devUser,
+          lineUser: !!lineUser,
+          lineBrowserUser: !!lineBrowserUser
+        })
+        
+        if (lineBrowserUser) {
+          console.log('[AuthContext] lineBrowserUser content:', lineBrowserUser)
+        }
+        
+        const storedUser = devUser || lineUser || lineBrowserUser
         if (storedUser) {
           try {
             const storedUserData = JSON.parse(storedUser)
@@ -61,6 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             console.error('[AuthContext] Failed to parse stored user:', parseError)
             localStorage.removeItem('devUser')
             localStorage.removeItem('lineUser')
+            localStorage.removeItem('lineBrowserUser')
           }
         }
 
@@ -106,6 +122,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     initializeAuth()
   }, [initialized])
+
+  // Listen for visibility changes to re-check localStorage (useful for OAuth callbacks)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && initialized) {
+        console.log('[AuthContext] Page became visible, re-checking localStorage...')
+        
+        // Re-check for stored users
+        const devUser = localStorage.getItem('devUser')
+        const lineUser = localStorage.getItem('lineUser')
+        const lineBrowserUser = localStorage.getItem('lineBrowserUser')
+        
+        const storedUser = devUser || lineUser || lineBrowserUser
+        if (storedUser && !user) {
+          try {
+            const storedUserData = JSON.parse(storedUser)
+            console.log('[AuthContext] Found stored user on visibility change:', storedUserData.id, 'source:', storedUserData.source)
+            setUser(storedUserData)
+          } catch (parseError) {
+            console.error('[AuthContext] Failed to parse stored user on visibility change:', parseError)
+          }
+        }
+      }
+    }
+
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'lineBrowserUser' && e.newValue && !user) {
+        console.log('[AuthContext] localStorage changed, re-checking lineBrowserUser...')
+        try {
+          const storedUserData = JSON.parse(e.newValue)
+          console.log('[AuthContext] Found stored user from storage event:', storedUserData.id, 'source:', storedUserData.source)
+          setUser(storedUserData)
+        } catch (parseError) {
+          console.error('[AuthContext] Failed to parse stored user from storage event:', parseError)
+        }
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('focus', handleVisibilityChange)
+    window.addEventListener('storage', handleStorageChange)
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('focus', handleVisibilityChange)
+      window.removeEventListener('storage', handleStorageChange)
+    }
+  }, [initialized, user])
 
   const initLiffAuth = async () => {
     try {
@@ -164,6 +227,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(devUser)
     localStorage.setItem('devUser', JSON.stringify(devUser))
     localStorage.removeItem('lineUser') // Clear any LINE user data
+    localStorage.removeItem('lineBrowserUser') // Clear any LINE browser user data
+  }
+
+  const signInLineBrowser = async () => {
+    try {
+      // LINE OAuth configuration
+      const clientId = process.env.NEXT_PUBLIC_LINE_CLIENT_ID
+      const redirectUri = `${window.location.origin}/auth/line/callback`
+      
+      if (!clientId) {
+        throw new Error('LINE Client ID not configured')
+      }
+
+      // Generate state parameter for security
+      const state = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
+      localStorage.setItem('lineOAuthState', state)
+
+      // Build LINE OAuth URL
+      const lineAuthUrl = new URL('https://access.line.me/oauth2/v2.1/authorize')
+      lineAuthUrl.searchParams.set('response_type', 'code')
+      lineAuthUrl.searchParams.set('client_id', clientId)
+      lineAuthUrl.searchParams.set('redirect_uri', redirectUri)
+      lineAuthUrl.searchParams.set('state', state)
+      lineAuthUrl.searchParams.set('scope', 'profile openid')
+      lineAuthUrl.searchParams.set('nonce', Math.random().toString(36).substring(2, 15))
+
+      console.log('[AuthContext] Redirecting to LINE OAuth:', lineAuthUrl.toString())
+      
+      // Redirect to LINE OAuth
+      window.location.href = lineAuthUrl.toString()
+    } catch (error) {
+      console.error('[AuthContext] LINE browser authentication failed:', error)
+      throw error
+    }
   }
 
   const signOut = async () => {
@@ -185,7 +282,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Clear stored data
       localStorage.removeItem('lineUser')
+      localStorage.removeItem('lineBrowserUser')
       localStorage.removeItem('devUser')
+      localStorage.removeItem('lineOAuthState')
       sessionStorage.removeItem('postLoginRedirect')
       localStorage.removeItem('recentScans')
 
@@ -227,6 +326,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signOut,
     refreshUser,
     signInDev,
+    signInLineBrowser,
     isDevMode: isDevelopment,
   }
 

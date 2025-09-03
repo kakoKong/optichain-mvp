@@ -4,11 +4,24 @@ import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import liff from '@line/liff'
 import { useRouter } from 'next/navigation'
+import { useAuth } from '@/contexts/AuthContext'
 
 export default function SignInPage() {
   const [liffError, setLiffError] = useState<string | null>(null)
   const [liffLoading, setLiffLoading] = useState(false)
+  const [browserLoading, setBrowserLoading] = useState(false)
+  const [isLineContext, setIsLineContext] = useState<boolean | null>(null)
   const router = useRouter()
+  const { signInLineBrowser, user, loading, refreshUser } = useAuth()
+
+  // Check if user is already authenticated
+  useEffect(() => {
+    console.log('[SignInClient] Auth state changed:', { loading, user: user?.id, userSource: user?.source })
+    if (!loading && user) {
+      console.log('[SignInClient] User already authenticated, redirecting to dashboard:', user.id)
+      router.replace('/dashboard')
+    }
+  }, [loading, user, router])
 
   useEffect(() => {
     let mounted = true
@@ -37,6 +50,8 @@ export default function SignInPage() {
 
       if (looksLikeLiff && process.env.NEXT_PUBLIC_LINE_LIFF_ID) {
         console.log('[SignInClient] LINE context detected, initializing LIFF...')
+        setIsLineContext(true)
+        
         try {
           await liff.init({
             liffId: process.env.NEXT_PUBLIC_LINE_LIFF_ID,
@@ -59,7 +74,8 @@ export default function SignInPage() {
           setLiffError('Failed to initialize LINE login')
         }
       } else {
-        console.log('[SignInClient] No LINE context detected, but still using LINE auth')
+        console.log('[SignInClient] No LINE context detected, using browser authentication')
+        setIsLineContext(false)
       }
     }
     
@@ -67,7 +83,7 @@ export default function SignInPage() {
     return () => { mounted = false }
   }, [router])
 
-  const onLineClick = async () => {
+  const onLineLiffClick = async () => {
     try {
       setLiffError(null)
       setLiffLoading(true)
@@ -93,9 +109,21 @@ export default function SignInPage() {
         router.replace('/dashboard')
       }
     } catch (error) {
-      console.error('LINE login failed:', error)
+      console.error('LINE LIFF login failed:', error)
       setLiffError('Failed to start LINE login. Please try again.')
       setLiffLoading(false)
+    }
+  };
+
+  const onLineBrowserClick = async () => {
+    try {
+      setLiffError(null)
+      setBrowserLoading(true)
+      await signInLineBrowser()
+    } catch (error) {
+      console.error('LINE browser login failed:', error)
+      setLiffError('Failed to start LINE browser login. Please try again.')
+      setBrowserLoading(false)
     }
   };
 
@@ -141,23 +169,91 @@ export default function SignInPage() {
                 {liffError}
               </div>
             )}
-            <button
-              type="button"
-              onClick={onLineClick}
-              disabled={liffLoading}
-              className="w-full flex items-center justify-center gap-2 rounded-lg px-4 py-3 hover:opacity-90 transition-colors min-h-[44px] text-white disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ background: 'linear-gradient(90deg, #22c55e, #16a34a)' }}
-              aria-label="Continue with LINE"
-            >
-              {liffLoading ? (
-                <>
-                  <div className="animate-spin h-4 w-4 rounded-full border-2 border-white border-t-transparent" />
-                  Authenticating...
-                </>
-              ) : (
-                'Continue with LINE'
-              )}
-            </button>
+            
+            {/* Show loading while detecting context */}
+            {isLineContext === null && (
+              <div className="w-full flex items-center justify-center gap-2 rounded-lg px-4 py-3 min-h-[44px] text-gray-600">
+                <div className="animate-spin h-4 w-4 rounded-full border-2 border-gray-300 border-t-gray-600" />
+                Detecting login method...
+              </div>
+            )}
+
+            {/* LINE LIFF Login (for LINE app users only) */}
+            {isLineContext === true && (
+              <button
+                type="button"
+                onClick={onLineLiffClick}
+                disabled={liffLoading}
+                className="w-full flex items-center justify-center gap-2 rounded-lg px-4 py-3 hover:opacity-90 transition-colors min-h-[44px] text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ background: 'linear-gradient(90deg, #00B900, #00A000)' }}
+                aria-label="Continue with LINE"
+              >
+                {liffLoading ? (
+                  <>
+                    <div className="animate-spin h-4 w-4 rounded-full border-2 border-white border-t-transparent" />
+                    Authenticating...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63h2.386c.349 0 .63.285.63.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.06-.023.136-.033.194-.033.195 0 .375.104.495.254l2.462 3.33V8.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63.346 0 .628.285.628.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.282.629-.629.629M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314"/>
+                    </svg>
+                    Continue with LINE
+                  </>
+                )}
+              </button>
+            )}
+
+            {/* LINE Browser Login (for regular browser users only) */}
+            {isLineContext === false && (
+              <button
+                type="button"
+                onClick={onLineBrowserClick}
+                disabled={browserLoading}
+                className="w-full flex items-center justify-center gap-2 rounded-lg px-4 py-3 hover:opacity-90 transition-colors min-h-[44px] text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ background: 'linear-gradient(90deg, #22c55e, #16a34a)' }}
+                aria-label="Continue with LINE"
+              >
+                {browserLoading ? (
+                  <>
+                    <div className="animate-spin h-4 w-4 rounded-full border-2 border-white border-t-transparent" />
+                    Authenticating...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63h2.386c.349 0 .63.285.63.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.06-.023.136-.033.194-.033.195 0 .375.104.495.254l2.462 3.33V8.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63.346 0 .628.285.628.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.282.629-.629.629M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314"/>
+                    </svg>
+                    Continue with LINE
+                  </>
+                )}
+              </button>
+            )}
+
+            {/* Debug: Refresh Authentication */}
+            <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+              <p className="text-xs text-gray-600 mb-2">Having trouble? Try refreshing your authentication:</p>
+              <button
+                onClick={refreshUser}
+                className="w-full px-3 py-2 text-sm bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+              >
+                Refresh Authentication
+              </button>
+              
+              {/* Debug info */}
+              <div className="mt-2 p-2 bg-white rounded border text-xs">
+                <p><strong>Debug Info:</strong></p>
+                <p>Loading: {loading ? 'Yes' : 'No'}</p>
+                <p>User: {user ? `${user.id} (${user.source})` : 'None'}</p>
+                <p>Line Context: {isLineContext === null ? 'Detecting...' : isLineContext ? 'LINE App' : 'Browser'}</p>
+                <p>Stored Users:</p>
+                <ul className="ml-2">
+                  <li>devUser: {typeof window !== 'undefined' && localStorage.getItem('devUser') ? 'Yes' : 'No'}</li>
+                  <li>lineUser: {typeof window !== 'undefined' && localStorage.getItem('lineUser') ? 'Yes' : 'No'}</li>
+                  <li>lineBrowserUser: {typeof window !== 'undefined' && localStorage.getItem('lineBrowserUser') ? 'Yes' : 'No'}</li>
+                </ul>
+              </div>
+            </div>
           </div>
 
           {/* features (optional, keep as-is) */}

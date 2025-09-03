@@ -6,7 +6,7 @@ export const useAuth = () => {
   const authContext = useAuthContext()
   
   // Helper function to resolve app-level user ID
-  const resolveAppUserId = useCallback(async (u: { id: string; source: 'line' | 'dev'; databaseUid?: string }) => {
+  const resolveAppUserId = useCallback(async (u: { id: string; source: 'line' | 'line_browser' | 'dev'; databaseUid?: string }) => {
     console.log('[useAuth] Resolving user ID for:', u)
     
     // For dev users: use the databaseUid directly
@@ -15,8 +15,8 @@ export const useAuth = () => {
       return u.databaseUid
     }
     
-    // For LINE users: get the database user ID from the profiles table
-    if (u.source === 'line') {
+    // For LINE users (both LIFF and browser): get the database user ID from the profiles table
+    if (u.source === 'line' || u.source === 'line_browser') {
       console.log('[useAuth] LINE user detected, mapping from line_user_id:', u.id)
       const { data: userData, error } = await supabase
         .from('profiles')
