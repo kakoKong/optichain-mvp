@@ -56,7 +56,7 @@ export default function Dashboard() {
         // NOTE: this expects `public.users.line_user_id` to exist.
         if (u.source === 'line') {
             console.log('[resolveAppUserId] LINE user detected, mapping from line_user_id:', u.id)
-            
+
             const { data, error } = await supabase
                 .from('profiles')
                 .select('id')
@@ -259,266 +259,162 @@ export default function Dashboard() {
     const formatCurrency = (amount: number) => `฿${amount.toLocaleString()}`
     if (loading) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
                 <div className="text-center">
-                    <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-500 border-t-transparent mx-auto"></div>
-                    <p className="mt-6 text-gray-600 font-medium">Loading your dashboard...</p>
+                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-300 border-t-gray-600 mx-auto"></div>
+                    <p className="mt-4 text-gray-600">Loading dashboard...</p>
                 </div>
             </div>
         )
     }
     return (
-        <div
-            className="min-h-screen relative overflow-hidden"
-            style={{
-                backgroundImage:
-                    'linear-gradient(to bottom right, var(--bg-from), var(--bg-via), var(--bg-to))',
-            }}
-        >
-            {/* Animated background blobs, tinted by theme */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div
-                    className="absolute -top-40 -right-40 w-80 h-80 rounded-full mix-blend-multiply blur-xl opacity-40 animate-blob"
-                    style={{ background: 'var(--accentA)' }}
-                />
-                <div
-                    className="absolute -bottom-40 -left-40 w-80 h-80 rounded-full mix-blend-multiply blur-xl opacity-40 animate-blob animation-delay-2000"
-                    style={{ background: 'var(--accentB)' }}
-                />
-                <div
-                    className="absolute top-40 left-40 w-80 h-80 rounded-full mix-blend-multiply blur-xl opacity-40 animate-blob animation-delay-4000"
-                    style={{ background: 'var(--accentC)' }}
-                />
-            </div>
-            {/* Subtle grid overlay */}
-            <div
-                className="absolute inset-0 opacity-70"
-                style={{
-                    backgroundImage:
-                        `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.06'%3E%3Ccircle cx='30' cy='30' r='1.5'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-                }}
-            />
-            <div className="relative z-10 p-4 sm:p-6 space-y-6 sm:space-y-8 pb-20 sm:pb-6">
+        <div className="min-h-screen bg-gray-50">
+            <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6 pb-20 sm:pb-6">
                 {/* Header */}
-                <div
-                    className="relative overflow-hidden rounded-2xl border shadow-xl backdrop-blur-lg"
-                    style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}
-                >
-                    {/* Accent bar */}
-                    <div
-                        className="pointer-events-none absolute inset-x-0 top-0 h-1 opacity-60"
-                        style={{ background: 'linear-gradient(90deg, transparent, var(--accentA), var(--accentB), transparent)' }}
-                    />
-                    <div className="p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                        {/* Title + avatar */}
-                        <div className="flex items-center gap-4 min-w-0">
-                            <div className="min-w-0">
-                                <div className="flex items-center gap-2">
-                                    <h1
-                                        className="text-2xl sm:text-3xl font-bold tracking-tight truncate"
-                                        style={{ color: 'var(--text)' }}
-                                    >
-                                        {stats?.businessName || 'Inventory Hub'}
-                                    </h1>
-                                </div>
-                                <p className="mt-1 text-sm sm:text-base truncate" style={{ color: 'var(--muted)' }}>
-                                    Welcome back, {user?.displayName}
-                                </p>
-                            </div>
+                <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+                    <div className="p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div className="min-w-0">
+                            <h1 className="text-2xl font-bold text-gray-900 truncate">
+                                {stats?.businessName || 'Inventory Hub'}
+                            </h1>
+                            <p className="mt-1 text-gray-600 truncate">
+                                Welcome back, {user?.displayName}
+                            </p>
                         </div>
 
-                        {/* Meta + actions */}
-                        <div className="flex items-center gap-3 w-full sm:w-auto mt-4 sm:mt-0">
-                            <div className="ml-auto sm:ml-0">
-                                <div
-                                    className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs sm:text-sm"
-                                    style={{ borderColor: 'var(--card-border)', color: 'var(--muted)' }}
-                                >
-                                    <span className="relative flex h-2.5 w-2.5">
-                                        <span
-                                            className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-40"
-                                            style={{ background: 'var(--accentA)' }}
-                                        />
-                                        <span
-                                            className="relative inline-flex rounded-full h-2.5 w-2.5"
-                                            style={{ background: 'var(--accentA)' }}
-                                        />
-                                    </span>
-                                    Last updated {new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
-                                </div>
+                        <div className="flex items-center gap-3 w-full sm:w-auto">
+                            <div className="flex items-center gap-2 text-sm text-gray-500">
+                                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                Last updated {new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })}
                             </div>
 
-                            {/* Team Settings Link */}
-                            <Link
-                                href="/settings/team"
-                                className="inline-flex items-center justify-center rounded-xl px-3 py-2 text-sm font-medium transition-colors"
-                                style={{ border: '1px solid var(--card-border)', color: 'var(--text)', background: 'transparent' }}
-                            >
-                                <SettingsIcon className="h-4 w-4 sm:mr-2" />
-                                <span className="hidden sm:inline">Team</span>
-                            </Link>
+                            <div className="flex items-center gap-2">
+                                <Link
+                                    href="/settings/team"
+                                    className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                                >
+                                    <SettingsIcon className="h-4 w-4 mr-2" />
+                                    <span className="hidden sm:inline">Team</span>
+                                </Link>
 
-                            {/* Invite Button */}
-                            <Link
-                                href="/settings/team#invite"
-                                className="hidden md:inline-flex items-center rounded-xl px-3 py-2 text-sm font-medium transition-colors"
-                                style={{ border: '1px solid var(--card-border)', color: 'var(--text)', background: 'transparent' }}
-                                title="Invite teammates"
-                            >
-                                <UserPlusIcon className="h-4 w-4 mr-2" />
-                                Invite
-                            </Link>
+                                <button
+                                    onClick={() => window.location.reload()}
+                                    className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                                >
+                                    Refresh
+                                </button>
 
-                            {/* Refresh Button */}
-                            <button
-                                onClick={() => window.location.reload()}
-                                className="hidden sm:inline-flex items-center rounded-xl px-3 py-2 text-sm font-medium transition-colors"
-                                style={{ border: '1px solid var(--card-border)', color: 'var(--text)', background: 'transparent' }}
-                            >
-                                Refresh
-                            </button>
-
-                            {/* Logout Button */}
-                            <div className="shrink-0">
                                 <LogoutButton>Sign Out</LogoutButton>
                             </div>
                         </div>
                     </div>
                 </div>
                 {/* Key Metrics */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div
-                        className="p-5 rounded-2xl shadow-sm border backdrop-blur-xl cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-lg"
-                        style={{
-                            background: 'var(--card-bg)',
-                            borderColor: 'var(--card-border)',
-                        }}
+                        className="bg-white p-4 sm:p-6 rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
                         onClick={() => router.push('/liff/products')}
                     >
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-sm font-medium" style={{ color: 'var(--muted)' }}>Total Products</p>
-                                <p className="text-2xl sm:text-3xl font-bold mt-1 sm:mt-2" style={{ color: 'var(--text)' }}>
+                                <p className="text-xs sm:text-sm font-medium text-gray-600">Total Products</p>
+                                <p className="text-xl sm:text-2xl font-bold text-gray-900 mt-1">
                                     {stats?.totalProducts ?? 0}
                                 </p>
                             </div>
-                            <div className="p-3 rounded-xl bg-indigo-100/50 text-indigo-600">
-                                <PackageIcon className="h-6 w-6" />
+                            <div className="p-2 sm:p-3 rounded-lg bg-gray-100 text-gray-600">
+                                <PackageIcon className="h-5 w-5 sm:h-6 sm:w-6" />
                             </div>
                         </div>
                     </div>
                     <div
-                        className="p-5 rounded-2xl shadow-sm border backdrop-blur-xl cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-lg"
-                        style={{
-                            background: 'var(--card-bg)',
-                            borderColor: 'var(--card-border)',
-                        }}
+                        className="bg-white p-4 sm:p-6 rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
                         onClick={() => router.push('/liff/analytics')}
                     >
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-sm font-medium" style={{ color: 'var(--muted)' }}>Low Stock Alert</p>
-                                <p className="text-2xl sm:text-3xl font-bold text-red-500 mt-1 sm:mt-2">{stats?.lowStockItems ?? 0}</p>
+                                <p className="text-xs sm:text-sm font-medium text-gray-600">Low Stock Alert</p>
+                                <p className="text-xl sm:text-2xl font-bold text-red-600 mt-1">{stats?.lowStockItems ?? 0}</p>
                             </div>
-                            <div className="p-3 rounded-xl bg-red-100/50 text-red-600">
-                                <AlertTriangleIcon className="h-6 w-6" />
+                            <div className="p-2 sm:p-3 rounded-lg bg-red-50 text-red-600">
+                                <AlertTriangleIcon className="h-5 w-5 sm:h-6 sm:w-6" />
                             </div>
                         </div>
                     </div>
                     <div
-                        className="p-5 rounded-2xl shadow-sm border backdrop-blur-xl cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-lg"
-                        style={{
-                            background: 'var(--card-bg)',
-                            borderColor: 'var(--card-border)',
-                        }}
+                        className="bg-white p-4 sm:p-6 rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
                         onClick={() => router.push('/liff/products')}
                     >
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-sm font-medium" style={{ color: 'var(--muted)' }}>Inventory Value</p>
-                                <p className="text-2xl sm:text-3xl font-bold text-green-600 mt-1 sm:mt-2">
+                                <p className="text-xs sm:text-sm font-medium text-gray-600">Inventory Value</p>
+                                <p className="text-xl sm:text-2xl font-bold text-gray-900 mt-1">
                                     {formatCurrency(stats?.totalValue ?? 0)}
                                 </p>
                             </div>
-                            <div className="p-3 rounded-xl bg-green-100/50 text-green-600">
-                                <DollarSignIcon className="h-6 w-6" />
+                            <div className="p-2 sm:p-3 rounded-lg bg-gray-100 text-gray-600">
+                                <DollarSignIcon className="h-5 w-5 sm:h-6 sm:w-6" />
                             </div>
                         </div>
                     </div>
                     <div
-                        className="p-5 rounded-2xl shadow-sm border backdrop-blur-xl cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-lg"
-                        style={{
-                            background: 'var(--card-bg)',
-                            borderColor: 'var(--card-border)',
-                        }}
+                        className="bg-white p-4 sm:p-6 rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
                         onClick={() => router.push('/liff/analytics')}
                     >
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-sm font-medium" style={{ color: 'var(--muted)' }}>Est. Monthly Revenue</p>
-                                <p className="text-2xl sm:text-3xl font-bold text-purple-600 mt-1 sm:mt-2">
+                                <p className="text-xs sm:text-sm font-medium text-gray-600">Est. Monthly Revenue</p>
+                                <p className="text-xl sm:text-2xl font-bold text-gray-900 mt-1">
                                     {formatCurrency(stats?.monthlyRevenue ?? 0)}
                                 </p>
                             </div>
-                            <div className="p-3 rounded-xl bg-purple-100/50 text-purple-600">
-                                <TrendingUpIcon className="h-6 w-6" />
+                            <div className="p-2 sm:p-3 rounded-lg bg-gray-100 text-gray-600">
+                                <TrendingUpIcon className="h-5 w-5 sm:h-6 sm:w-6" />
                             </div>
                         </div>
                     </div>
                 </div>
-                {/* Quick Actions (Desktop/Tablet) */}
-                <div
-                    className="hidden sm:block rounded-2xl shadow-sm border backdrop-blur-xl"
-                    style={{
-                        background: 'var(--card-bg)',
-                        borderColor: 'var(--card-border)',
-                    }}
-                >
-                    <div className="px-4 py-4 sm:px-6 border-b" style={{ borderColor: 'var(--card-border)' }}>
-                        <h2 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>Quick Actions</h2>
+                {/* Quick Actions */}
+                <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+                    <div className="px-6 py-4 border-b border-gray-200">
+                        <h2 className="text-lg font-semibold text-gray-900">Quick Actions</h2>
                     </div>
-                    <div className="p-4 sm:p-6">
+                    <div className="p-6">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <button
                                 onClick={() => (window.location.href = '/liff/scanner')}
-                                className="flex items-center gap-4 p-4 rounded-xl font-medium transition-all shadow-md transform transition-all duration-200 hover:scale-[1.02] hover:shadow-lg"
-                                style={{
-                                    background: 'linear-gradient(to right, #6366f1, #4f46e5)',
-                                    color: 'white',
-                                }}
+                                className="flex items-center gap-4 p-4 rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-sm transition-all text-left"
                             >
-                                <ScanLineIcon className="h-6 w-6" />
-                                <div className="text-left">
-                                    <div className="font-semibold">Scan Barcode</div>
-                                    <div className="text-indigo-100 text-sm">Quick inventory update</div>
+                                <div className="p-3 rounded-lg bg-blue-50 text-blue-600">
+                                    <ScanLineIcon className="h-6 w-6" />
+                                </div>
+                                <div>
+                                    <div className="font-semibold text-gray-900">Scan Barcode</div>
+                                    <div className="text-sm text-gray-600">Quick inventory update</div>
                                 </div>
                             </button>
                             <button
                                 onClick={() => (window.location.href = '/liff/products')}
-                                className="flex items-center gap-4 p-4 rounded-xl font-medium transition-all shadow-md transform transition-all duration-200 hover:scale-[1.02] hover:shadow-lg"
-                                style={{
-                                    background: 'linear-gradient(to right, #6b7280, #4b5563)',
-                                    color: 'white',
-                                }}
+                                className="flex items-center gap-4 p-4 rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-sm transition-all text-left"
                             >
-                                <PackageIcon className="h-6 w-6" />
-                                <div className="text-left">
-                                    <div className="font-semibold">Manage Products</div>
-                                    <div className="text-gray-200 text-sm">View & edit inventory</div>
+                                <div className="p-3 rounded-lg bg-gray-50 text-gray-600">
+                                    <PackageIcon className="h-6 w-6" />
+                                </div>
+                                <div>
+                                    <div className="font-semibold text-gray-900">Manage Products</div>
+                                    <div className="text-sm text-gray-600">View & edit inventory</div>
                                 </div>
                             </button>
                             <button
                                 onClick={() => (window.location.href = '/liff/analytics')}
-                                className="flex items-center gap-4 p-4 rounded-xl font-medium transition-all shadow-md transform transition-all duration-200 hover:scale-[1.02] hover:shadow-lg"
-                                style={{
-                                    background: 'linear-gradient(to right, #22c55e, #16a34a)',
-                                    color: 'white',
-                                }}
+                                className="flex items-center gap-4 p-4 rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-sm transition-all text-left"
                             >
-                                <BarChart3Icon className="h-6 w-6" />
-                                <div className="text-left">
-                                    <div className="font-semibold">Analytics</div>
-                                    <div className="text-green-200 text-sm">Sales & trends</div>
+                                <div className="p-3 rounded-lg bg-green-50 text-green-600">
+                                    <BarChart3Icon className="h-6 w-6" />
+                                </div>
+                                <div>
+                                    <div className="font-semibold text-gray-900">Analytics</div>
+                                    <div className="text-sm text-gray-600">Sales & trends</div>
                                 </div>
                             </button>
                         </div>
@@ -527,35 +423,29 @@ export default function Dashboard() {
                 {/* Charts & Analytics */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Stock Movement Chart */}
-                    <div
-                        className="rounded-2xl shadow-sm border backdrop-blur-xl"
-                        style={{
-                            background: 'var(--card-bg)',
-                            borderColor: 'var(--card-border)',
-                        }}
-                    >
-                        <div className="px-4 py-4 sm:px-6 border-b" style={{ borderColor: 'var(--card-border)' }}>
-                            <h3 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>Stock Movement (7 Days)</h3>
+                    <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+                        <div className="px-6 py-4 border-b border-gray-200">
+                            <h3 className="text-lg font-semibold text-gray-900">Stock Movement (7 Days)</h3>
                         </div>
-                        <div className="p-4 sm:p-6">
+                        <div className="p-6">
                             <div className="space-y-4">
                                 {stats?.stockMovement.map((day, index) => (
                                     <div key={index} className="flex items-center gap-4">
-                                        <div className="w-16 text-sm font-medium shrink-0" style={{ color: 'var(--muted)' }}>
+                                        <div className="w-16 text-sm font-medium text-gray-600 shrink-0">
                                             {new Date(day.date).toLocaleDateString('en', { weekday: 'short' })}
                                         </div>
                                         <div className="flex-1">
-                                            <div className="flex items-center gap-2 mb-1 text-xs sm:text-sm">
-                                                <div className="flex items-center gap-1">
-                                                    <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-green-500 rounded-full"></div>
-                                                    <span style={{ color: 'var(--muted)' }}>In: {day.stockIn}</span>
+                                            <div className="flex items-center gap-4 mb-2 text-sm">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                                                    <span className="text-gray-600">In: {day.stockIn}</span>
                                                 </div>
-                                                <div className="flex items-center gap-1">
-                                                    <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-red-500 rounded-full"></div>
-                                                    <span style={{ color: 'var(--muted)' }}>Out: {day.stockOut}</span>
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                                                    <span className="text-gray-600">Out: {day.stockOut}</span>
                                                 </div>
                                             </div>
-                                            <div className="w-full rounded-full h-2" style={{ backgroundColor: 'rgba(0,0,0,0.1)' }}>
+                                            <div className="w-full bg-gray-200 rounded-full h-2">
                                                 <div
                                                     className="bg-green-500 h-2 rounded-full"
                                                     style={{ width: `${Math.min(100, (day.stockIn / Math.max(day.stockIn + day.stockOut, 1)) * 100)}%` }}
@@ -568,31 +458,25 @@ export default function Dashboard() {
                         </div>
                     </div>
                     {/* Top Products */}
-                    <div
-                        className="rounded-2xl shadow-sm border backdrop-blur-xl"
-                        style={{
-                            background: 'var(--card-bg)',
-                            borderColor: 'var(--card-border)',
-                        }}
-                    >
-                        <div className="px-4 py-4 sm:px-6 border-b" style={{ borderColor: 'var(--card-border)' }}>
-                            <h3 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>Top Products by Value</h3>
+                    <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+                        <div className="px-6 py-4 border-b border-gray-200">
+                            <h3 className="text-lg font-semibold text-gray-900">Top Products by Value</h3>
                         </div>
-                        <div className="p-4 sm:p-6">
+                        <div className="p-6">
                             <div className="space-y-4">
                                 {stats?.topProducts.map((product, index) => (
                                     <div key={index} className="flex items-center justify-between">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm bg-gradient-to-br from-indigo-500 to-purple-500 shrink-0">
+                                            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm bg-gray-600 shrink-0">
                                                 {index + 1}
                                             </div>
                                             <div>
-                                                <p className="font-medium truncate" style={{ color: 'var(--text)' }}>{product.name}</p>
-                                                <p className="text-sm" style={{ color: 'var(--muted)' }}>{product.stock} units</p>
+                                                <p className="font-medium text-gray-900 truncate">{product.name}</p>
+                                                <p className="text-sm text-gray-600">{product.stock} units</p>
                                             </div>
                                         </div>
                                         <div className="text-right">
-                                            <p className="font-semibold" style={{ color: 'var(--text)' }}>{formatCurrency(product.value)}</p>
+                                            <p className="font-semibold text-gray-900">{formatCurrency(product.value)}</p>
                                         </div>
                                     </div>
                                 ))}
@@ -601,31 +485,25 @@ export default function Dashboard() {
                     </div>
                 </div>
                 {/* Recent Activity */}
-                <div
-                    className="rounded-2xl shadow-sm border backdrop-blur-xl"
-                    style={{
-                        background: 'var(--card-bg)',
-                        borderColor: 'var(--card-border)',
-                    }}
-                >
-                    <div className="px-4 py-4 sm:px-6 border-b flex items-center justify-between" style={{ borderColor: 'var(--card-border)' }}>
-                        <h3 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>Recent Activity</h3>
+                <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+                    <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                        <h3 className="text-lg font-semibold text-gray-900">Recent Activity</h3>
                         <button
                             onClick={() => (window.location.href = '/liff/transactions')}
-                            className="text-indigo-600 hover:text-indigo-700 font-medium text-sm"
+                            className="text-blue-600 hover:text-blue-700 font-medium text-sm"
                         >
                             View All
                         </button>
                     </div>
-                    <div className="divide-y" style={{ borderColor: 'var(--card-border)' }}>
+                    <div className="divide-y divide-gray-200">
                         {stats?.recentTransactions.map((tx: any) => (
-                            <div key={tx.id} className="px-4 py-4 sm:px-6 flex items-center justify-between transition-colors hover:bg-gray-50/20">
+                            <div key={tx.id} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
                                 <div className="flex items-center gap-4">
-                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${tx.transaction_type === 'stock_in'
-                                        ? 'bg-green-100/50 text-green-600'
-                                        : tx.transaction_type === 'stock_out'
-                                            ? 'bg-red-100/50 text-red-600'
-                                            : 'bg-indigo-100/50 text-indigo-600'
+                                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${tx.transaction_type === 'stock_in'
+                                            ? 'bg-green-50 text-green-600'
+                                            : tx.transaction_type === 'stock_out'
+                                                ? 'bg-red-50 text-red-600'
+                                                : 'bg-gray-50 text-gray-600'
                                         }`}>
                                         {tx.transaction_type === 'stock_in' ? (
                                             <TrendingUpIcon className="h-5 w-5" />
@@ -636,17 +514,17 @@ export default function Dashboard() {
                                         )}
                                     </div>
                                     <div>
-                                        <p className="font-medium truncate" style={{ color: 'var(--text)' }}>{tx.products?.name}</p>
-                                        <p className="text-sm truncate" style={{ color: 'var(--muted)' }}>
+                                        <p className="font-medium text-gray-900 truncate">{tx.products?.name}</p>
+                                        <p className="text-sm text-gray-600 truncate">
                                             {tx.transaction_type.replace('_', ' ')} • {tx.quantity} units
                                         </p>
                                     </div>
                                 </div>
                                 <div className="text-right shrink-0">
-                                    <p className="text-sm" style={{ color: 'var(--muted)' }}>
+                                    <p className="text-sm text-gray-600">
                                         {new Date(tx.created_at).toLocaleDateString()}
                                     </p>
-                                    <p className="text-xs" style={{ color: 'var(--muted)' }}>
+                                    <p className="text-xs text-gray-500">
                                         {new Date(tx.created_at).toLocaleTimeString()}
                                     </p>
                                 </div>
@@ -656,44 +534,32 @@ export default function Dashboard() {
                 </div>
             </div>
             {/* Quick Actions - Floating Bottom Bar (Mobile Only) */}
-            <div
-                className="fixed bottom-0 left-0 right-0 z-50 p-4 sm:hidden transition-transform duration-300 ease-in-out"
-                style={{
-                    background: 'linear-gradient(to top, rgba(0,0,0,0.4), transparent)',
-                    backdropFilter: 'blur(10px)',
-                }}
-            >
-                <div
-                    className="grid grid-cols-3 gap-2 rounded-2xl border p-2 shadow-2xl backdrop-blur-sm"
-                    style={{
-                        background: 'var(--card-bg)',
-                        borderColor: 'var(--card-border)',
-                    }}
-                >
-                    <button
-                        onClick={() => (window.location.href = '/liff/scanner')}
-                        className="flex flex-col items-center justify-center gap-1 py-2 px-1 rounded-xl text-center text-xs font-medium transition-colors"
-                        style={{ color: 'var(--text)' }}
-                    >
-                        <ScanLineIcon className="h-5 w-5 text-indigo-600" />
-                        <span className="mt-1">Scan</span>
-                    </button>
-                    <button
-                        onClick={() => (window.location.href = '/liff/products')}
-                        className="flex flex-col items-center justify-center gap-1 py-2 px-1 rounded-xl text-center text-xs font-medium transition-colors"
-                        style={{ color: 'var(--text)' }}
-                    >
-                        <PackageIcon className="h-5 w-5 text-gray-600" />
-                        <span className="mt-1">Products</span>
-                    </button>
-                    <button
-                        onClick={() => (window.location.href = '/liff/analytics')}
-                        className="flex flex-col items-center justify-center gap-1 py-2 px-1 rounded-xl text-center text-xs font-medium transition-colors"
-                        style={{ color: 'var(--text)' }}
-                    >
-                        <BarChart3Icon className="h-5 w-5 text-green-600" />
-                        <span className="mt-1">Analytics</span>
-                    </button>
+            <div className="fixed bottom-0 left-0 right-0 z-50 p-4 sm:hidden">
+                <div className="bg-white rounded-lg border border-gray-200 shadow-lg p-2">
+                    <div className="grid grid-cols-3 gap-2">
+                        <button
+                            onClick={() => (window.location.href = '/liff/products')}
+                            className="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-lg text-center text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                        >
+                            <PackageIcon className="h-5 w-5 text-gray-600" />
+                            <span>Products</span>
+                        </button>
+                        <button
+                            onClick={() => (window.location.href = '/liff/scanner')}
+                            className="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-lg text-center text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                        >
+                            <ScanLineIcon className="h-5 w-5 text-blue-600" />
+                            <span>Scan</span>
+                        </button>
+
+                        <button
+                            onClick={() => (window.location.href = '/liff/analytics')}
+                            className="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-lg text-center text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                        >
+                            <BarChart3Icon className="h-5 w-5 text-green-600" />
+                            <span>Analytics</span>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

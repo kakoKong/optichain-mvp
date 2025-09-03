@@ -86,6 +86,7 @@ export default function BarcodeScanner() {
   const zxingReaderRef = useRef<any>(null)
   const quaggaRef = useRef<any>(null)
   const foundBarcodeRef = useRef<string | null>(null)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
 
   // Initialize component
   useEffect(() => {
@@ -109,6 +110,40 @@ export default function BarcodeScanner() {
       }, 500)
     }
   }, [business])
+
+  // Initialize audio for success sound
+  const initializeAudio = () => {
+    try {
+      // Create a simple beep sound using Web Audio API
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+      const oscillator = audioContext.createOscillator()
+      const gainNode = audioContext.createGain()
+      
+      oscillator.connect(gainNode)
+      gainNode.connect(audioContext.destination)
+      
+      oscillator.frequency.setValueAtTime(800, audioContext.currentTime) // 800Hz frequency
+      oscillator.type = 'sine'
+      
+      gainNode.gain.setValueAtTime(0, audioContext.currentTime)
+      gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.01)
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1)
+      
+      oscillator.start(audioContext.currentTime)
+      oscillator.stop(audioContext.currentTime + 0.1)
+    } catch (error) {
+      console.warn('Audio not supported:', error)
+    }
+  }
+
+  // Play success sound
+  const playSuccessSound = () => {
+    try {
+      initializeAudio() // Create the sound each time
+    } catch (error) {
+      console.warn('Could not play sound:', error)
+    }
+  }
 
   useEffect(() => {
     return () => {
@@ -433,6 +468,7 @@ export default function BarcodeScanner() {
       const existing = await fetchProductWithInventory(barcode)
       
       if (existing) {
+        playSuccessSound() // Play sound when barcode is found
         if (isQuickMode) {
           await handleQuickAdd(existing, barcode)
         } else {
@@ -507,6 +543,7 @@ export default function BarcodeScanner() {
       })
 
       setShowSuccess(true)
+      playSuccessSound() // Play success sound
       setTimeout(() => {
         setShowSuccess(false)
         setScanResult('')
@@ -636,6 +673,7 @@ export default function BarcodeScanner() {
       } : null)
 
       setShowSuccess(true)
+      playSuccessSound() // Play success sound
 
       setTimeout(() => {
         setProduct(null)
