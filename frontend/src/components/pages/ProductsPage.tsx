@@ -18,6 +18,7 @@ interface Product {
   cost_price: number
   selling_price: number
   unit: string
+  image_url?: string
   inventory?: Array<{
     id: string
     current_stock: number
@@ -183,25 +184,53 @@ export const ProductsPage: React.FC = () => {
             </p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredProducts.map((product) => (
-              <div key={product.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                <div>
-                  <h4 className="font-medium text-gray-900">{product.name}</h4>
-                  <p className="text-sm text-gray-600">
+              <div key={product.id} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                {/* Product Image */}
+                <div className="aspect-square mb-3 bg-gray-100 rounded-lg overflow-hidden">
+                  {product.image_url ? (
+                    <img
+                      src={product.image_url}
+                      alt={product.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement
+                        target.style.display = 'none'
+                        target.nextElementSibling?.classList.remove('hidden')
+                      }}
+                    />
+                  ) : null}
+                  <div className={`w-full h-full flex items-center justify-center ${product.image_url ? 'hidden' : ''}`}>
+                    <PackageIcon className="h-12 w-12 text-gray-400" />
+                  </div>
+                </div>
+
+                {/* Product Info */}
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-gray-900 text-lg line-clamp-2">{product.name}</h4>
+                  
+                  <p className="text-xs text-gray-500">
                     Barcode: {product.barcode}
                   </p>
-                  <p className="text-sm text-gray-600">
-                    Stock: {product.inventory?.[0]?.current_stock || 0} {product.unit}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="font-semibold text-gray-900">
-                    ฿{product.selling_price.toLocaleString()}
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    ฿{((product.inventory?.[0]?.current_stock || 0) * product.selling_price).toLocaleString()}
-                  </p>
+                  
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600">
+                      Stock: {product.inventory?.[0]?.current_stock || 0} {product.unit}
+                    </span>
+                    <span className="font-medium text-gray-900">
+                      ฿{product.selling_price.toLocaleString()}
+                    </span>
+                  </div>
+                  
+                  <div className="pt-2 border-t border-gray-100">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-600">Total Value:</span>
+                      <span className="font-semibold text-green-600">
+                        ฿{((product.inventory?.[0]?.current_stock || 0) * product.selling_price).toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
             ))}

@@ -16,6 +16,7 @@ interface Product {
   cost_price: number
   selling_price: number
   unit: string
+  image_url?: string
   inventory?: Array<{
     id: string
     current_stock: number
@@ -440,7 +441,7 @@ export default function BarcodeScanner() {
     const { data, error } = await supabase
       .from('products')
       .select(`
-        id, name, barcode, cost_price, selling_price, unit,
+        id, name, barcode, cost_price, selling_price, unit, image_url,
         inventory(id, current_stock, min_stock_level)
       `)
       .eq('business_id', business!.id)
@@ -901,14 +902,29 @@ export default function BarcodeScanner() {
             {/* Product info */}
             <div className="bg-white rounded-xl border border-gray-200 p-4">
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-lg bg-blue-500 flex items-center justify-center">
-                  <PackageIcon className="h-5 w-5 text-white" />
-      </div>
+                {/* Product Image */}
+                <div className="flex-shrink-0">
+                  {product.image_url ? (
+                    <img
+                      src={product.image_url}
+                      alt={product.name}
+                      className="w-12 h-12 rounded-lg object-cover border border-gray-200"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement
+                        target.style.display = 'none'
+                        target.nextElementSibling?.classList.remove('hidden')
+                      }}
+                    />
+                  ) : null}
+                  <div className={`w-12 h-12 rounded-lg bg-gray-200 border border-gray-300 flex items-center justify-center ${product.image_url ? 'hidden' : ''}`}>
+                    <PackageIcon className="h-6 w-6 text-gray-400" />
+                  </div>
+                </div>
                 <div className="flex-1">
                   <h3 className="font-semibold text-gray-900">{product.name}</h3>
                   <p className="text-sm text-gray-600">Stock: {product.inventory?.[0]?.current_stock ?? 0}</p>
-          </div>
-        </div>
+                </div>
+              </div>
 
               {/* Transaction type selection */}
               <div className="mb-4">
@@ -1006,6 +1022,25 @@ export default function BarcodeScanner() {
       {showSuccess && isQuickMode && (
         <div className="fixed top-20 left-4 right-4 z-50">
           <div className="bg-white rounded-lg border border-gray-200 shadow-lg p-4 flex items-center gap-3 animate-slide-down">
+            {/* Product Image */}
+            <div className="flex-shrink-0">
+              {product?.image_url ? (
+                <img
+                  src={product.image_url}
+                  alt={product.name}
+                  className="w-12 h-12 rounded-lg object-cover border border-gray-200"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement
+                    target.style.display = 'none'
+                    target.nextElementSibling?.classList.remove('hidden')
+                  }}
+                />
+              ) : null}
+              <div className={`w-12 h-12 rounded-lg bg-gray-200 border border-gray-300 flex items-center justify-center ${product?.image_url ? 'hidden' : ''}`}>
+                <PackageIcon className="h-6 w-6 text-gray-400" />
+              </div>
+            </div>
+
             <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
               quickActionType === 'stock_in' ? 'bg-green-100' : 'bg-red-100'
             }`}>
@@ -1015,15 +1050,15 @@ export default function BarcodeScanner() {
                 <TrendingDownIcon className="h-4 w-4 text-red-600" />
               )}
             </div>
-                         <div className="flex-1">
-               <p className="font-medium text-gray-900">
-                 {quickActionType === 'stock_in' ? '✅ Stock Added' : '✅ Stock Removed'}
-               </p>
-               <p className="text-sm text-gray-600">
-                 {quickActionType === 'stock_in' ? '1 item added to inventory' : '1 item removed from inventory'}
-               </p>
-               <p className="text-xs text-blue-600 mt-1">📷 Ready for next scan</p>
-             </div>
+            <div className="flex-1">
+              <p className="font-medium text-gray-900">
+                {quickActionType === 'stock_in' ? '✅ Stock Added' : '✅ Stock Removed'}
+              </p>
+              <p className="text-sm text-gray-600">
+                {product?.name || 'Product'} - {quickActionType === 'stock_in' ? '1 item added' : '1 item removed'}
+              </p>
+              <p className="text-xs text-blue-600 mt-1">📷 Ready for next scan</p>
+            </div>
             {undoTransaction && (
               <button
                 onClick={handleUndoTransaction}

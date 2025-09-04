@@ -94,7 +94,7 @@ export const AddProductPage: React.FC = () => {
           image_url: formData.image_url || null
         }])
         .select()
-        .single()
+        .single() 
 
       if (productError) {
         throw productError
