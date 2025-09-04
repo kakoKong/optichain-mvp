@@ -537,6 +537,9 @@ export default function BarcodeScanner() {
         
       if (updateError) throw updateError
 
+      // Store the product information for the popup
+      setProduct(product)
+
       setUndoTransaction({
         productId: product.id,
         transactionId: transaction.id,
@@ -548,6 +551,7 @@ export default function BarcodeScanner() {
       setTimeout(() => {
         setShowSuccess(false)
         setScanResult('')
+        setProduct(null) // Clear product after popup
       }, 2000)
 
     } catch (error: any) {
