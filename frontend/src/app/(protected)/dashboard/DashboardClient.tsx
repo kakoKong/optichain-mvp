@@ -33,6 +33,7 @@ export default function Dashboard() {
     const { user, loading: authLoading } = useAuth()
     const [stats, setStats] = useState<DashboardStats | null>(null)
     const [loading, setLoading] = useState(true)
+    const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
     const router = useRouter()
     useEffect(() => {
         if (authLoading) return
@@ -177,7 +178,10 @@ export default function Dashboard() {
                 return sum + stock * sellPrice * 0.1
             }, 0)
 
-            // 5) Recent transactions for this business
+            // 5) Recent transactions for this business (last 7 days for stock movement)
+            const sevenDaysAgo = new Date()
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+            
             const { data: transactions, error: txErr } = await supabase
                 .from('inventory_transactions')
                 .select(`
@@ -189,8 +193,8 @@ export default function Dashboard() {
           products ( name, selling_price )
         `)
                 .eq('business_id', !Array.isArray(business) ? business.id : null)
+                .gte('created_at', sevenDaysAgo.toISOString())
                 .order('created_at', { ascending: false })
-                .limit(20)
 
             if (txErr) console.error('Supabase (transactions):', txErr)
 
@@ -223,6 +227,9 @@ export default function Dashboard() {
         )
     }
     const processStockMovement = (transactions: any[]) => {
+        console.log('[Dashboard] Processing stock movement with transactions:', transactions.length)
+        
+        // Create last 7 days array (most recent first)
         const last7Days = Array.from({ length: 7 }, (_, i) => {
             const date = new Date()
             date.setDate(date.getDate() - i)
@@ -231,18 +238,30 @@ export default function Dashboard() {
                 stockIn: 0,
                 stockOut: 0
             }
-        }).reverse()
+        }).reverse() // Reverse to show oldest to newest
+        
+        console.log('[Dashboard] Last 7 days range:', {
+            from: last7Days[0].date,
+            to: last7Days[6].date
+        })
+        
+        // Process each transaction
         transactions.forEach(tx => {
             const txDate = tx.created_at.split('T')[0]
             const dayData = last7Days.find(d => d.date === txDate)
+            
             if (dayData) {
                 if (tx.transaction_type === 'stock_in') {
                     dayData.stockIn += tx.quantity
                 } else if (tx.transaction_type === 'stock_out') {
                     dayData.stockOut += tx.quantity
                 }
+            } else {
+                console.log('[Dashboard] Transaction date outside range:', txDate, tx.transaction_type, tx.quantity)
             }
         })
+        
+        console.log('[Dashboard] Processed stock movement:', last7Days)
         return last7Days
     }
     const getTopProducts = (products: any[]) => {
@@ -256,6 +275,47 @@ export default function Dashboard() {
             .slice(0, 5)
     }
     const formatCurrency = (amount: number) => `฿${amount.toLocaleString()}`
+
+    const groupTransactionsByProduct = (transactions: any[]) => {
+        const grouped = transactions.reduce((acc, tx) => {
+            const productId = tx.products?.name || 'Unknown Product'
+            if (!acc[productId]) {
+                acc[productId] = {
+                    productName: productId,
+                    transactions: [],
+                    totalIn: 0,
+                    totalOut: 0,
+                    lastActivity: tx.created_at
+                }
+            }
+            acc[productId].transactions.push(tx)
+            if (tx.transaction_type === 'stock_in') {
+                acc[productId].totalIn += tx.quantity
+            } else if (tx.transaction_type === 'stock_out') {
+                acc[productId].totalOut += tx.quantity
+            }
+            // Update last activity to most recent
+            if (new Date(tx.created_at) > new Date(acc[productId].lastActivity)) {
+                acc[productId].lastActivity = tx.created_at
+            }
+            return acc
+        }, {})
+
+        // Sort by last activity (most recent first)
+        return Object.values(grouped).sort((a: any, b: any) => 
+            new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime()
+        )
+    }
+
+    const toggleGroup = (productName: string) => {
+        const newExpanded = new Set(expandedGroups)
+        if (newExpanded.has(productName)) {
+            newExpanded.delete(productName)
+        } else {
+            newExpanded.add(productName)
+        }
+        setExpandedGroups(newExpanded)
+    }
     if (loading) {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -428,7 +488,8 @@ export default function Dashboard() {
                         </div>
                         <div className="p-6">
                             <div className="space-y-4">
-                                {stats?.stockMovement.map((day, index) => (
+                                {stats?.stockMovement && stats.stockMovement.length > 0 ? (
+                                    stats.stockMovement.map((day, index) => (
                                     <div key={index} className="flex items-center gap-4">
                                         <div className="w-16 text-sm font-medium text-gray-600 shrink-0">
                                             {new Date(day.date).toLocaleDateString('en', { weekday: 'short' })}
@@ -444,15 +505,29 @@ export default function Dashboard() {
                                                     <span className="text-gray-600">Out: {day.stockOut}</span>
                                                 </div>
                                             </div>
-                                            <div className="w-full bg-gray-200 rounded-full h-2">
+                                            <div className="w-full bg-gray-200 rounded-full h-2 relative">
                                                 <div
-                                                    className="bg-green-500 h-2 rounded-full"
+                                                    className="bg-green-500 h-2 rounded-full absolute left-0"
                                                     style={{ width: `${Math.min(100, (day.stockIn / Math.max(day.stockIn + day.stockOut, 1)) * 100)}%` }}
+                                                ></div>
+                                                <div
+                                                    className="bg-red-500 h-2 rounded-full absolute left-0"
+                                                    style={{ 
+                                                        width: `${Math.min(100, (day.stockOut / Math.max(day.stockIn + day.stockOut, 1)) * 100)}%`,
+                                                        transform: `translateX(${(day.stockIn / Math.max(day.stockIn + day.stockOut, 1)) * 100}%)`
+                                                    }}
                                                 ></div>
                                             </div>
                                         </div>
                                     </div>
-                                ))}
+                                    ))
+                                ) : (
+                                    <div className="text-center py-8 text-gray-500">
+                                        <div className="text-4xl mb-2">📊</div>
+                                        <p>No stock movement data for the last 7 days</p>
+                                        <p className="text-sm mt-1">Start scanning products to see movement trends</p>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -483,7 +558,7 @@ export default function Dashboard() {
                         </div>
                     </div>
                 </div>
-                {/* Recent Activity */}
+                {/* Recent Activity - Grouped by Product */}
                 <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
                     <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
                         <h3 className="text-lg font-semibold text-gray-900">Recent Activity</h3>
@@ -495,40 +570,92 @@ export default function Dashboard() {
                         </button>
                     </div>
                     <div className="divide-y divide-gray-200">
-                        {stats?.recentTransactions.map((tx: any) => (
-                            <div key={tx.id} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
-                                <div className="flex items-center gap-4">
-                                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${tx.transaction_type === 'stock_in'
-                                            ? 'bg-green-50 text-green-600'
-                                            : tx.transaction_type === 'stock_out'
-                                                ? 'bg-red-50 text-red-600'
-                                                : 'bg-gray-50 text-gray-600'
-                                        }`}>
-                                        {tx.transaction_type === 'stock_in' ? (
-                                            <TrendingUpIcon className="h-5 w-5" />
-                                        ) : tx.transaction_type === 'stock_out' ? (
-                                            <TrendingDownIcon className="h-5 w-5" />
-                                        ) : (
-                                            <HistoryIcon className="h-5 w-5" />
-                                        )}
+                        {stats?.recentTransactions && stats.recentTransactions.length > 0 ? (
+                            groupTransactionsByProduct(stats.recentTransactions).map((group: any) => (
+                                <div key={group.productName} className="px-6 py-4">
+                                    {/* Group Header */}
+                                    <div 
+                                        className="flex items-center justify-between hover:bg-gray-50 transition-colors cursor-pointer"
+                                        onClick={() => toggleGroup(group.productName)}
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-blue-50 text-blue-600">
+                                                <PackageIcon className="h-5 w-5" />
+                                            </div>
+                                            <div>
+                                                <p className="font-medium text-gray-900 truncate">{group.productName}</p>
+                                                <p className="text-sm text-gray-600">
+                                                    {group.transactions.length} transaction{group.transactions.length !== 1 ? 's' : ''} • 
+                                                    {group.totalIn > 0 && (
+                                                        <span className="text-green-600 ml-1">+{group.totalIn} in</span>
+                                                    )}
+                                                    {group.totalIn > 0 && group.totalOut > 0 && <span className="mx-1">•</span>}
+                                                    {group.totalOut > 0 && (
+                                                        <span className="text-red-600">-{group.totalOut} out</span>
+                                                    )}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <p className="text-sm text-gray-600">
+                                                {new Date(group.lastActivity).toLocaleDateString()}
+                                            </p>
+                                            <div className={`transform transition-transform ${expandedGroups.has(group.productName) ? 'rotate-180' : ''}`}>
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                                </svg>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <p className="font-medium text-gray-900 truncate">{tx.products?.name}</p>
-                                        <p className="text-sm text-gray-600 truncate">
-                                            {tx.transaction_type.replace('_', ' ')} • {tx.quantity} units
-                                        </p>
-                                    </div>
+
+                                    {/* Expanded Individual Transactions */}
+                                    {expandedGroups.has(group.productName) && (
+                                        <div className="mt-3 ml-14 space-y-2 border-l-2 border-gray-100 pl-4">
+                                            {group.transactions.map((tx: any) => (
+                                                <div key={tx.id} className="flex items-center justify-between py-2 hover:bg-gray-50 rounded-lg px-3 -ml-3">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${
+                                                            tx.transaction_type === 'stock_in'
+                                                                ? 'bg-green-100 text-green-600'
+                                                                : tx.transaction_type === 'stock_out'
+                                                                    ? 'bg-red-100 text-red-600'
+                                                                    : 'bg-gray-100 text-gray-600'
+                                                        }`}>
+                                                            {tx.transaction_type === 'stock_in' ? (
+                                                                <TrendingUpIcon className="h-3 w-3" />
+                                                            ) : tx.transaction_type === 'stock_out' ? (
+                                                                <TrendingDownIcon className="h-3 w-3" />
+                                                            ) : (
+                                                                <HistoryIcon className="h-3 w-3" />
+                                                            )}
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-sm font-medium text-gray-900">
+                                                                {tx.transaction_type.replace('_', ' ')} • {tx.quantity} units
+                                                            </p>
+                                                            {tx.reason && (
+                                                                <p className="text-xs text-gray-500 truncate">{tx.reason}</p>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-right shrink-0">
+                                                        <p className="text-xs text-gray-500">
+                                                            {new Date(tx.created_at).toLocaleTimeString()}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
-                                <div className="text-right shrink-0">
-                                    <p className="text-sm text-gray-600">
-                                        {new Date(tx.created_at).toLocaleDateString()}
-                                    </p>
-                                    <p className="text-xs text-gray-500">
-                                        {new Date(tx.created_at).toLocaleTimeString()}
-                                    </p>
-                                </div>
+                            ))
+                        ) : (
+                            <div className="text-center py-8 text-gray-500">
+                                <div className="text-4xl mb-2">📋</div>
+                                <p>No recent activity</p>
+                                <p className="text-sm mt-1">Start scanning products to see activity</p>
                             </div>
-                        ))}
+                        )}
                     </div>
                 </div>
             </div>

@@ -49,6 +49,8 @@ export default function TransactionsPage() {
     const [dateRange, setDateRange] = useState('7d')
     const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null)
     const [business, setBusiness] = useState<any>(null)
+    const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
+    const [viewMode, setViewMode] = useState<'list' | 'grouped'>('grouped')
 
     // Summary stats
     const [stats, setStats] = useState({
@@ -282,6 +284,50 @@ export default function TransactionsPage() {
 
     const closeModal = () => setSelectedTransaction(null)
 
+    const groupTransactionsByProduct = (transactions: Transaction[]) => {
+        const grouped = transactions.reduce((acc, tx) => {
+            const productName = tx.products?.name || 'Unknown Product'
+            if (!acc[productName]) {
+                acc[productName] = {
+                    productName: productName,
+                    transactions: [],
+                    totalIn: 0,
+                    totalOut: 0,
+                    totalAdjustments: 0,
+                    lastActivity: tx.created_at
+                }
+            }
+            acc[productName].transactions.push(tx)
+            if (tx.transaction_type === 'stock_in') {
+                acc[productName].totalIn += tx.quantity
+            } else if (tx.transaction_type === 'stock_out') {
+                acc[productName].totalOut += tx.quantity
+            } else if (tx.transaction_type === 'adjustment') {
+                acc[productName].totalAdjustments += tx.quantity
+            }
+            // Update last activity to most recent
+            if (new Date(tx.created_at) > new Date(acc[productName].lastActivity)) {
+                acc[productName].lastActivity = tx.created_at
+            }
+            return acc
+        }, {} as any)
+
+        // Sort by last activity (most recent first)
+        return Object.values(grouped).sort((a: any, b: any) => 
+            new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime()
+        )
+    }
+
+    const toggleGroup = (productName: string) => {
+        const newExpanded = new Set(expandedGroups)
+        if (newExpanded.has(productName)) {
+            newExpanded.delete(productName)
+        } else {
+            newExpanded.add(productName)
+        }
+        setExpandedGroups(newExpanded)
+    }
+
     if (loading) {
         return (
             <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-100 flex items-center justify-center">
@@ -355,6 +401,28 @@ export default function TransactionsPage() {
                             </div>
                         </div>
                         <div className="flex items-center gap-3">
+                            <div className="flex bg-white/20 rounded-xl p-1">
+                                <button
+                                    onClick={() => setViewMode('grouped')}
+                                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                                        viewMode === 'grouped' 
+                                            ? 'bg-white text-gray-900 shadow-sm' 
+                                            : 'text-white hover:text-gray-200'
+                                    }`}
+                                >
+                                    Grouped
+                                </button>
+                                <button
+                                    onClick={() => setViewMode('list')}
+                                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                                        viewMode === 'list' 
+                                            ? 'bg-white text-gray-900 shadow-sm' 
+                                            : 'text-white hover:text-gray-200'
+                                    }`}
+                                >
+                                    List
+                                </button>
+                            </div>
                             <select
                                 value={dateRange}
                                 onChange={(e) => setDateRange(e.target.value)}
@@ -516,70 +584,148 @@ export default function TransactionsPage() {
                 >
                     <div className="px-4 sm:px-6 py-4" style={{ borderBottom: '1px solid var(--border)' }}>
                         <h3 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>
-                            Recent Transactions ({filteredTransactions.length})
+                            {viewMode === 'grouped' ? 'Transactions by Product' : 'All Transactions'} ({filteredTransactions.length})
                         </h3>
                     </div>
 
                     <div style={{ borderTop: '1px solid var(--border)' }}>
-                        {filteredTransactions.map((transaction) => (
-                            <div
-                                key={transaction.id}
-                                className="px-4 sm:px-6 py-4 transition-colors cursor-pointer hover:opacity-80"
-                                style={{ borderBottom: '1px solid var(--border)' }}
-                                onClick={() => setSelectedTransaction(transaction)}
-                            >
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-4">
-                                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border ${getTransactionColor(transaction.transaction_type)}`}>
-                                            {getTransactionIcon(transaction.transaction_type)}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-3 mb-1">
-                                                <h4 className="font-medium truncate" style={{ color: 'var(--text)' }}>{transaction.products?.name || 'Unknown product'}</h4>
-                                                <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getTransactionColor(transaction.transaction_type)}`}>
-                                                    {formatTransactionType(transaction.transaction_type)}
-                                                </span>
+                        {filteredTransactions.length > 0 ? (
+                            viewMode === 'grouped' ? (
+                                // Grouped View
+                                groupTransactionsByProduct(filteredTransactions).map((group: any) => (
+                                    <div key={group.productName} className="px-4 sm:px-6 py-4" style={{ borderBottom: '1px solid var(--border)' }}>
+                                        {/* Group Header */}
+                                        <div 
+                                            className="flex items-center justify-between hover:opacity-80 transition-opacity cursor-pointer"
+                                            onClick={() => toggleGroup(group.productName)}
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-12 h-12 rounded-2xl flex items-center justify-center border bg-blue-100 text-blue-600 border-blue-200">
+                                                    <PackageIcon className="h-6 w-6" />
+                                                </div>
+                                                <div>
+                                                    <h4 className="font-medium truncate" style={{ color: 'var(--text)' }}>{group.productName}</h4>
+                                                    <p className="text-sm" style={{ color: 'var(--muted)' }}>
+                                                        {group.transactions.length} transaction{group.transactions.length !== 1 ? 's' : ''} • 
+                                                        {group.totalIn > 0 && (
+                                                            <span className="text-green-600 ml-1">+{group.totalIn} in</span>
+                                                        )}
+                                                        {group.totalIn > 0 && group.totalOut > 0 && <span className="mx-1">•</span>}
+                                                        {group.totalOut > 0 && (
+                                                            <span className="text-red-600">-{group.totalOut} out</span>
+                                                        )}
+                                                        {group.totalAdjustments > 0 && (
+                                                            <span className="text-blue-600 ml-1">~{group.totalAdjustments} adj</span>
+                                                        )}
+                                                    </p>
+                                                </div>
                                             </div>
-                                            <p className="text-sm" style={{ color: 'var(--muted)' }}>{transaction.reason || '-'}</p>
-                                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-2 text-xs" style={{ color: 'var(--muted)' }}>
-                                                <span>Quantity: {transaction.quantity}</span>
-                                                {!!transaction.products?.barcode && (
-                                                    <span>Barcode: {transaction.products.barcode}</span>
-                                                )}
-                                                {transaction.transaction_type === 'stock_out' && (
-                                                    <span>Value: ฿{(transaction.quantity * Number(transaction.products?.selling_price || 0)).toLocaleString()}</span>
-                                                )}
+                                            <div className="flex items-center gap-2">
+                                                <p className="text-sm" style={{ color: 'var(--muted)' }}>
+                                                    {new Date(group.lastActivity).toLocaleDateString()}
+                                                </p>
+                                                <div className={`transform transition-transform ${expandedGroups.has(group.productName) ? 'rotate-180' : ''}`}>
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                                    </svg>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-sm" style={{ color: 'var(--muted)' }}>
-                                            {new Date(transaction.created_at).toLocaleDateString()}
-                                        </p>
-                                        <p className="text-xs" style={{ color: 'var(--muted)' }}>
-                                            {new Date(transaction.created_at).toLocaleTimeString()}
-                                        </p>
-                                        <button className="mt-2" style={{ color: 'var(--accentA)' }}>
-                                            <EyeIcon className="h-4 w-4" />
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
 
-                    {filteredTransactions.length === 0 && (
-                        <div className="px-4 sm:px-6 py-12 text-center">
-                            <HistoryIcon className="h-16 w-16 mx-auto mb-4" style={{ color: 'var(--muted)' }} />
-                            <h3 className="text-lg font-medium mb-2" style={{ color: 'var(--text)' }}>No transactions found</h3>
-                            <p style={{ color: 'var(--muted)' }}>
-                                {searchTerm || filterType !== 'all'
-                                    ? 'Try adjusting your search or filters'
-                                    : 'No transactions recorded yet'
-                                }
-                            </p>
-                        </div>
-                    )}
+                                        {/* Expanded Individual Transactions */}
+                                        {expandedGroups.has(group.productName) && (
+                                            <div className="mt-4 ml-16 space-y-3 border-l-2 border-gray-200 pl-4">
+                                                {group.transactions.map((tx: Transaction) => (
+                                                    <div 
+                                                        key={tx.id} 
+                                                        className="flex items-center justify-between py-3 hover:bg-gray-50 rounded-xl px-3 -ml-3 cursor-pointer transition-colors"
+                                                        onClick={() => setSelectedTransaction(tx)}
+                                                    >
+                                                        <div className="flex items-center gap-3">
+                                                            <div className={`w-8 h-8 rounded-xl flex items-center justify-center border ${getTransactionColor(tx.transaction_type)}`}>
+                                                                {getTransactionIcon(tx.transaction_type)}
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
+                                                                    {formatTransactionType(tx.transaction_type)} • {tx.quantity} units
+                                                                </p>
+                                                                {tx.reason && (
+                                                                    <p className="text-xs" style={{ color: 'var(--muted)' }}>{tx.reason}</p>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <p className="text-xs" style={{ color: 'var(--muted)' }}>
+                                                                {new Date(tx.created_at).toLocaleTimeString()}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))
+                            ) : (
+                                // List View
+                                filteredTransactions.map((transaction) => (
+                                    <div
+                                        key={transaction.id}
+                                        className="px-4 sm:px-6 py-4 transition-colors cursor-pointer hover:opacity-80"
+                                        style={{ borderBottom: '1px solid var(--border)' }}
+                                        onClick={() => setSelectedTransaction(transaction)}
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-4">
+                                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border ${getTransactionColor(transaction.transaction_type)}`}>
+                                                    {getTransactionIcon(transaction.transaction_type)}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-3 mb-1">
+                                                        <h4 className="font-medium truncate" style={{ color: 'var(--text)' }}>{transaction.products?.name || 'Unknown product'}</h4>
+                                                        <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getTransactionColor(transaction.transaction_type)}`}>
+                                                            {formatTransactionType(transaction.transaction_type)}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-sm" style={{ color: 'var(--muted)' }}>{transaction.reason || '-'}</p>
+                                                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-2 text-xs" style={{ color: 'var(--muted)' }}>
+                                                        <span>Quantity: {transaction.quantity}</span>
+                                                        {!!transaction.products?.barcode && (
+                                                            <span>Barcode: {transaction.products.barcode}</span>
+                                                        )}
+                                                        {transaction.transaction_type === 'stock_out' && (
+                                                            <span>Value: ฿{(transaction.quantity * Number(transaction.products?.selling_price || 0)).toLocaleString()}</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-sm" style={{ color: 'var(--muted)' }}>
+                                                    {new Date(transaction.created_at).toLocaleDateString()}
+                                                </p>
+                                                <p className="text-xs" style={{ color: 'var(--muted)' }}>
+                                                    {new Date(transaction.created_at).toLocaleTimeString()}
+                                                </p>
+                                                <button className="mt-2" style={{ color: 'var(--accentA)' }}>
+                                                    <EyeIcon className="h-4 w-4" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))
+                            )
+                        ) : (
+                            <div className="px-4 sm:px-6 py-12 text-center">
+                                <HistoryIcon className="h-16 w-16 mx-auto mb-4" style={{ color: 'var(--muted)' }} />
+                                <h3 className="text-lg font-medium mb-2" style={{ color: 'var(--text)' }}>No transactions found</h3>
+                                <p style={{ color: 'var(--muted)' }}>
+                                    {searchTerm || filterType !== 'all'
+                                        ? 'Try adjusting your search or filters'
+                                        : 'No transactions recorded yet'
+                                    }
+                                </p>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
 
