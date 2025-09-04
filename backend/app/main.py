@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 # Import routes
 from app.routes.inventory import router as inventory_router
 from app.routes.line_webhook import router as webhook_router
+from app.routes.business import router as business_router
 
 load_dotenv()
 
@@ -32,6 +33,7 @@ app.add_middleware(
 # Include routers
 app.include_router(inventory_router, prefix="/api")
 app.include_router(webhook_router)
+app.include_router(business_router, prefix="/api")
 
 @app.get("/")
 def read_root():

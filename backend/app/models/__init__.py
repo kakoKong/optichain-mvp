@@ -3,10 +3,12 @@ from .user import User, UserCreate, UserUpdate
 from .business import Business, BusinessCreate, BusinessUpdate
 from .product import Product, ProductCreate, ProductUpdate
 from .inventory import Inventory, InventoryTransaction, TransactionCreate
+from .trial_code import TrialCode, TrialCodeCreate, TrialCodeUpdate
 
 __all__ = [
     "User", "UserCreate", "UserUpdate",
     "Business", "BusinessCreate", "BusinessUpdate",
     "Product", "ProductCreate", "ProductUpdate",
-    "Inventory", "InventoryTransaction", "TransactionCreate"
+    "Inventory", "InventoryTransaction", "TransactionCreate",
+    "TrialCode", "TrialCodeCreate", "TrialCodeUpdate"
 ]

@@ -242,6 +242,15 @@ export default function GetStartedClient() {
                         >
                             {busy ? 'Creating…' : 'Create business'}
                         </button>
+                        
+                        <div className="text-center">
+                            <button
+                                onClick={() => router.push('/create-business')}
+                                className="text-sm text-blue-600 hover:text-blue-700 underline"
+                            >
+                                Or create with detailed information →
+                            </button>
+                        </div>
                     </div>
 
                     {/* Join via code */}
