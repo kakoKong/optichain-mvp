@@ -5,6 +5,8 @@ import { AuthProvider } from '@/contexts/AuthContext'
 import DevLogin from '@/components/DevLogin'
 import DevModeBanner from '@/components/DevModeBanner'
 import AuthDebug from '@/components/AuthDebug'
+import { Analytics } from '@vercel/analytics/react'
+import { SpeedInsights } from '@vercel/speed-insights/next'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -27,6 +29,8 @@ export default function RootLayout({
           <DevLogin />
           <AuthDebug />
         </AuthProvider>
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   )
