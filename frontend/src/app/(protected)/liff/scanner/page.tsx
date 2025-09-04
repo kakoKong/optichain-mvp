@@ -78,6 +78,7 @@ export default function BarcodeScanner() {
   } | null>(null)
   const [lastScannedBarcode, setLastScannedBarcode] = useState<string | null>(null)
   const [lastScanTime, setLastScanTime] = useState<number>(0)
+  const [isModeChanging, setIsModeChanging] = useState(false)
 
   // Refs
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -703,6 +704,20 @@ export default function BarcodeScanner() {
     await startCamera()
   }
 
+  const handleModeChange = async (newMode: boolean) => {
+    setIsModeChanging(true)
+    setIsQuickMode(newMode)
+    
+    // If scanner is currently running, restart it with the new mode
+    if (scanning) {
+      await cleanupScanner()
+      await new Promise(resolve => setTimeout(resolve, 200))
+      await startCamera()
+    }
+    
+    setIsModeChanging(false)
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <canvas ref={canvasRef} className="hidden" />
@@ -713,6 +728,16 @@ export default function BarcodeScanner() {
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto mb-3"></div>
             <p className="text-gray-600">Loading...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Mode changing overlay */}
+      {isModeChanging && (
+        <div className="fixed inset-0 bg-white/90 flex items-center justify-center z-50">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-green-500 border-t-transparent mx-auto mb-3"></div>
+            <p className="text-gray-600">Switching mode...</p>
           </div>
         </div>
       )}
@@ -732,22 +757,24 @@ export default function BarcodeScanner() {
            {/* Mode Toggle */}
            <div className="flex bg-gray-100 rounded-lg p-1">
             <button
-               onClick={() => setIsQuickMode(false)}
+               onClick={() => handleModeChange(false)}
+               disabled={isModeChanging}
                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
                  !isQuickMode 
                    ? 'bg-white text-gray-900 shadow-sm' 
                    : 'text-gray-600 hover:text-gray-900'
-               }`}
+               } ${isModeChanging ? 'opacity-50 cursor-not-allowed' : ''}`}
              >
                Manual
              </button>
              <button
-               onClick={() => setIsQuickMode(true)}
+               onClick={() => handleModeChange(true)}
+               disabled={isModeChanging}
                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
                  isQuickMode 
                    ? 'bg-white text-gray-900 shadow-sm' 
                    : 'text-gray-600 hover:text-gray-900'
-               }`}
+               } ${isModeChanging ? 'opacity-50 cursor-not-allowed' : ''}`}
              >
                Quick
             </button>
@@ -922,13 +949,13 @@ export default function BarcodeScanner() {
                   ) : null}
                   <div className={`w-12 h-12 rounded-lg bg-gray-200 border border-gray-300 flex items-center justify-center ${product.image_url ? 'hidden' : ''}`}>
                     <PackageIcon className="h-6 w-6 text-gray-400" />
-                  </div>
-                </div>
+      </div>
+            </div>
                 <div className="flex-1">
                   <h3 className="font-semibold text-gray-900">{product.name}</h3>
                   <p className="text-sm text-gray-600">Stock: {product.inventory?.[0]?.current_stock ?? 0}</p>
-                </div>
-              </div>
+          </div>
+        </div>
 
               {/* Transaction type selection */}
               <div className="mb-4">
