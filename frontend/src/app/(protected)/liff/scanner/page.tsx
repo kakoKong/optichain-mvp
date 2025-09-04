@@ -113,6 +113,11 @@ export default function BarcodeScanner() {
     }
   }, [business])
 
+  // Debug effect to track mode changes
+  useEffect(() => {
+    console.log('[Scanner] Mode state changed:', { isQuickMode, quickActionType, scanning })
+  }, [isQuickMode, quickActionType, scanning])
+
   // Initialize audio for success sound
   const initializeAudio = () => {
     try {
@@ -466,12 +471,20 @@ export default function BarcodeScanner() {
     setLoading(true)
     setScanResult(barcode)
 
+    // Debug logging to track mode state
+    console.log('[Scanner] Barcode scanned, current mode:', { isQuickMode, quickActionType })
+
     try {
       const existing = await fetchProductWithInventory(barcode)
       
       if (existing) {
         playSuccessSound() // Play sound when barcode is found
-        if (isQuickMode) {
+        
+        // Double-check the mode state at the time of processing
+        const currentMode = isQuickMode
+        console.log('[Scanner] Processing barcode with mode:', currentMode)
+        
+        if (currentMode) {
           await handleQuickAdd(existing, barcode)
         } else {
           setProduct(existing)
@@ -483,6 +496,7 @@ export default function BarcodeScanner() {
       alert('Lookup failed. Try again.')
     } finally {
       setLoading(false)
+      // Only cleanup scanner if in manual mode
       if (!isQuickMode) {
         await cleanupScanner()
       }
@@ -705,17 +719,29 @@ export default function BarcodeScanner() {
   }
 
   const handleModeChange = async (newMode: boolean) => {
+    console.log('[Scanner] Mode change requested:', { from: isQuickMode, to: newMode })
     setIsModeChanging(true)
+    
+    // Update the mode state immediately
     setIsQuickMode(newMode)
+    
+    // Clear any existing product state when switching modes
+    setProduct(null)
+    setShowSuccess(false)
+    setScanResult('')
     
     // If scanner is currently running, restart it with the new mode
     if (scanning) {
       await cleanupScanner()
-      await new Promise(resolve => setTimeout(resolve, 200))
+      await new Promise(resolve => setTimeout(resolve, 300)) // Slightly longer delay
       await startCamera()
     }
     
+    // Add a small delay to ensure state is fully updated
+    await new Promise(resolve => setTimeout(resolve, 100))
     setIsModeChanging(false)
+    
+    console.log('[Scanner] Mode change completed:', { isQuickMode: newMode })
   }
 
   return (
@@ -925,7 +951,16 @@ export default function BarcodeScanner() {
             {/* Method indicator */}
             <div className="absolute top-3 left-3 px-2 py-1 rounded bg-white/90 text-xs font-medium text-gray-700">
               {scanMethod}
-        </div>
+            </div>
+            
+            {/* Mode indicator */}
+            <div className={`absolute top-3 right-3 px-2 py-1 rounded text-xs font-medium ${
+              isQuickMode 
+                ? 'bg-green-500 text-white' 
+                : 'bg-blue-500 text-white'
+            }`}>
+              {isQuickMode ? `Quick ${quickActionType}` : 'Manual'}
+            </div>
     </div>
         ) : product && (
           /* Transaction form */
