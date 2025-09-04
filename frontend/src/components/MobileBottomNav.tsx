@@ -43,7 +43,7 @@ export default function MobileBottomNav() {
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 md:hidden">
-      <div className="grid grid-cols-5 h-16">
+      <div className="grid grid-cols-5 h-20">
         {navItems.map((item) => {
           const isActive = pathname === item.href
           const Icon = item.icon
@@ -52,14 +52,14 @@ export default function MobileBottomNav() {
             <Link
               key={item.name}
               href={item.href}
-              className={`flex flex-col items-center justify-center space-y-1 px-2 py-2 transition-colors ${
+              className={`flex flex-col items-center justify-center space-y-2 px-3 py-3 transition-colors ${
                 isActive
                   ? 'text-blue-600 bg-blue-50'
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
               }`}
             >
-              <Icon className={`h-5 w-5 ${isActive ? 'text-blue-600' : 'text-gray-500'}`} />
-              <span className={`text-xs font-medium ${isActive ? 'text-blue-600' : 'text-gray-500'}`}>
+              <Icon className={`h-6 w-6 ${isActive ? 'text-blue-600' : 'text-gray-500'}`} />
+              <span className={`text-sm font-medium ${isActive ? 'text-blue-600' : 'text-gray-500'}`}>
                 {item.name}
               </span>
             </Link>

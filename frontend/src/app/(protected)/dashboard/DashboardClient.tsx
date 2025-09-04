@@ -659,7 +659,8 @@ export default function Dashboard() {
                     </div>
                 </div>
             </div>
-            {/* Quick Actions - Floating Bottom Bar (Mobile Only) */}
+            {/* Quick Actions - Floating Bottom Bar (Mobile Only) - COMMENTED OUT */}
+            {/* 
             <div className="fixed bottom-0 left-0 right-0 z-50 p-4 sm:hidden">
                 <div className="bg-white rounded-lg border border-gray-200 shadow-lg p-2">
                     <div className="grid grid-cols-3 gap-2">
@@ -688,6 +689,7 @@ export default function Dashboard() {
                     </div>
                 </div>
             </div>
+            */}
         </div>
     );
 }
