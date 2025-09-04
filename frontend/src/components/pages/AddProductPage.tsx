@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
+import { ImageUpload } from '@/components/ui/ImageUpload'
 import { useAuth } from '@/hooks/useAuth'
 import { useBusiness } from '@/hooks/useBusiness'
 import { supabase } from '@/lib/supabase'
@@ -22,8 +23,10 @@ export const AddProductPage: React.FC = () => {
     barcode: '',
     cost_price: '',
     selling_price: '',
-    unit: 'pcs'
+    unit: 'pcs',
+    image_url: ''
   })
+  const [uploadError, setUploadError] = useState<string | null>(null)
 
   // Check for barcode parameter from URL
   useEffect(() => {
@@ -87,7 +90,8 @@ export const AddProductPage: React.FC = () => {
           barcode: formData.barcode.trim(),
           cost_price: costPrice,
           selling_price: sellingPrice,
-          unit: formData.unit
+          unit: formData.unit,
+          image_url: formData.image_url || null
         }])
         .select()
         .single()
@@ -121,6 +125,15 @@ export const AddProductPage: React.FC = () => {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleImageChange = (url: string | null) => {
+    setFormData(prev => ({ ...prev, image_url: url || '' }))
+    setUploadError(null)
+  }
+
+  const handleImageError = (error: string) => {
+    setUploadError(error)
   }
 
   if (authLoading || businessLoading) {
@@ -222,6 +235,20 @@ export const AddProductPage: React.FC = () => {
                   className="w-full"
                 />
               </div>
+
+              {/* Product Image */}
+              <ImageUpload
+                value={formData.image_url}
+                onChange={handleImageChange}
+                onError={handleImageError}
+                disabled={loading}
+              />
+              
+              {uploadError && (
+                <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg border border-red-200">
+                  {uploadError}
+                </div>
+              )}
 
               {/* Price Fields */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

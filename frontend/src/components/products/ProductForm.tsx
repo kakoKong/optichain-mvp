@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { ImageUpload } from '@/components/ui/ImageUpload'
 import { validateProduct } from '@/utils/validation'
 import { PRODUCT_UNITS } from '@/utils/constants'
 import { Product } from '@/hooks/useProducts'
@@ -28,9 +29,11 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     selling_price: '',
     unit: 'piece',
     current_stock: '',
-    min_stock_level: ''
+    min_stock_level: '',
+    image_url: ''
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [uploadError, setUploadError] = useState<string | null>(null)
 
   useEffect(() => {
     if (product) {
@@ -41,7 +44,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         selling_price: product.selling_price.toString(),
         unit: product.unit,
         current_stock: product.inventory?.[0]?.current_stock?.toString() || '0',
-        min_stock_level: '5' // Default value
+        min_stock_level: '5', // Default value
+        image_url: product.image_url || ''
       })
     } else {
       setFormData({
@@ -51,10 +55,12 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         selling_price: '',
         unit: 'piece',
         current_stock: '',
-        min_stock_level: ''
+        min_stock_level: '',
+        image_url: ''
       })
     }
     setErrors({})
+    setUploadError(null)
   }, [product, isOpen])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -87,6 +93,15 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     }
   }
 
+  const handleImageChange = (url: string | null) => {
+    setFormData(prev => ({ ...prev, image_url: url || '' }))
+    setUploadError(null)
+  }
+
+  const handleImageError = (error: string) => {
+    setUploadError(error)
+  }
+
   return (
     <Modal
       isOpen={isOpen}
@@ -110,6 +125,19 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           error={errors.barcode}
           placeholder="กรอกบาร์โค้ด (ไม่บังคับ)"
         />
+
+        <ImageUpload
+          value={formData.image_url}
+          onChange={handleImageChange}
+          onError={handleImageError}
+          disabled={loading}
+        />
+        
+        {uploadError && (
+          <div className="text-red-600 text-sm bg-red-50 p-2 rounded">
+            {uploadError}
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-4">
           <Input

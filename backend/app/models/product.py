@@ -14,6 +14,7 @@ class ProductBase(BaseModel):
     selling_price: Optional[Decimal] = None
     unit: str = "piece"
     category: Optional[str] = None
+    image_url: Optional[str] = None
 
 class ProductCreate(ProductBase):
     business_id: uuid.UUID
@@ -24,11 +25,11 @@ class ProductUpdate(BaseModel):
     cost_price: Optional[Decimal] = None
     selling_price: Optional[Decimal] = None
     category: Optional[str] = None
+    image_url: Optional[str] = None
 
 class Product(ProductBase):
     id: uuid.UUID
     business_id: uuid.UUID
-    image_url: Optional[str] = None
     is_active: bool = True
     created_at: datetime
     updated_at: datetime

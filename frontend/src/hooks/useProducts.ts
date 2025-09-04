@@ -10,6 +10,7 @@ export interface Product {
   cost_price: number
   selling_price: number
   unit: string
+  image_url?: string
   inventory: {
     current_stock: number
   }[]
