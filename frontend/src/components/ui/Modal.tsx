@@ -33,8 +33,8 @@ export const Modal: React.FC<ModalProps> = ({
   const sizeClasses = {
     sm: 'max-w-md',
     md: 'max-w-lg',
-    lg: 'max-w-2xl',
-    xl: 'max-w-4xl'
+    lg: 'max-w-3xl',
+    xl: 'max-w-5xl'
   }
 
   return (
@@ -42,29 +42,29 @@ export const Modal: React.FC<ModalProps> = ({
       <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
         {/* Backdrop */}
         <div 
-          className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+          className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm transition-opacity"
           onClick={onClose}
         />
         
         {/* Modal */}
-        <div className={`inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle w-full ${sizeClasses[size]}`}>
+        <div className={`inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle w-full ${sizeClasses[size]} animate-in fade-in-0 zoom-in-95 duration-300`}>
           {title && (
-            <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4 border-b border-gray-200">
+            <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-6 pt-6 pb-4 sm:px-8 sm:pt-8 sm:pb-6 border-b border-gray-200">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg leading-6 font-medium text-gray-900">
+                <h3 className="text-xl leading-7 font-semibold text-gray-900">
                   {title}
                 </h3>
                 <button
                   onClick={onClose}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  className="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-full"
                 >
-                  <XIcon className="h-6 w-6" />
+                  <XIcon className="h-5 w-5" />
                 </button>
               </div>
             </div>
           )}
           
-          <div className="bg-white px-4 pt-5 pb-4 sm:p-6">
+          <div className="bg-white px-6 pt-6 pb-6 sm:px-8 sm:pt-8 sm:pb-8">
             {children}
           </div>
         </div>

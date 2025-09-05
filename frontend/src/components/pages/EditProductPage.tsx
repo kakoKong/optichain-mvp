@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useRouter, useParams } from 'next/navigation'
 import { ArrowLeftIcon, PackageIcon, SaveIcon } from 'lucide-react'
 import { PageLayout } from '@/components/ui/PageLayout'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -9,14 +10,23 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { ImageUpload } from '@/components/ui/ImageUpload'
 import { useAuth } from '@/hooks/useAuth'
 import { useBusiness } from '@/hooks/useBusiness'
+import { useProducts, Product } from '@/hooks/useProducts'
 import { supabase } from '@/lib/supabase'
 
-export const AddProductPage: React.FC = () => {
+export const EditProductPage: React.FC = () => {
+  const router = useRouter()
+  const params = useParams()
+  const productId = params.id as string
+  
   const { user, loading: authLoading } = useAuth()
   const { business, loading: businessLoading } = useBusiness()
+  const { updateProduct } = useProducts()
+  
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const [product, setProduct] = useState<Product | null>(null)
+  const [productLoading, setProductLoading] = useState(true)
 
   // Form state
   const [formData, setFormData] = useState({
@@ -29,23 +39,67 @@ export const AddProductPage: React.FC = () => {
   })
   const [uploadError, setUploadError] = useState<string | null>(null)
 
-  // Check for barcode parameter from URL
+  // Load product data
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search)
-    const barcode = urlParams.get('barcode')
-    
-    if (barcode) {
-      setFormData(prev => ({ ...prev, barcode }))
-    }
-  }, [])
+    if (authLoading || businessLoading || !user || !business || !productId) return
 
-  // Add product function
-  const addProduct = async () => {
-    if (!business || !user) return
+    const loadProduct = async () => {
+      console.log('[EditProductPage] Loading product:', productId)
+      setProductLoading(true)
+      setError(null)
+
+      try {
+        const { data: productData, error: productError } = await supabase
+          .from('products')
+          .select(`
+            *,
+            inventory (
+              current_stock,
+              min_stock_level
+            )
+          `)
+          .eq('id', productId)
+          .eq('business_id', business.id)
+          .single()
+
+        if (productError) {
+          throw productError
+        }
+
+        if (!productData) {
+          throw new Error('Product not found')
+        }
+
+        console.log('[EditProductPage] Loaded product:', productData)
+        setProduct(productData)
+        
+        // Prefill form
+        setFormData({
+          name: productData.name,
+          barcode: productData.barcode || '',
+          cost_price: productData.cost_price.toString(),
+          selling_price: productData.selling_price.toString(),
+          unit: productData.unit,
+          image_url: productData.image_url || ''
+        })
+      } catch (err) {
+        console.error('[EditProductPage] Error loading product:', err)
+        setError(err instanceof Error ? err.message : 'Failed to load product')
+      } finally {
+        setProductLoading(false)
+      }
+    }
+
+    loadProduct()
+  }, [user, business, authLoading, businessLoading, productId])
+
+  // Update product function
+  const handleUpdateProduct = async () => {
+    if (!business || !user || !product) return
 
     // Validate form
-    if (!formData.name.trim() || !formData.barcode.trim()) {
-      alert('Please fill in product name and barcode')
+    if (!formData.name.trim()) {
+      setError('Please fill in product name')
       return
     }
 
@@ -53,7 +107,7 @@ export const AddProductPage: React.FC = () => {
     const sellingPrice = parseFloat(formData.selling_price) || 0
 
     if (sellingPrice <= 0) {
-      alert('Selling price must be greater than 0')
+      setError('Selling price must be greater than 0')
       return
     }
 
@@ -61,30 +115,8 @@ export const AddProductPage: React.FC = () => {
     setError(null)
 
     try {
-      // Resolve user ID
-      let appUserId = null
-      if (user.source === 'dev' && user.databaseUid) {
-        appUserId = user.databaseUid
-      } else if (user.source === 'line') {
-        const { data: userData, error } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('line_user_id', user.id)
-          .single()
-        
-        if (error || !userData) {
-          throw new Error('Unable to resolve user ID')
-        }
-        appUserId = userData.id
-      }
-
-      if (!appUserId) {
-        throw new Error('Unable to resolve user ID')
-      }
-
-      // Create product
-      console.log('[AddProductPage] Creating product with data:', {
-        business_id: business.id,
+      console.log('[EditProductPage] Updating product with data:', {
+        id: product.id,
         name: formData.name.trim(),
         barcode: formData.barcode.trim(),
         cost_price: costPrice,
@@ -93,55 +125,30 @@ export const AddProductPage: React.FC = () => {
         image_url: formData.image_url || null
       })
 
-      const { data: product, error: productError } = await supabase
-        .from('products')
-        .insert([{
-          business_id: business.id,
-          name: formData.name.trim(),
-          barcode: formData.barcode.trim(),
-          cost_price: costPrice,
-          selling_price: sellingPrice,
-          unit: formData.unit,
-          image_url: formData.image_url || null
-        }])
-        .select()
-        .single()
-
-      console.log('[AddProductPage] Product creation result:', { product, productError }) 
-
-      if (productError) {
-        throw productError
-      }
-
-      // Create inventory record
-      const { error: inventoryError } = await supabase
-        .from('inventory')
-        .insert([{
-          business_id: business.id,
-          product_id: product.id,
-          current_stock: 0,
-          min_stock_level: 0
-        }])
-
-      if (inventoryError) {
-        throw inventoryError
-      }
+      await updateProduct(product.id, {
+        name: formData.name.trim(),
+        barcode: formData.barcode.trim(),
+        cost_price: costPrice,
+        selling_price: sellingPrice,
+        unit: formData.unit,
+        image_url: formData.image_url || null
+      })
 
       setSuccess(true)
       setTimeout(() => {
-        window.location.href = '/liff/products'
+        router.push('/liff/products')
       }, 2000)
 
     } catch (err) {
-      console.error('[AddProductPage] Error adding product:', err)
-      setError(err instanceof Error ? err.message : 'Failed to add product')
+      console.error('[EditProductPage] Error updating product:', err)
+      setError(err instanceof Error ? err.message : 'Failed to update product')
     } finally {
       setLoading(false)
     }
   }
 
   const handleImageChange = (url: string | null) => {
-    console.log('[AddProductPage] Image URL changed:', url)
+    console.log('[EditProductPage] Image URL changed:', url)
     setFormData(prev => ({ ...prev, image_url: url || '' }))
     setUploadError(null)
   }
@@ -150,10 +157,25 @@ export const AddProductPage: React.FC = () => {
     setUploadError(error)
   }
 
-  if (authLoading || businessLoading) {
+  if (authLoading || businessLoading || productLoading) {
     return (
       <PageLayout>
         <LoadingSpinner size="lg" text="Loading..." />
+      </PageLayout>
+    )
+  }
+
+  if (error && !product) {
+    return (
+      <PageLayout>
+        <Card className="p-8 text-center">
+          <PackageIcon className="h-12 w-12 mx-auto text-red-400 mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Error</h3>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <Button onClick={() => router.push('/liff/products')}>
+            Back to Products
+          </Button>
+        </Card>
       </PageLayout>
     )
   }
@@ -166,9 +188,9 @@ export const AddProductPage: React.FC = () => {
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <PackageIcon className="h-8 w-8 text-green-500" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Product Added!</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Product Updated!</h2>
             <p className="text-gray-600 mb-6">
-              {formData.name} has been successfully added to your inventory.
+              {formData.name} has been successfully updated.
             </p>
             <p className="text-sm text-gray-500">
               Redirecting to products page...
@@ -179,27 +201,22 @@ export const AddProductPage: React.FC = () => {
     )
   }
 
+  if (!product) {
+    return (
+      <PageLayout>
+        <LoadingSpinner size="lg" text="Loading product..." />
+      </PageLayout>
+    )
+  }
+
   return (
     <PageLayout>
       <div className="max-w-2xl mx-auto space-y-6 sm:space-y-8">
         <PageHeader
-          title="Add New Product"
-          subtitle="Create a new product in your inventory"
-          onBack={() => window.history.back()}
+          title="Edit Product"
+          subtitle={`Update ${product.name}`}
+          onBack={() => router.push('/liff/products')}
         />
-
-        {/* Barcode Info */}
-        {formData.barcode && (
-          <Card className="p-4 bg-blue-50 border-blue-200">
-            <div className="flex items-center gap-3">
-              <PackageIcon className="h-5 w-5 text-blue-500" />
-              <div>
-                <p className="text-sm font-medium text-blue-900">Scanned Barcode</p>
-                <p className="text-xs text-blue-700">Barcode: {formData.barcode}</p>
-              </div>
-            </div>
-          </Card>
-        )}
 
         {/* Error Message */}
         {error && (
@@ -225,18 +242,19 @@ export const AddProductPage: React.FC = () => {
               />
             </div>
 
-            {/* Barcode */}
+            {/* Barcode - Disabled */}
             <div>
               <label className="block text-sm font-semibold text-gray-900 mb-2">
-                Barcode *
+                Barcode
               </label>
               <Input
                 type="text"
                 value={formData.barcode}
-                onChange={(e) => setFormData(prev => ({ ...prev, barcode: e.target.value }))}
-                placeholder="Enter barcode"
-                className="w-full"
+                disabled={true}
+                className="w-full bg-gray-100 cursor-not-allowed"
+                placeholder="Barcode cannot be changed"
               />
+              <p className="text-xs text-gray-500 mt-1">Barcode cannot be modified after creation</p>
             </div>
 
             {/* Product Image */}
@@ -312,24 +330,24 @@ export const AddProductPage: React.FC = () => {
             {/* Action Buttons */}
             <div className="flex gap-4 pt-4">
               <Button
-                onClick={addProduct}
+                onClick={handleUpdateProduct}
                 disabled={loading}
                 className="flex-1"
               >
                 {loading ? (
                   <div className="flex items-center gap-2">
                     <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-                    Adding Product...
+                    Updating Product...
                   </div>
                 ) : (
                   <div className="flex items-center gap-2">
                     <SaveIcon className="h-4 w-4" />
-                    Add Product
+                    Update Product
                   </div>
                 )}
               </Button>
               <Button
-                onClick={() => window.history.back()}
+                onClick={() => router.push('/liff/products')}
                 variant="secondary"
                 className="px-6"
               >
@@ -343,4 +361,4 @@ export const AddProductPage: React.FC = () => {
   )
 }
 
-export default AddProductPage
+export default EditProductPage

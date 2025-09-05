@@ -876,6 +876,7 @@ export default function BarcodeScanner() {
 
       {/* Main content */}
       <div className="flex-1 p-4 space-y-4">
+        <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
         {/* Success message */}
         {(showSuccess || scanResult) && (
           <div className={`p-3 rounded-lg border flex items-center gap-3 ${
@@ -1089,6 +1090,7 @@ export default function BarcodeScanner() {
       </div>
     </div>
         )}
+        </div>
       </div>
 
       {/* Quick success toast */}

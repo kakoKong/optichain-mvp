@@ -367,13 +367,14 @@ export default function TransactionsPage() {
             />
             
             <div className="relative z-10 p-4 sm:p-6 space-y-6 sm:space-y-8 pb-20 sm:pb-6">
+                <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
                 {/* Header */}
                 <ResponsiveNav
                     title="Transaction History"
                     subtitle={`${stats.totalTransactions} transactions in ${dateRange}`}
                     action={
                         <div className="flex items-center gap-3">
-                            <div className="flex bg-white/20 rounded-xl p-1">
+                            <div className="flex bg-white/20 rounded-xl p-1"> 
                                 <button
                                     onClick={() => setViewMode('grouped')}
                                     className={`px-4 py-3 rounded-lg text-sm font-medium transition-all min-h-[44px] ${
@@ -423,7 +424,7 @@ export default function TransactionsPage() {
                 />
 
                 {/* Stats Cards */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-8" style={{ gap: '2rem' }}>
                     <div
                         className="p-4 sm:p-6 rounded-2xl shadow-sm border backdrop-blur-xl"
                         style={{
@@ -751,7 +752,7 @@ export default function TransactionsPage() {
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-2 gap-6" style={{ gap: '1.5rem' }}>
                                 <div className="bg-gray-50 rounded-xl p-4">
                                     <p className="text-xs text-gray-500">Selling Price</p>
                                     <p className="text-base font-semibold text-gray-900">
@@ -810,6 +811,7 @@ export default function TransactionsPage() {
                     </div>
                 </div>
             )}
+                </div>
         </div>
     )
 }

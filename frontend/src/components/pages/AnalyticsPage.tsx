@@ -26,7 +26,7 @@ export const AnalyticsPage: React.FC = () => {
   if (loading) {
     return (
       <PageLayout>
-        <LoadingSpinner size="lg" text="กำลังโหลดข้อมูล..." />
+        <LoadingSpinner size="lg" text="Loading Analytics..." />
       </PageLayout>
     )
   }
@@ -53,11 +53,12 @@ export const AnalyticsPage: React.FC = () => {
 
   return (
     <PageLayout>
-      <PageHeader
-        title="Analytics"
-        subtitle="Business insights and performance metrics"
-        onBack={() => window.history.back()}
-      />
+      <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
+        <PageHeader
+          title="Analytics"
+          subtitle="Business insights and performance metrics"
+          onBack={() => window.history.back()}
+        />
 
       {/* Time Range Selector */}
       <Card className="p-4 sm:p-6">
@@ -80,7 +81,7 @@ export const AnalyticsPage: React.FC = () => {
       </Card>
 
       {/* Key Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 sm:gap-12" style={{ gap: '2rem' }}>
         <MetricCard
           title="Total Revenue"
           value={analytics.totalRevenue}
@@ -204,6 +205,7 @@ export const AnalyticsPage: React.FC = () => {
           </div>
         </div>
       </Card>
+      </div>
     </PageLayout>
   )
 }

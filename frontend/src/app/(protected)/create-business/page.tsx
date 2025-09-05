@@ -302,6 +302,7 @@ export default function CreateBusinessPage() {
                   value={formData.logo_url}
                   onChange={handleImageUpload}
                   onError={(error) => setError(error)}
+                  bucketType="business_logo"
                 />
               </div>
             </div>

@@ -1,5 +1,5 @@
 import React from 'react'
-import { EditIcon, TrashIcon, AlertTriangleIcon, TrendingUpIcon, TrendingDownIcon, BarcodeIcon, DollarSignIcon, PackageIcon } from 'lucide-react'
+import { EditIcon, TrashIcon, EyeIcon, AlertTriangleIcon, TrendingUpIcon, TrendingDownIcon, BarcodeIcon, DollarSignIcon, PackageIcon } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { formatCurrency } from '@/utils/formatters'
 import { Product } from '@/hooks/useProducts'
@@ -8,12 +8,18 @@ interface ProductCardProps {
   product: Product
   onEdit: (product: Product) => void
   onDelete: (product: Product) => void
+  onView?: (product: Product) => void
 }
 
-export const ProductCard: React.FC<ProductCardProps> = ({ product, onEdit, onDelete }) => {
+export const ProductCard: React.FC<ProductCardProps> = ({ product, onEdit, onDelete, onView }) => {
   const currentStock = product.inventory?.[0]?.current_stock || 0
   const totalValue = currentStock * product.selling_price
   const isLowStock = currentStock <= 5 // Assuming low stock threshold
+
+  // Debug logging
+  React.useEffect(() => {
+    console.log('[ProductCard] Rendering product:', { name: product.name, image_url: product.image_url })
+  }, [product])
 
   return (
     <Card className="p-4 hover:shadow-md transition-shadow">
@@ -25,7 +31,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onEdit, onDel
               src={product.image_url}
               alt={product.name}
               className="w-16 h-16 rounded-lg object-cover border border-gray-200"
+              onLoad={() => console.log('[ProductCard] Image loaded successfully:', product.image_url)}
               onError={(e) => {
+                console.error('[ProductCard] Image failed to load:', product.image_url, e)
                 // Fallback to placeholder if image fails to load
                 const target = e.target as HTMLImageElement
                 target.style.display = 'none'
@@ -50,16 +58,27 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onEdit, onDel
                 </div>
               )}
             </div>
-            <div className="flex items-center gap-2 ml-2">
+            <div className="flex items-center gap-1 ml-2">
+              {onView && (
+                <button
+                  onClick={() => onView(product)}
+                  className="p-2 text-gray-400 hover:text-green-600 transition-colors"
+                  title="View Details"
+                >
+                  <EyeIcon className="h-4 w-4" />
+                </button>
+              )}
               <button
                 onClick={() => onEdit(product)}
                 className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
+                title="Edit Product"
               >
                 <EditIcon className="h-4 w-4" />
               </button>
               <button
                 onClick={() => onDelete(product)}
                 className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+                title="Delete Product"
               >
                 <TrashIcon className="h-4 w-4" />
               </button>

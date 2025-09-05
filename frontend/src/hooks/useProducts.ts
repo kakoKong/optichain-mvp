@@ -11,8 +11,9 @@ export interface Product {
   selling_price: number
   unit: string
   image_url?: string
-  inventory: {
+  inventory?: {
     current_stock: number
+    min_stock_level?: number
   }[]
 }
 

@@ -9,6 +9,7 @@ interface ImageUploadProps {
   className?: string
   maxSize?: number // in MB
   acceptedTypes?: string[]
+  bucketType?: 'product_images' | 'business_logo' // Bucket type for upload
 }
 
 export const ImageUpload: React.FC<ImageUploadProps> = ({
@@ -18,13 +19,14 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   disabled = false,
   className = '',
   maxSize = 5,
-  acceptedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+  acceptedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'],
+  bucketType = 'product_images'
 }) => {
   const [isDragging, setIsDragging] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [preview, setPreview] = useState<string | null>(value || null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-
+  console.log('Preview:', preview)
   // Update preview when value prop changes
   React.useEffect(() => {
     setPreview(value || null)
@@ -60,39 +62,45 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       try {
         const fileExt = file.name.split('.').pop()
         const fileName = `${Date.now()}.${fileExt}`
-        const filePath = `business-logos/${fileName}`
 
+        // Determine bucket and path based on bucketType
+        const bucketName = bucketType === 'business_logo' ? 'store_logo' : 'product-images'
+        const filePath = bucketType === 'business_logo' ? `${fileName}` : `${fileName}`
+        console.log('Uploading to bucket:', bucketName, 'path:', filePath)
         const { data, error } = await supabase.storage
-          .from('images')
+          .from(bucketName)
           .upload(filePath, file)
 
         if (error) {
+          console.error('Supabase upload error:', error)
           throw error
         }
 
         // Get public URL
         const { data: { publicUrl } } = supabase.storage
-          .from('images')
+          .from(bucketName)
           .getPublicUrl(filePath)
 
+        console.log('Generated public URL:', publicUrl)
         onChange(publicUrl)
       } catch (supabaseError) {
         // Fallback to API route
         console.log('Supabase upload failed, trying API route:', supabaseError)
-        
+
         const formData = new FormData()
         formData.append('file', file)
-        
+        formData.append('bucketName', bucketType === 'business_logo' ? 'STORE_LOGO' : 'PRODUCT-IMAGES')
+
         const response = await fetch('/api/upload/image', {
           method: 'POST',
           body: formData
         })
-        
+
         if (!response.ok) {
           const errorData = await response.json()
           throw new Error(errorData.error || 'Upload failed')
         }
-        
+
         const data = await response.json()
         onChange(data.url)
       }
@@ -120,7 +128,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     setIsDragging(false)
-    
+
     if (disabled || isUploading) return
 
     const files = Array.from(e.dataTransfer.files)
@@ -170,13 +178,21 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
           className="hidden"
           disabled={disabled || isUploading}
         />
-
         {preview ? (
           <div className="relative group">
             <img
               src={preview}
-              alt="Business logo preview"
+              alt="Image preview"
               className="mx-auto max-h-24 max-w-full rounded-lg object-cover shadow-sm"
+              onError={(e) => {
+                console.error('Image failed to load:', preview)
+                // Hide the broken image and show placeholder
+                const target = e.target as HTMLImageElement
+                target.style.display = 'none'
+                // Show the upload placeholder instead
+                setPreview(null)
+                onChange(null)
+              }}
             />
             {!disabled && !isUploading && (
               <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 rounded-lg transition-all duration-200 flex items-center justify-center">

@@ -131,6 +131,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           onChange={handleImageChange}
           onError={handleImageError}
           disabled={loading}
+          bucketType="product_images"
         />
         
         {uploadError && (
