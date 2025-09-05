@@ -12,6 +12,8 @@ import { PageLayout } from '@/components/ui/PageLayout'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { ImageUpload } from '@/components/ui/ImageUpload'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
+import { ExternalLink } from 'lucide-react'
+import Link from 'next/link'
 
 interface BusinessFormData {
   name: string
@@ -66,7 +68,7 @@ export default function CreateBusinessPage() {
   const [error, setError] = useState<string | null>(null)
   const [trialCodeValid, setTrialCodeValid] = useState<boolean | null>(null)
   const [validatingCode, setValidatingCode] = useState(false)
-  
+
   const [formData, setFormData] = useState<BusinessFormData>({
     name: '',
     description: '',
@@ -117,12 +119,12 @@ export default function CreateBusinessPage() {
   const handleTrialCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const code = e.target.value
     setFormData(prev => ({ ...prev, trial_code: code }))
-    
+
     // Debounce validation
     const timeoutId = setTimeout(() => {
       validateTrialCode(code)
     }, 500)
-    
+
     return () => clearTimeout(timeoutId)
   }
 
@@ -137,7 +139,7 @@ export default function CreateBusinessPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!trialCodeValid) {
       setError('Please enter a valid trial code')
       return
@@ -224,11 +226,11 @@ export default function CreateBusinessPage() {
 
   return (
     <PageLayout>
-      <PageHeader 
-        title="Create Your Business" 
+      <PageHeader
+        title="Create Your Business"
         subtitle="Set up your business profile to get started with inventory management"
       />
-      
+
       <div className="max-w-2xl mx-auto">
         <Card className="p-6">
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -242,6 +244,16 @@ export default function CreateBusinessPage() {
             <div className="border-b pb-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Trial Code</h3>
               <div className="space-y-2">
+                <p className="text-xs text-black text-muted-foreground">
+                  Use this code to create your business. It’s valid for <span className="font-medium">30 days</span>.{" "}
+                  <Link
+                    href="https://optichain.com/request-trial-code"
+                    target="_blank"
+                    className="inline-flex items-center gap-1 underline underline-offset-2 hover:no-underline"
+                  >
+                    Request a code <ExternalLink className="h-3.5 w-3.5" />
+                  </Link>
+                </p>
                 <Input
                   name="trial_code"
                   type="text"
@@ -265,7 +277,7 @@ export default function CreateBusinessPage() {
             {/* Basic Information */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-gray-900">Basic Information</h3>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Business Name *
@@ -310,7 +322,7 @@ export default function CreateBusinessPage() {
             {/* Contact Information */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-gray-900">Contact Information</h3>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -370,7 +382,7 @@ export default function CreateBusinessPage() {
             {/* Business Details */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-gray-900">Business Details</h3>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">

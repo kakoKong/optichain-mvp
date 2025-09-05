@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { ProductCard } from '@/components/products/ProductCard'
-import { ProductDetailModal } from '@/components/products/ProductDetailModal'
 
 import { useAuth } from '@/hooks/useAuth'
 import { useBusiness } from '@/hooks/useBusiness'
@@ -23,8 +22,6 @@ export const ProductsPage: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
-  const [showDetailModal, setShowDetailModal] = useState(false)
 
 
 
@@ -79,8 +76,7 @@ export const ProductsPage: React.FC = () => {
 
   // Handler functions
   const handleViewProduct = (product: Product) => {
-    setSelectedProduct(product)
-    setShowDetailModal(true)
+    router.push(`/liff/products/${product.id}`)
   }
 
   const handleEditProduct = (product: Product) => {
@@ -93,10 +89,6 @@ export const ProductsPage: React.FC = () => {
     alert('Delete functionality not implemented yet')
   }
 
-  const handleCloseDetailModal = () => {
-    setShowDetailModal(false)
-    setSelectedProduct(null)
-  }
 
   if (authLoading || businessLoading || loading) {
     return (
@@ -220,12 +212,6 @@ export const ProductsPage: React.FC = () => {
         </Card>
       </div>
 
-      {/* Product Detail Modal */}
-      <ProductDetailModal
-        isOpen={showDetailModal}
-        onClose={handleCloseDetailModal}
-        product={selectedProduct}
-      />
     </PageLayout>
   )
 }

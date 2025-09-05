@@ -28,7 +28,6 @@ export default function GetStartedClient() {
     })
     const [joinCode, setJoinCode] = useState('')
     const [joinMessage, setJoinMessage] = useState('')
-    const [createName, setCreateName] = useState('')
     const [busy, setBusy] = useState(false)
     const [notice, setNotice] = useState<string | null>(null)
     const router = useRouter()
@@ -82,36 +81,7 @@ export default function GetStartedClient() {
         })()
     }, [appUserId, router])
 
-    const canCreate = createName.trim().length >= 2
     const canJoin = joinCode.trim().length >= 4
-
-    const createBusiness = async () => {
-        if (!appUserId || !canCreate) return
-        setBusy(true)
-        setNotice(null)
-        try {
-            const code = makeJoinCode(6)
-            // 1) create business (owner_id = appUserId)
-            const { data: business, error: bizErr } = await supabase
-                .from('businesses')
-                .insert([{ owner_id: appUserId, name: createName.trim(), join_code: code }])
-                .select('id, name')
-                .single()
-            if (bizErr || !business) throw bizErr || new Error('Business not created')
-
-            // 2) owner membership
-            const { error: memErr } = await supabase
-                .from('business_members')
-                .insert([{ business_id: business.id, user_id: appUserId, role: 'owner' }])
-            if (memErr) throw memErr
-
-            router.replace('/dashboard')
-        } catch (e: any) {
-            setNotice(e?.message || 'Failed to create business')
-        } finally {
-            setBusy(false)
-        }
-    }
 
     const requestJoin = async () => {
         if (!appUserId || !canJoin) return
@@ -220,37 +190,16 @@ export default function GetStartedClient() {
                             <h2 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>Create a new business</h2>
                         </div>
                         <p className="text-sm" style={{ color: 'var(--muted)' }}>
-                            You'll be the owner. You can invite teammates later with a join code.
+                            Set up your business with detailed information including logo, contact details, and business settings.
                         </p>
 
-                        <label className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-                            Business name
-                        </label>
-                        <input
-                            value={createName}
-                            onChange={(e) => setCreateName(e.target.value)}
-                            placeholder="e.g., Kaokong Mart"
-                            className="w-full rounded-xl px-3 py-2 border focus:outline-none"
-                            style={{ background: 'transparent', borderColor: 'var(--card-border)', color: 'var(--text)' }}
-                        />
-
                         <button
-                            disabled={!canCreate || busy}
-                            onClick={createBusiness}
-                            className="w-full rounded-xl px-4 py-3 font-semibold transition-opacity disabled:opacity-60"
+                            onClick={() => router.push('/create-business')}
+                            className="w-full rounded-xl px-4 py-3 font-semibold transition-opacity"
                             style={{ color: '#fff', background: 'linear-gradient(90deg, #6b7280, #4b5563)' }}
                         >
-                            {busy ? 'Creating…' : 'Create business'}
+                            Create Business →
                         </button>
-                        
-                        <div className="text-center">
-                            <button
-                                onClick={() => router.push('/create-business')}
-                                className="text-sm text-blue-600 hover:text-blue-700 underline"
-                            >
-                                Or create with detailed information →
-                            </button>
-                        </div>
                     </div>
 
                     {/* Join via code */}

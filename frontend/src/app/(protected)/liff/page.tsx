@@ -108,7 +108,31 @@ export default function LiffPage() {
           console.log('LIFF authentication - Using stored redirect:', intendedRoute)
         }
         
-        console.log('LIFF authentication successful, redirecting to:', intendedRoute)
+        console.log('LIFF authentication successful, checking business status...')
+        
+        // Check if user has a business before redirecting
+        try {
+          const { data: { user: supabaseUser } } = await supabase.auth.getUser()
+          if (supabaseUser) {
+            // Check if user has any business (as owner or member)
+            const [{ data: ownedBusinesses }, { data: memberships }] = await Promise.all([
+              supabase.from('businesses').select('id').eq('owner_id', supabaseUser.id),
+              supabase.from('business_members').select('id').eq('user_id', supabaseUser.id)
+            ])
+
+            const hasBusiness = (ownedBusinesses?.length ?? 0) > 0 || (memberships?.length ?? 0) > 0
+
+            if (!hasBusiness) {
+              console.log('User has no business, redirecting to onboarding')
+              intendedRoute = '/onboarding'
+            } else {
+              console.log('User has business, using intended route:', intendedRoute)
+            }
+          }
+        } catch (error) {
+          console.error('Error checking business status:', error)
+          // Continue with intended route if check fails
+        }
         
         // Redirect to the intended route
         setTimeout(() => {

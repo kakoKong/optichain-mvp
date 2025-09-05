@@ -27,8 +27,31 @@ export default function LiffLogin() {
         const profile = await liff.getProfile()
         await ensureProfileFromLine(profile)
 
-        const to = sessionStorage.getItem('postLoginRedirect') || '/dashboard'
+        let to = sessionStorage.getItem('postLoginRedirect') || '/dashboard'
         sessionStorage.removeItem('postLoginRedirect')
+        
+        // Check if user has a business before redirecting
+        try {
+          const { data: { user: supabaseUser } } = await supabase.auth.getUser()
+          if (supabaseUser) {
+            // Check if user has any business (as owner or member)
+            const [{ data: ownedBusinesses }, { data: memberships }] = await Promise.all([
+              supabase.from('businesses').select('id').eq('owner_id', supabaseUser.id),
+              supabase.from('business_members').select('id').eq('user_id', supabaseUser.id)
+            ])
+
+            const hasBusiness = (ownedBusinesses?.length ?? 0) > 0 || (memberships?.length ?? 0) > 0
+
+            if (!hasBusiness) {
+              console.log('User has no business, redirecting to onboarding')
+              to = '/onboarding'
+            }
+          }
+        } catch (error) {
+          console.error('Error checking business status:', error)
+          // Continue with intended route if check fails
+        }
+        
         router.replace(to)
       } catch (e: any) {
         setErr(e?.message || 'LIFF init/login failed')
