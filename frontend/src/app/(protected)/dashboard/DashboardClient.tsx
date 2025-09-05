@@ -198,6 +198,10 @@ export default function Dashboard() {
                 .order('created_at', { ascending: false })
 
             if (txErr) console.error('Supabase (transactions):', txErr)
+            
+            // Debug: Log all transactions to see what we're getting
+            console.log('[Dashboard] All transactions:', transactions)
+            console.log('[Dashboard] Transaction types:', transactions?.map(tx => tx.transaction_type))
 
             const stockMovement = processStockMovement(transactions || [])
             const topProducts = getTopProducts(products)

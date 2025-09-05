@@ -91,6 +91,7 @@ export default function BarcodeScanner() {
   const foundBarcodeRef = useRef<string | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const isQuickModeRef = useRef<boolean>(false)
+  const quickActionTypeRef = useRef<'stock_in' | 'stock_out'>('stock_in')
 
   // Initialize component
   useEffect(() => {
@@ -120,8 +121,9 @@ export default function BarcodeScanner() {
   // Debug effect to track mode changes
   useEffect(() => {
     console.log('[Scanner] Mode state changed:', { isQuickMode, quickActionType, scanning })
-    // Keep ref in sync with state
+    // Keep refs in sync with state
     isQuickModeRef.current = isQuickMode
+    quickActionTypeRef.current = quickActionType
   }, [isQuickMode, quickActionType, scanning])
 
   // Initialize audio for success sound
@@ -520,7 +522,11 @@ export default function BarcodeScanner() {
       const quantity = 1
       let newStock = currentStock
       
-      if (quickActionType === 'stock_in') {
+      // Use ref to get current action type
+      const currentActionType = quickActionTypeRef.current
+      console.log('[Scanner] Quick add action type:', currentActionType)
+      
+      if (currentActionType === 'stock_in') {
         newStock = currentStock + quantity
       } else {
         if (currentStock < quantity) {
@@ -533,14 +539,14 @@ export default function BarcodeScanner() {
         .from('inventory_transactions')
       .insert([{
         business_id: business!.id,
-          product_id: product.id,
-          user_id: appUserId,
-          transaction_type: quickActionType,
-          quantity: quantity,
-          previous_stock: currentStock,
-          new_stock: newStock,
-          reason: `Quick ${quickActionType}`,
-          notes: `Quick scan ${quickActionType}`
+        product_id: product.id,
+        user_id: appUserId,
+        transaction_type: currentActionType,
+        quantity: quantity,
+        previous_stock: currentStock,
+        new_stock: newStock,
+        reason: `Quick ${currentActionType}`,
+        notes: `Quick scan ${currentActionType}`
       }])
       .select()
       .single()
