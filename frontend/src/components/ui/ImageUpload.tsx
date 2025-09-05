@@ -26,12 +26,12 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   const [isUploading, setIsUploading] = useState(false)
   const [preview, setPreview] = useState<string | null>(value || null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  console.log('Preview:', preview)
+
   // Update preview when value prop changes
   React.useEffect(() => {
     setPreview(value || null)
   }, [value])
-
+  
   const handleFileSelect = useCallback(async (file: File) => {
     if (disabled || isUploading) return
 
@@ -65,7 +65,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
 
         // Determine bucket and path based on bucketType
         const bucketName = bucketType === 'business_logo' ? 'store_logo' : 'product-images'
-        const filePath = bucketType === 'business_logo' ? `${fileName}` : `${fileName}`
+        const filePath = bucketType === 'business_logo' ? `git ad${fileName}` : `${fileName}`
         console.log('Uploading to bucket:', bucketName, 'path:', filePath)
         const { data, error } = await supabase.storage
           .from(bucketName)
@@ -81,7 +81,6 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
           .from(bucketName)
           .getPublicUrl(filePath)
 
-        console.log('Generated public URL:', publicUrl)
         onChange(publicUrl)
       } catch (supabaseError) {
         // Fallback to API route
@@ -157,7 +156,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   }, [disabled, isUploading])
 
   return (
-    <div className={`space-y-2 ${className}`}>
+    <div className={`space-y-2`}>
       <div
         className={`
           relative border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-200 min-h-[120px] flex items-center justify-center
@@ -194,22 +193,6 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
                 onChange(null)
               }}
             />
-            {!disabled && !isUploading && (
-              <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 rounded-lg transition-all duration-200 flex items-center justify-center">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    handleRemoveImage()
-                  }}
-                  className="opacity-0 group-hover:opacity-100 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600 transition-all duration-200 transform scale-75 group-hover:scale-100"
-                >
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            )}
           </div>
         ) : (
           <div className="space-y-3">
