@@ -90,6 +90,7 @@ export default function BarcodeScanner() {
   const quaggaRef = useRef<any>(null)
   const foundBarcodeRef = useRef<string | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const isQuickModeRef = useRef<boolean>(false)
 
   // Initialize component
   useEffect(() => {
@@ -119,6 +120,8 @@ export default function BarcodeScanner() {
   // Debug effect to track mode changes
   useEffect(() => {
     console.log('[Scanner] Mode state changed:', { isQuickMode, quickActionType, scanning })
+    // Keep ref in sync with state
+    isQuickModeRef.current = isQuickMode
   }, [isQuickMode, quickActionType, scanning])
 
   // Initialize audio for success sound
@@ -483,8 +486,8 @@ export default function BarcodeScanner() {
       if (existing) {
         playSuccessSound() // Play sound when barcode is found
         
-        // Double-check the mode state at the time of processing
-        const currentMode = isQuickMode
+        // Use ref to get the current mode state at the time of processing
+        const currentMode = isQuickModeRef.current
         console.log('[Scanner] Processing barcode with mode:', currentMode)
         
         if (currentMode) {
@@ -500,7 +503,7 @@ export default function BarcodeScanner() {
     } finally {
       setLoading(false)
       // Only cleanup scanner if in manual mode
-      if (!isQuickMode) {
+      if (!isQuickModeRef.current) {
         await cleanupScanner()
       }
     }
@@ -727,6 +730,7 @@ export default function BarcodeScanner() {
     
     // Update the mode state immediately
     setIsQuickMode(newMode)
+    isQuickModeRef.current = newMode // Update ref for immediate access
     
     // Clear any existing product state when switching modes
     setProduct(null)
