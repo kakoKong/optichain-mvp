@@ -348,7 +348,7 @@ export default function Dashboard() {
 
                             <div className="flex items-center gap-1">
                                 <Link
-                                    href="/settings/team"
+                                    href="/team"
                                     className="inline-flex items-center px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                                 >
                                     <SettingsIcon className="h-3 w-3 sm:h-4 sm:w-4" />
