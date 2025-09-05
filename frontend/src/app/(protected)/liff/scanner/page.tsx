@@ -108,11 +108,13 @@ export default function BarcodeScanner() {
 
   useEffect(() => {
     if (business && !scanning && !product) {
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         startCamera()
       }, 500)
+      
+      return () => clearTimeout(timer)
     }
-  }, [business])
+  }, [business, scanning, product])
 
   // Debug effect to track mode changes
   useEffect(() => {

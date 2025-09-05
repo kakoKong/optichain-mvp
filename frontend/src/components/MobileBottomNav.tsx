@@ -50,13 +50,14 @@ export default function MobileBottomNav() {
     <div className="fixed bottom-0 left-0 right-0 z-50 p-4 sm:hidden">
       <div className="bg-white rounded-lg border border-gray-200 shadow-lg p-2">
         <div className="grid grid-cols-3 gap-2">
-          <Link
-            href="/liff/products"
+        <Link
+            href="/dashboard"
             className="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-lg text-center text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
           >
-            <PackageIcon className="h-5 w-5 text-gray-600" />
-            <span>Products</span>
+            <HomeIcon className="h-5 w-5 text-gray-600" />
+            <span>Dashboard</span>
           </Link>
+          
           <Link
             href="/liff/scanner"
             className="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-lg text-center text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
@@ -65,11 +66,11 @@ export default function MobileBottomNav() {
             <span>Scan</span>
           </Link>
           <Link
-            href="/dashboard"
+            href="/liff/products"
             className="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-lg text-center text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
           >
-            <HomeIcon className="h-5 w-5 text-gray-600" />
-            <span>Dashboard</span>
+            <PackageIcon className="h-5 w-5 text-gray-600" />
+            <span>Products</span>
           </Link>
         </div>
       </div>

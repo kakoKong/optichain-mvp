@@ -335,26 +335,30 @@ export default function Dashboard() {
                     title={stats?.businessName || 'Inventory Hub'}
                     subtitle={`Welcome back, ${user?.displayName}`}
                     action={
-                        <div className="flex items-center gap-2">
-                            <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                            <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-500">
                                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                                Last updated {new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                                <span className="hidden sm:inline">Last updated {new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
+                                <span className="sm:hidden">Updated {new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
                             </div>
 
-                            <Link
-                                href="/settings/team"
-                                className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                            >
-                                <SettingsIcon className="h-4 w-4" />
-                                <span className="hidden sm:inline">Team</span>
-                            </Link>
+                            <div className="flex items-center gap-1">
+                                <Link
+                                    href="/settings/team"
+                                    className="inline-flex items-center px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                                >
+                                    <SettingsIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+                                    <span className="hidden sm:inline">Team</span>
+                                </Link>
 
-                            <button
-                                onClick={() => window.location.reload()}
-                                className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                            >
-                                Refresh
-                            </button>
+                                <button
+                                    onClick={() => window.location.reload()}
+                                    className="inline-flex items-center px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                                >
+                                    <span className="hidden sm:inline">Refresh</span>
+                                    <span className="sm:hidden">↻</span>
+                                </button>
+                            </div>
                         </div>
                     }
                 />
