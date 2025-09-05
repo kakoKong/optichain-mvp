@@ -15,26 +15,31 @@ const navItems = [
     name: 'Dashboard',
     href: '/dashboard',
     icon: HomeIcon,
+    color: 'text-gray-600',
   },
   {
     name: 'Products',
     href: '/liff/products',
     icon: PackageIcon,
+    color: 'text-gray-600',
   },
   {
-    name: 'Scanner',
+    name: 'Scan',
     href: '/liff/scanner',
     icon: ScanLineIcon,
+    color: 'text-blue-600',
   },
   {
     name: 'Analytics',
     href: '/liff/analytics',
     icon: BarChart3Icon,
+    color: 'text-green-600',
   },
   {
     name: 'Transactions',
     href: '/liff/transactions',
     icon: HistoryIcon,
+    color: 'text-gray-600',
   },
 ]
 
@@ -42,29 +47,31 @@ export default function MobileBottomNav() {
   const pathname = usePathname()
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 md:hidden">
-      <div className="grid grid-cols-5 h-20">
-        {navItems.map((item) => {
-          const isActive = pathname === item.href
-          const Icon = item.icon
-          
-          return (
-            <Link
-              key={item.name}
-              href={item.href}
-              className={`flex flex-col items-center justify-center space-y-2 px-3 py-3 transition-colors ${
-                isActive
-                  ? 'text-blue-600 bg-blue-50'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-              }`}
-            >
-              <Icon className={`h-6 w-6 ${isActive ? 'text-blue-600' : 'text-gray-500'}`} />
-              <span className={`text-sm font-medium ${isActive ? 'text-blue-600' : 'text-gray-500'}`}>
-                {item.name}
-              </span>
-            </Link>
-          )
-        })}
+    <div className="fixed bottom-0 left-0 right-0 z-50 p-4 sm:hidden">
+      <div className="bg-white rounded-lg border border-gray-200 shadow-lg p-2">
+        <div className="grid grid-cols-3 gap-2">
+          <Link
+            href="/liff/products"
+            className="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-lg text-center text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            <PackageIcon className="h-5 w-5 text-gray-600" />
+            <span>Products</span>
+          </Link>
+          <Link
+            href="/liff/scanner"
+            className="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-lg text-center text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            <ScanLineIcon className="h-5 w-5 text-blue-600" />
+            <span>Scan</span>
+          </Link>
+          <Link
+            href="/liff/analytics"
+            className="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-lg text-center text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            <BarChart3Icon className="h-5 w-5 text-green-600" />
+            <span>Analytics</span>
+          </Link>
+        </div>
       </div>
     </div>
   )

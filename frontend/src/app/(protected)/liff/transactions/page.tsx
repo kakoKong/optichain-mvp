@@ -381,9 +381,9 @@ export default function TransactionsPage() {
                         <div className="flex items-center gap-4 min-w-0">
                             <button
                                 onClick={() => window.history.back()}
-                                className="p-3 rounded-xl bg-gray-100 border border-gray-200 hover:bg-gray-200 transition-colors"
+                                className="p-4 rounded-xl bg-gray-100 border border-gray-200 hover:bg-gray-200 transition-colors min-h-[48px] min-w-[48px] flex items-center justify-center"
                             >
-                                <ArrowLeftIcon className="h-5 w-5 text-gray-700" />
+                                <ArrowLeftIcon className="h-6 w-6 text-gray-700" />
                             </button>
                             <div className="min-w-0">
                                 <div className="flex items-center gap-2">
@@ -404,7 +404,7 @@ export default function TransactionsPage() {
                             <div className="flex bg-white/20 rounded-xl p-1">
                                 <button
                                     onClick={() => setViewMode('grouped')}
-                                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                                    className={`px-4 py-3 rounded-lg text-sm font-medium transition-all min-h-[44px] ${
                                         viewMode === 'grouped' 
                                             ? 'bg-white text-gray-900 shadow-sm' 
                                             : 'text-white hover:text-gray-200'
@@ -414,7 +414,7 @@ export default function TransactionsPage() {
                                 </button>
                                 <button
                                     onClick={() => setViewMode('list')}
-                                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                                    className={`px-4 py-3 rounded-lg text-sm font-medium transition-all min-h-[44px] ${
                                         viewMode === 'list' 
                                             ? 'bg-white text-gray-900 shadow-sm' 
                                             : 'text-white hover:text-gray-200'
@@ -426,7 +426,7 @@ export default function TransactionsPage() {
                             <select
                                 value={dateRange}
                                 onChange={(e) => setDateRange(e.target.value)}
-                                className="rounded-xl px-4 py-2 focus:outline-none focus:ring-2 transition-all"
+                                className="rounded-xl px-4 py-3 focus:outline-none focus:ring-2 transition-all min-h-[48px] text-base"
                                 style={{
                                     background: 'var(--input-bg)',
                                     border: '1px solid var(--input-border)',
@@ -441,9 +441,9 @@ export default function TransactionsPage() {
                             </select>
                             <button
                                 onClick={exportTransactions}
-                                className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-xl font-medium transition-colors flex items-center gap-2"
+                                className="bg-white/20 hover:bg-white/30 text-white px-4 py-3 rounded-xl font-medium transition-colors flex items-center gap-2 min-h-[48px]"
                             >
-                                <DownloadIcon className="h-4 w-4" />
+                                <DownloadIcon className="h-5 w-5" />
                                 <span className="hidden sm:inline">Export</span>
                             </button>
                         </div>
@@ -542,7 +542,7 @@ export default function TransactionsPage() {
                                     placeholder="Search products or reasons..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-3 rounded-xl focus:outline-none focus:ring-2 transition-all"
+                                    className="w-full pl-10 pr-4 py-4 rounded-xl focus:outline-none focus:ring-2 transition-all min-h-[48px] text-base"
                                     style={{
                                         background: 'var(--input-bg)',
                                         border: '1px solid var(--input-border)',
@@ -556,7 +556,7 @@ export default function TransactionsPage() {
                                 <select
                                     value={filterType}
                                     onChange={(e) => setFilterType(e.target.value as any)}
-                                    className="rounded-xl px-4 py-3 focus:outline-none focus:ring-2 transition-all"
+                                    className="rounded-xl px-4 py-4 focus:outline-none focus:ring-2 transition-all min-h-[48px] text-base"
                                     style={{
                                         background: 'var(--input-bg)',
                                         border: '1px solid var(--input-border)',

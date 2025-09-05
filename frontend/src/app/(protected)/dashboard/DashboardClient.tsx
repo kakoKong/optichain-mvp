@@ -46,7 +46,7 @@ export default function Dashboard() {
 
     }, [authLoading, user])
 
-        async function resolveAppUserId(u: { id: string; source: 'line' | 'line_browser' | 'dev'; databaseUid?: string }) {
+    async function resolveAppUserId(u: { id: string; source: 'line' | 'line_browser' | 'dev'; databaseUid?: string }) {
         // For dev users: use the databaseUid directly
         if (u.source === 'dev' && u.databaseUid) {
             console.log('[resolveAppUserId] Dev user detected, using databaseUid:', u.databaseUid)
@@ -56,7 +56,7 @@ export default function Dashboard() {
         // For LINE (both LIFF and browser): map line_user_id to your app user (public.profiles.id)
         if (u.source === 'line' || u.source === 'line_browser') {
             console.log('[resolveAppUserId] LINE user detected, mapping from line_user_id:', u.id)
-            
+
             const { data, error } = await supabase
                 .from('profiles')
                 .select('id')
@@ -181,7 +181,7 @@ export default function Dashboard() {
             // 5) Recent transactions for this business (last 7 days for stock movement)
             const sevenDaysAgo = new Date()
             sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-            
+
             const { data: transactions, error: txErr } = await supabase
                 .from('inventory_transactions')
                 .select(`
@@ -228,7 +228,7 @@ export default function Dashboard() {
     }
     const processStockMovement = (transactions: any[]) => {
         console.log('[Dashboard] Processing stock movement with transactions:', transactions.length)
-        
+
         // Create last 7 days array (most recent first)
         const last7Days = Array.from({ length: 7 }, (_, i) => {
             const date = new Date()
@@ -239,17 +239,17 @@ export default function Dashboard() {
                 stockOut: 0
             }
         }).reverse() // Reverse to show oldest to newest
-        
+
         console.log('[Dashboard] Last 7 days range:', {
             from: last7Days[0].date,
             to: last7Days[6].date
         })
-        
+
         // Process each transaction
         transactions.forEach(tx => {
             const txDate = tx.created_at.split('T')[0]
             const dayData = last7Days.find(d => d.date === txDate)
-            
+
             if (dayData) {
                 if (tx.transaction_type === 'stock_in') {
                     dayData.stockIn += tx.quantity
@@ -260,7 +260,7 @@ export default function Dashboard() {
                 console.log('[Dashboard] Transaction date outside range:', txDate, tx.transaction_type, tx.quantity)
             }
         })
-        
+
         console.log('[Dashboard] Processed stock movement:', last7Days)
         return last7Days
     }
@@ -302,7 +302,7 @@ export default function Dashboard() {
         }, {})
 
         // Sort by last activity (most recent first)
-        return Object.values(grouped).sort((a: any, b: any) => 
+        return Object.values(grouped).sort((a: any, b: any) =>
             new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime()
         )
     }
@@ -341,29 +341,36 @@ export default function Dashboard() {
                             </p>
                         </div>
 
-                        <div className="flex items-center gap-3 w-full sm:w-auto">
+                        <div className="flex items-center gap-10 w-full sm:w-auto">
                             <div className="flex items-center gap-2 text-sm text-gray-500">
                                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                                 Last updated {new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })}
                             </div>
 
-                            <div className="flex items-center gap-2">
-                                <Link
-                                    href="/settings/team"
-                                    className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                                >
-                                    <SettingsIcon className="h-4 w-4 mr-2" />
-                                    <span className="hidden sm:inline">Team</span>
-                                </Link>
+                            <div className="flex flex-col justify-end items-end gap-2">
+                                <div className="flex items-center gap-2">
+                                    <Link
+                                        href="/settings/team"
+                                        className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                                    >
+                                        <SettingsIcon className="h-4 w-4" />
+                                        <span className="hidden sm:inline">Team</span>
+                                    </Link>
 
-                                <button
-                                    onClick={() => window.location.reload()}
-                                    className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                                >
-                                    Refresh
-                                </button>
+                                    <button
+                                        onClick={() => window.location.reload()}
+                                        className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                                    >
+                                        Refresh
+                                    </button>
+                                </div>
 
-                                <LogoutButton>Sign Out</LogoutButton>
+
+                                {/* Show logout button only for non-LIFF users */}
+                                {user?.source !== 'line' && (
+                                    <LogoutButton>Sign Out</LogoutButton>
+                                )}
+
                             </div>
                         </div>
                     </div>
@@ -490,36 +497,36 @@ export default function Dashboard() {
                             <div className="space-y-4">
                                 {stats?.stockMovement && stats.stockMovement.length > 0 ? (
                                     stats.stockMovement.map((day, index) => (
-                                    <div key={index} className="flex items-center gap-4">
-                                        <div className="w-16 text-sm font-medium text-gray-600 shrink-0">
-                                            {new Date(day.date).toLocaleDateString('en', { weekday: 'short' })}
-                                        </div>
-                                        <div className="flex-1">
-                                            <div className="flex items-center gap-4 mb-2 text-sm">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                                                    <span className="text-gray-600">In: {day.stockIn}</span>
+                                        <div key={index} className="flex items-center gap-4">
+                                            <div className="w-16 text-sm font-medium text-gray-600 shrink-0">
+                                                {new Date(day.date).toLocaleDateString('en', { weekday: 'short' })}
+                                            </div>
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-4 mb-2 text-sm">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                                                        <span className="text-gray-600">In: {day.stockIn}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                                                        <span className="text-gray-600">Out: {day.stockOut}</span>
+                                                    </div>
                                                 </div>
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                                                    <span className="text-gray-600">Out: {day.stockOut}</span>
+                                                <div className="w-full bg-gray-200 rounded-full h-2 relative">
+                                                    <div
+                                                        className="bg-green-500 h-2 rounded-full absolute left-0"
+                                                        style={{ width: `${Math.min(100, (day.stockIn / Math.max(day.stockIn + day.stockOut, 1)) * 100)}%` }}
+                                                    ></div>
+                                                    <div
+                                                        className="bg-red-500 h-2 rounded-full absolute left-0"
+                                                        style={{
+                                                            width: `${Math.min(100, (day.stockOut / Math.max(day.stockIn + day.stockOut, 1)) * 100)}%`,
+                                                            transform: `translateX(${(day.stockIn / Math.max(day.stockIn + day.stockOut, 1)) * 100}%)`
+                                                        }}
+                                                    ></div>
                                                 </div>
                                             </div>
-                                            <div className="w-full bg-gray-200 rounded-full h-2 relative">
-                                                <div
-                                                    className="bg-green-500 h-2 rounded-full absolute left-0"
-                                                    style={{ width: `${Math.min(100, (day.stockIn / Math.max(day.stockIn + day.stockOut, 1)) * 100)}%` }}
-                                                ></div>
-                                                <div
-                                                    className="bg-red-500 h-2 rounded-full absolute left-0"
-                                                    style={{ 
-                                                        width: `${Math.min(100, (day.stockOut / Math.max(day.stockIn + day.stockOut, 1)) * 100)}%`,
-                                                        transform: `translateX(${(day.stockIn / Math.max(day.stockIn + day.stockOut, 1)) * 100}%)`
-                                                    }}
-                                                ></div>
-                                            </div>
                                         </div>
-                                    </div>
                                     ))
                                 ) : (
                                     <div className="text-center py-8 text-gray-500">
@@ -574,7 +581,7 @@ export default function Dashboard() {
                             groupTransactionsByProduct(stats.recentTransactions).map((group: any) => (
                                 <div key={group.productName} className="px-6 py-4">
                                     {/* Group Header */}
-                                    <div 
+                                    <div
                                         className="flex items-center justify-between hover:bg-gray-50 transition-colors cursor-pointer"
                                         onClick={() => toggleGroup(group.productName)}
                                     >
@@ -585,7 +592,7 @@ export default function Dashboard() {
                                             <div>
                                                 <p className="font-medium text-gray-900 truncate">{group.productName}</p>
                                                 <p className="text-sm text-gray-600">
-                                                    {group.transactions.length} transaction{group.transactions.length !== 1 ? 's' : ''} • 
+                                                    {group.transactions.length} transaction{group.transactions.length !== 1 ? 's' : ''} •
                                                     {group.totalIn > 0 && (
                                                         <span className="text-green-600 ml-1">+{group.totalIn} in</span>
                                                     )}
@@ -614,13 +621,12 @@ export default function Dashboard() {
                                             {group.transactions.map((tx: any) => (
                                                 <div key={tx.id} className="flex items-center justify-between py-2 hover:bg-gray-50 rounded-lg px-3 -ml-3">
                                                     <div className="flex items-center gap-3">
-                                                        <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${
-                                                            tx.transaction_type === 'stock_in'
-                                                                ? 'bg-green-100 text-green-600'
-                                                                : tx.transaction_type === 'stock_out'
-                                                                    ? 'bg-red-100 text-red-600'
-                                                                    : 'bg-gray-100 text-gray-600'
-                                                        }`}>
+                                                        <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${tx.transaction_type === 'stock_in'
+                                                            ? 'bg-green-100 text-green-600'
+                                                            : tx.transaction_type === 'stock_out'
+                                                                ? 'bg-red-100 text-red-600'
+                                                                : 'bg-gray-100 text-gray-600'
+                                                            }`}>
                                                             {tx.transaction_type === 'stock_in' ? (
                                                                 <TrendingUpIcon className="h-3 w-3" />
                                                             ) : tx.transaction_type === 'stock_out' ? (

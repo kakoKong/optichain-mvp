@@ -70,7 +70,7 @@ export const AnalyticsPage: React.FC = () => {
                 variant={timeRange === range.value ? 'primary' : 'outline'}
                 size="sm"
                 onClick={() => handleTimeRangeChange(range.value)}
-                className="whitespace-nowrap"
+                className="whitespace-nowrap min-h-[44px] px-4 py-2 text-base"
               >
                 {range.label}
               </Button>

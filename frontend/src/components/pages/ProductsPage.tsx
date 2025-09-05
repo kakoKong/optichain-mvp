@@ -112,8 +112,11 @@ export const ProductsPage: React.FC = () => {
         subtitle={`${products.length} products in inventory`}
         onBack={() => window.history.back()}
         action={
-          <Button onClick={() => window.location.href = '/liff/products/add'}>
-            <PlusCircleIcon className="h-4 w-4 mr-2" />
+          <Button 
+            onClick={() => window.location.href = '/liff/products/add'}
+            className="min-h-[48px] px-6 py-3 text-base"
+          >
+            <PlusCircleIcon className="h-5 w-5 mr-2" />
             Add Product
           </Button>
         }
@@ -128,7 +131,7 @@ export const ProductsPage: React.FC = () => {
             placeholder="Search products by name or barcode..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
+            className="pl-10 min-h-[48px] text-base"
           />
         </div>
       </Card>
@@ -186,7 +189,7 @@ export const ProductsPage: React.FC = () => {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredProducts.map((product) => (
-              <div key={product.id} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+              <div key={product.id} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow min-h-[200px]">
                 {/* Product Image */}
                 <div className="aspect-square mb-3 bg-gray-100 rounded-lg overflow-hidden">
                   {product.image_url ? (

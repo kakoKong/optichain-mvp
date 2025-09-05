@@ -785,7 +785,7 @@ export default function BarcodeScanner() {
             <button
                onClick={() => handleModeChange(false)}
                disabled={isModeChanging}
-               className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+               className={`px-4 py-2 rounded-md text-sm font-medium transition-all min-h-[44px] ${
                  !isQuickMode 
                    ? 'bg-white text-gray-900 shadow-sm' 
                    : 'text-gray-600 hover:text-gray-900'
@@ -796,7 +796,7 @@ export default function BarcodeScanner() {
              <button
                onClick={() => handleModeChange(true)}
                disabled={isModeChanging}
-               className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+               className={`px-4 py-2 rounded-md text-sm font-medium transition-all min-h-[44px] ${
                  isQuickMode 
                    ? 'bg-white text-gray-900 shadow-sm' 
                    : 'text-gray-600 hover:text-gray-900'
@@ -821,24 +821,24 @@ export default function BarcodeScanner() {
              <div className="flex bg-white rounded-lg p-1 shadow-sm border border-gray-200">
                 <button
                  onClick={() => setQuickActionType('stock_in')}
-                 className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                 className={`flex items-center gap-2 px-4 py-3 rounded-md text-sm font-medium transition-all min-h-[48px] ${
                    quickActionType === 'stock_in'
                      ? 'bg-green-500 text-white shadow-sm'
                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                  }`}
                >
-                 <TrendingUpIcon className="h-4 w-4" />
+                 <TrendingUpIcon className="h-5 w-5" />
                  <span>Add Stock</span>
                 </button>
                 <button
                  onClick={() => setQuickActionType('stock_out')}
-                 className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                 className={`flex items-center gap-2 px-4 py-3 rounded-md text-sm font-medium transition-all min-h-[48px] ${
                    quickActionType === 'stock_out'
                      ? 'bg-red-500 text-white shadow-sm'
                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                  }`}
                >
-                 <TrendingDownIcon className="h-4 w-4" />
+                 <TrendingDownIcon className="h-5 w-5" />
                  <span>Remove Stock</span>
                 </button>
              </div>
@@ -901,20 +901,20 @@ export default function BarcodeScanner() {
         {/* Scanner interface */}
         {!product && !scanning ? (
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-4">
               <button
                 onClick={startCamera}
-                className="flex flex-col items-center gap-2 p-6 rounded-xl bg-blue-500 hover:bg-blue-600 text-white transition-colors"
+                className="flex flex-col items-center gap-3 p-8 rounded-xl bg-blue-500 hover:bg-blue-600 text-white transition-colors min-h-[120px]"
               >
-                <CameraIcon className="h-8 w-8" />
-                <span className="font-medium">Camera</span>
+                <CameraIcon className="h-10 w-10" />
+                <span className="font-medium text-base">Camera</span>
             </button>
             <button
                 onClick={handleManualEntry}
-                className="flex flex-col items-center gap-2 p-6 rounded-xl bg-gray-500 hover:bg-gray-600 text-white transition-colors"
+                className="flex flex-col items-center gap-3 p-8 rounded-xl bg-gray-500 hover:bg-gray-600 text-white transition-colors min-h-[120px]"
               >
-                <KeyboardIcon className="h-8 w-8" />
-                <span className="font-medium">Manual</span>
+                <KeyboardIcon className="h-10 w-10" />
+                <span className="font-medium text-base">Manual</span>
             </button>
       </div>
 
@@ -943,7 +943,7 @@ export default function BarcodeScanner() {
             {/* Stop button */}
         <button 
               onClick={cleanupScanner} 
-              className="absolute bottom-4 left-1/2 -translate-x-1/2 px-6 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-colors"
+              className="absolute bottom-4 left-1/2 -translate-x-1/2 px-8 py-3 rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-colors min-h-[48px] text-base"
         >
               Stop
         </button>
@@ -998,36 +998,36 @@ export default function BarcodeScanner() {
                 <div className="grid grid-cols-3 gap-2">
                 <button
                     onClick={() => setTransactionForm(prev => ({ ...prev, type: 'stock_in' }))}
-                    className={`p-3 rounded-lg border-2 transition-all ${
+                    className={`p-4 rounded-lg border-2 transition-all min-h-[80px] ${
                       transactionForm.type === 'stock_in'
                         ? 'bg-green-100 border-green-500 text-green-700'
                         : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
                     }`}
                   >
-                    <TrendingUpIcon className="h-5 w-5 mx-auto mb-1" />
-                    <div className="text-xs font-medium">Stock In</div>
+                    <TrendingUpIcon className="h-6 w-6 mx-auto mb-2" />
+                    <div className="text-sm font-medium">Stock In</div>
                 </button>
                   <button
                     onClick={() => setTransactionForm(prev => ({ ...prev, type: 'stock_out' }))}
-                    className={`p-3 rounded-lg border-2 transition-all ${
+                    className={`p-4 rounded-lg border-2 transition-all min-h-[80px] ${
                       transactionForm.type === 'stock_out'
                         ? 'bg-red-100 border-red-500 text-red-700'
                         : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
                     }`}
                   >
-                    <TrendingDownIcon className="h-5 w-5 mx-auto mb-1" />
-                    <div className="text-xs font-medium">Stock Out</div>
+                    <TrendingDownIcon className="h-6 w-6 mx-auto mb-2" />
+                    <div className="text-sm font-medium">Stock Out</div>
                   </button>
                   <button
                     onClick={() => setTransactionForm(prev => ({ ...prev, type: 'adjustment' }))}
-                    className={`p-3 rounded-lg border-2 transition-all ${
+                    className={`p-4 rounded-lg border-2 transition-all min-h-[80px] ${
                       transactionForm.type === 'adjustment'
                         ? 'bg-blue-100 border-blue-500 text-blue-700'
                         : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
                     }`}
                   >
-                    <PackageIcon className="h-5 w-5 mx-auto mb-1" />
-                    <div className="text-xs font-medium">Adjust</div>
+                    <PackageIcon className="h-6 w-6 mx-auto mb-2" />
+                    <div className="text-sm font-medium">Adjust</div>
                   </button>
           </div>
         </div>
@@ -1038,7 +1038,7 @@ export default function BarcodeScanner() {
                 <div className="flex items-center gap-2">
             <button 
                     onClick={() => setTransactionForm(prev => ({ ...prev, quantity: Math.max(1, prev.quantity - 1) }))} 
-                    className="w-10 h-10 rounded-lg font-bold bg-gray-200 hover:bg-gray-300 text-gray-700 transition-colors"
+                    className="w-12 h-12 rounded-lg font-bold bg-gray-200 hover:bg-gray-300 text-gray-700 transition-colors text-lg min-h-[48px]"
             >
               -
             </button>
@@ -1047,11 +1047,11 @@ export default function BarcodeScanner() {
                     value={transactionForm.quantity}
                     onChange={(e) => setTransactionForm(prev => ({ ...prev, quantity: Math.max(1, parseInt(e.target.value) || 1) }))}
               min={1}
-                    className="flex-1 text-center text-lg font-bold rounded-lg py-2 px-3 bg-white border-2 border-gray-200 focus:border-blue-500 focus:outline-none text-gray-900"
+                    className="flex-1 text-center text-xl font-bold rounded-lg py-3 px-4 bg-white border-2 border-gray-200 focus:border-blue-500 focus:outline-none text-gray-900 min-h-[48px]"
             />
             <button 
                     onClick={() => setTransactionForm(prev => ({ ...prev, quantity: prev.quantity + 1 }))} 
-                    className="w-10 h-10 rounded-lg font-bold bg-gray-200 hover:bg-gray-300 text-gray-700 transition-colors"
+                    className="w-12 h-12 rounded-lg font-bold bg-gray-200 hover:bg-gray-300 text-gray-700 transition-colors text-lg min-h-[48px]"
             >
               +
             </button>
@@ -1063,20 +1063,20 @@ export default function BarcodeScanner() {
           <button
                   onClick={recordTransaction}
             disabled={loading}
-                  className="flex-1 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white py-3 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                  className="flex-1 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white py-4 px-6 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 min-h-[52px] text-base"
           >
             {loading ? (
-                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
             ) : (
-                    <CheckCircleIcon className="h-4 w-4" />
+                    <CheckCircleIcon className="h-5 w-5" />
             )}
                   Record
           </button>
           <button
                   onClick={handleResetAndScanAgain}
-                  className="bg-gray-500 hover:bg-gray-600 text-white py-3 px-4 rounded-lg font-medium transition-colors"
+                  className="bg-gray-500 hover:bg-gray-600 text-white py-4 px-6 rounded-lg font-medium transition-colors min-h-[52px] min-w-[52px] flex items-center justify-center"
           >
-                  <ScanLineIcon className="h-4 w-4" />
+                  <ScanLineIcon className="h-5 w-5" />
           </button>
         </div>
       </div>

@@ -17,7 +17,7 @@ export default function LogoutButton({ children }: { children: React.ReactNode }
   return (
     <button
       onClick={handleLogout}
-      className="text-gray-600 hover:text-gray-800 transition-colors"
+      className="text-gray-600 hover:text-gray-800 transition-colors border border-gray-300 rounded-lg px-3 py-1"
     >
       {children}
     </button>
