@@ -3,9 +3,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
+import ResponsiveNav from '@/components/ResponsiveNav'
 import {
   ScanLineIcon, CameraIcon, KeyboardIcon, CheckCircleIcon, PackageIcon,
-  TrendingUpIcon, TrendingDownIcon, ArrowLeftIcon, PlusIcon, XIcon, RotateCcwIcon
+  TrendingUpIcon, TrendingDownIcon, PlusIcon, XIcon, RotateCcwIcon
 } from 'lucide-react'
 
 // Types
@@ -768,45 +769,39 @@ export default function BarcodeScanner() {
         </div>
       )}
       
-        {/* Header */}
-       <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
-              <button 
-                onClick={() => window.history.back()} 
-           className="p-2 rounded-lg hover:bg-gray-100"
-              >
-                <ArrowLeftIcon className="h-5 w-5 text-gray-700" />
-              </button>
-         
-         <h1 className="font-semibold text-gray-900">Scanner</h1>
-         
-         <div className="flex items-center gap-2">
-           {/* Mode Toggle */}
-           <div className="flex bg-gray-100 rounded-lg p-1">
-            <button
-               onClick={() => handleModeChange(false)}
-               disabled={isModeChanging}
-               className={`px-4 py-2 rounded-md text-sm font-medium transition-all min-h-[44px] ${
-                 !isQuickMode 
-                   ? 'bg-white text-gray-900 shadow-sm' 
-                   : 'text-gray-600 hover:text-gray-900'
-               } ${isModeChanging ? 'opacity-50 cursor-not-allowed' : ''}`}
-             >
-               Manual
-             </button>
-             <button
-               onClick={() => handleModeChange(true)}
-               disabled={isModeChanging}
-               className={`px-4 py-2 rounded-md text-sm font-medium transition-all min-h-[44px] ${
-                 isQuickMode 
-                   ? 'bg-white text-gray-900 shadow-sm' 
-                   : 'text-gray-600 hover:text-gray-900'
-               } ${isModeChanging ? 'opacity-50 cursor-not-allowed' : ''}`}
-             >
-               Quick
-            </button>
-          </div>
-          </div>
+        {/* Page Header */}
+        <ResponsiveNav
+          title="Scanner"
+          action={
+            <div className="flex items-center gap-2">
+              {/* Mode Toggle */}
+              <div className="flex bg-gray-100 rounded-lg p-1">
+                <button
+                  onClick={() => handleModeChange(false)}
+                  disabled={isModeChanging}
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    !isQuickMode 
+                      ? 'bg-white text-gray-900 shadow-sm' 
+                      : 'text-gray-600 hover:text-gray-900'
+                  } ${isModeChanging ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  Manual
+                </button>
+                <button
+                  onClick={() => handleModeChange(true)}
+                  disabled={isModeChanging}
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    isQuickMode 
+                      ? 'bg-white text-gray-900 shadow-sm' 
+                      : 'text-gray-600 hover:text-gray-900'
+                  } ${isModeChanging ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  Quick
+                </button>
+              </div>
             </div>
+          }
+        />
 
        {/* Quick Mode Action Selector */}
        {isQuickMode && (

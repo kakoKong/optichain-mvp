@@ -17,6 +17,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
 import LogoutButton from '@/components/LogoutButton'
+import ResponsiveNav from '@/components/ResponsiveNav'
 interface DashboardStats {
     totalProducts: number
     lowStockItems: number
@@ -330,113 +331,75 @@ export default function Dashboard() {
         <div className="min-h-screen bg-gray-50">
             <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6 pb-20 sm:pb-6">
                 {/* Header */}
-                <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
-                    <div className="p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                        <div className="min-w-0">
-                            <h1 className="text-2xl font-bold text-gray-900 truncate">
-                                {stats?.businessName || 'Inventory Hub'}
-                            </h1>
-                            <p className="mt-1 text-gray-600 truncate">
-                                Welcome back, {user?.displayName}
-                            </p>
-                        </div>
-
-                        <div className="flex items-center gap-10 w-full sm:w-auto">
+                <ResponsiveNav
+                    title={stats?.businessName || 'Inventory Hub'}
+                    subtitle={`Welcome back, ${user?.displayName}`}
+                    action={
+                        <div className="flex items-center gap-2">
                             <div className="flex items-center gap-2 text-sm text-gray-500">
                                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                                 Last updated {new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })}
                             </div>
 
-                            <div className="flex flex-col justify-end items-end gap-2">
-                                <div className="flex items-center gap-2">
-                                    <Link
-                                        href="/settings/team"
-                                        className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                                    >
-                                        <SettingsIcon className="h-4 w-4" />
-                                        <span className="hidden sm:inline">Team</span>
-                                    </Link>
+                            <Link
+                                href="/settings/team"
+                                className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                            >
+                                <SettingsIcon className="h-4 w-4" />
+                                <span className="hidden sm:inline">Team</span>
+                            </Link>
 
-                                    <button
-                                        onClick={() => window.location.reload()}
-                                        className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                                    >
-                                        Refresh
-                                    </button>
-                                </div>
-
-
-                                {/* Show logout button only for non-LIFF users */}
-                                {user?.source !== 'line' && (
-                                    <LogoutButton>Sign Out</LogoutButton>
-                                )}
-
-                            </div>
+                            <button
+                                onClick={() => window.location.reload()}
+                                className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                            >
+                                Refresh
+                            </button>
                         </div>
-                    </div>
-                </div>
+                    }
+                />
                 {/* Key Metrics */}
-                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                     <div
-                        className="bg-white p-4 sm:p-6 rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+                        className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
                         onClick={() => router.push('/liff/products')}
                     >
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-xs sm:text-sm font-medium text-gray-600">Total Products</p>
-                                <p className="text-xl sm:text-2xl font-bold text-gray-900 mt-1">
-                                    {stats?.totalProducts ?? 0}
-                                </p>
-                            </div>
-                            <div className="p-2 sm:p-3 rounded-lg bg-gray-100 text-gray-600">
-                                <PackageIcon className="h-5 w-5 sm:h-6 sm:w-6" />
-                            </div>
+                        <div>
+                            <p className="text-sm font-medium text-gray-600">Total Products</p>
+                            <p className="text-2xl font-bold text-gray-900 mt-1">
+                                {stats?.totalProducts ?? 0}
+                            </p>
                         </div>
                     </div>
                     <div
-                        className="bg-white p-4 sm:p-6 rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+                        className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
                         onClick={() => router.push('/liff/analytics')}
                     >
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-xs sm:text-sm font-medium text-gray-600">Low Stock Alert</p>
-                                <p className="text-xl sm:text-2xl font-bold text-red-600 mt-1">{stats?.lowStockItems ?? 0}</p>
-                            </div>
-                            <div className="p-2 sm:p-3 rounded-lg bg-red-50 text-red-600">
-                                <AlertTriangleIcon className="h-5 w-5 sm:h-6 sm:w-6" />
-                            </div>
+                        <div>
+                            <p className="text-sm font-medium text-gray-600">Low Stock Alert</p>
+                            <p className="text-2xl font-bold text-red-600 mt-1">{stats?.lowStockItems ?? 0}</p>
                         </div>
                     </div>
                     <div
-                        className="bg-white p-4 sm:p-6 rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+                        className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
                         onClick={() => router.push('/liff/products')}
                     >
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-xs sm:text-sm font-medium text-gray-600">Inventory Value</p>
-                                <p className="text-xl sm:text-2xl font-bold text-gray-900 mt-1">
-                                    {formatCurrency(stats?.totalValue ?? 0)}
-                                </p>
-                            </div>
-                            <div className="p-2 sm:p-3 rounded-lg bg-gray-100 text-gray-600">
-                                <DollarSignIcon className="h-5 w-5 sm:h-6 sm:w-6" />
-                            </div>
+                        <div>
+                            <p className="text-sm font-medium text-gray-600">Inventory Value</p>
+                            <p className="text-2xl font-bold text-gray-900 mt-1">
+                                {formatCurrency(stats?.totalValue ?? 0)}
+                            </p>
                         </div>
                     </div>
                     <div
-                        className="bg-white p-4 sm:p-6 rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+                        className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
                         onClick={() => router.push('/liff/analytics')}
                     >
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-xs sm:text-sm font-medium text-gray-600">Est. Monthly Revenue</p>
-                                <p className="text-xl sm:text-2xl font-bold text-gray-900 mt-1">
-                                    {formatCurrency(stats?.monthlyRevenue ?? 0)}
-                                </p>
-                            </div>
-                            <div className="p-2 sm:p-3 rounded-lg bg-gray-100 text-gray-600">
-                                <TrendingUpIcon className="h-5 w-5 sm:h-6 sm:w-6" />
-                            </div>
+                        <div>
+                            <p className="text-sm font-medium text-gray-600">Est. Monthly Revenue</p>
+                            <p className="text-2xl font-bold text-gray-900 mt-1">
+                                {formatCurrency(stats?.monthlyRevenue ?? 0)}
+                            </p>
                         </div>
                     </div>
                 </div>

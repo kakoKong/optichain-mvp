@@ -65,11 +65,11 @@ export default function MobileBottomNav() {
             <span>Scan</span>
           </Link>
           <Link
-            href="/liff/analytics"
+            href="/dashboard"
             className="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-lg text-center text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
           >
-            <BarChart3Icon className="h-5 w-5 text-green-600" />
-            <span>Analytics</span>
+            <HomeIcon className="h-5 w-5 text-gray-600" />
+            <span>Dashboard</span>
           </Link>
         </div>
       </div>

@@ -10,7 +10,6 @@ import {
     Settings as SettingsIcon,
     Search as SearchIcon,
     Package as PackageIcon,
-    ArrowLeft as ArrowLeftIcon,
     Download as DownloadIcon,
     Eye as EyeIcon,
     User as UserIcon,
@@ -18,6 +17,7 @@ import {
     X as XIcon
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
+import ResponsiveNav from '@/components/ResponsiveNav'
 
 declare global {
     interface Window {
@@ -368,38 +368,10 @@ export default function TransactionsPage() {
             
             <div className="relative z-10 p-4 sm:p-6 space-y-6 sm:space-y-8 pb-20 sm:pb-6">
                 {/* Header */}
-                <div
-                    className="relative overflow-hidden rounded-2xl border shadow-xl backdrop-blur-lg"
-                    style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}
-                >
-                    {/* Accent bar */}
-                    <div
-                        className="pointer-events-none absolute inset-x-0 top-0 h-1 opacity-60"
-                        style={{ background: 'linear-gradient(90deg, transparent, var(--accentA), var(--accentB), transparent)' }}
-                    />
-                    <div className="p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                        <div className="flex items-center gap-4 min-w-0">
-                            <button
-                                onClick={() => window.history.back()}
-                                className="p-4 rounded-xl bg-gray-100 border border-gray-200 hover:bg-gray-200 transition-colors min-h-[48px] min-w-[48px] flex items-center justify-center"
-                            >
-                                <ArrowLeftIcon className="h-6 w-6 text-gray-700" />
-                            </button>
-                            <div className="min-w-0">
-                                <div className="flex items-center gap-2">
-                                    <h1
-                                        className="text-2xl sm:text-3xl font-bold tracking-tight truncate flex items-center gap-3"
-                                        style={{ color: 'var(--text)' }}
-                                    >
-                                        <HistoryIcon className="h-8 w-8" />
-                                        Transaction History
-                                    </h1>
-                                </div>
-                                <p className="mt-1 text-sm sm:text-base truncate" style={{ color: 'var(--muted)' }}>
-                                    {stats.totalTransactions} transactions in {dateRange}
-                                </p>
-                            </div>
-                        </div>
+                <ResponsiveNav
+                    title="Transaction History"
+                    subtitle={`${stats.totalTransactions} transactions in ${dateRange}`}
+                    action={
                         <div className="flex items-center gap-3">
                             <div className="flex bg-white/20 rounded-xl p-1">
                                 <button
@@ -447,8 +419,8 @@ export default function TransactionsPage() {
                                 <span className="hidden sm:inline">Export</span>
                             </button>
                         </div>
-                    </div>
-                </div>
+                    }
+                />
 
                 {/* Stats Cards */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

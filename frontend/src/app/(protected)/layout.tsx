@@ -5,6 +5,7 @@ import { ReactNode, useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import MobileBottomNav from '@/components/MobileBottomNav'
+import TopNavbar from '@/components/TopNavbar'
 
 export default function ProtectedLayout({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth()
@@ -41,9 +42,12 @@ export default function ProtectedLayout({ children }: { children: ReactNode }) {
       // For LIFF routes, render children (auth will be handled by individual pages)
   // If user is not authenticated, the LIFF pages will handle the login flow
   return (
-    <div className="mobile-bottom-nav">
-      {children}
-      <MobileBottomNav />
+    <div className="min-h-screen bg-gray-50">
+      <TopNavbar />
+      <div className="mobile-bottom-nav">
+        {children}
+        <MobileBottomNav />
+      </div>
     </div>
   )
   }
@@ -81,9 +85,12 @@ export default function ProtectedLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="mobile-bottom-nav">
-      {children}
-      <MobileBottomNav />
+    <div className="min-h-screen bg-gray-50">
+      <TopNavbar />
+      <div className="mobile-bottom-nav">
+        {children}
+        <MobileBottomNav />
+      </div>
     </div>
   )
 }
