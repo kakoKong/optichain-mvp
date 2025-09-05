@@ -122,7 +122,7 @@ export const EditProductPage: React.FC = () => {
         cost_price: costPrice,
         selling_price: sellingPrice,
         unit: formData.unit,
-        image_url: formData.image_url || null
+        image_url: formData.image_url || undefined
       })
 
       await updateProduct(product.id, {
@@ -131,7 +131,7 @@ export const EditProductPage: React.FC = () => {
         cost_price: costPrice,
         selling_price: sellingPrice,
         unit: formData.unit,
-        image_url: formData.image_url || null
+        image_url: formData.image_url || undefined
       })
 
       setSuccess(true)
