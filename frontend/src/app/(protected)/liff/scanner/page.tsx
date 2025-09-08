@@ -80,6 +80,10 @@ export default function BarcodeScanner() {
   const [lastScannedBarcode, setLastScannedBarcode] = useState<string | null>(null)
   const [lastScanTime, setLastScanTime] = useState<number>(0)
   const [isModeChanging, setIsModeChanging] = useState(false)
+  const [showProductList, setShowProductList] = useState(false)
+  const [productList, setProductList] = useState<Product[]>([])
+  const [productSearchTerm, setProductSearchTerm] = useState('')
+  const [loadingProducts, setLoadingProducts] = useState(false)
 
   // Refs
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -108,15 +112,7 @@ export default function BarcodeScanner() {
     }
   }, [authLoading, user])
 
-  useEffect(() => {
-    if (business && !scanning && !product) {
-      const timer = setTimeout(() => {
-        startCamera()
-      }, 500)
-      
-      return () => clearTimeout(timer)
-    }
-  }, [business, scanning, product])
+  // Removed automatic camera start - let user choose between camera and manual mode
 
   // Debug effect to track mode changes
   useEffect(() => {
@@ -444,12 +440,32 @@ export default function BarcodeScanner() {
     }
   }
 
-  const handleManualEntry = () => {
-    const barcode = prompt('Enter barcode:')
-    if (barcode?.trim()) {
-      handleBarcodeResult(barcode.trim())
+  const handleManualEntry = async () => {
+    setLoadingProducts(true)
+    setShowProductList(true)
+    setProductSearchTerm('')
+    
+    try {
+      const products = await fetchAllProducts()
+      setProductList(products)
+    } catch (error) {
+      console.error('Failed to fetch products:', error)
+      alert('Failed to load products')
+    } finally {
+      setLoadingProducts(false)
     }
   }
+
+  const handleProductSelect = (selectedProduct: Product) => {
+    setProduct(selectedProduct)
+    setShowProductList(false)
+    setProductSearchTerm('')
+  }
+
+  const filteredProducts = productList.filter(product =>
+    product.name.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
+    (product.barcode && product.barcode.includes(productSearchTerm))
+  )
 
   const fetchProductWithInventory = async (barcode: string): Promise<Product | null> => {
     const { data, error } = await supabase
@@ -464,6 +480,22 @@ export default function BarcodeScanner() {
 
     if (error) throw error
     return data
+  }
+
+  const fetchAllProducts = async (): Promise<Product[]> => {
+    if (!business) return []
+    
+    const { data, error } = await supabase
+      .from('products')
+      .select(`
+        id, name, barcode, cost_price, selling_price, unit, image_url,
+        inventory(id, current_stock, min_stock_level)
+      `)
+      .eq('business_id', business.id)
+      .order('name')
+
+    if (error) throw error
+    return data || []
   }
 
   const handleBarcodeResult = async (barcode: string) => {
@@ -861,7 +893,7 @@ export default function BarcodeScanner() {
             </div>
           )}
 
-       {/* Manual Mode Indicator */}
+       {/* Manual Entry Mode Indicator */}
        {!isQuickMode && (
          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-200 px-4 py-3">
            <div className="flex items-center gap-2">
@@ -869,7 +901,7 @@ export default function BarcodeScanner() {
              <span className="text-sm font-medium text-gray-700">Manual Mode Active</span>
         </div>
            <div className="mt-1 text-xs text-gray-600">
-             📝 Choose transaction type and quantity for each scan
+             📝 Choose between camera scanning or manual product selection
       </div>
     </div>
        )}
@@ -907,7 +939,7 @@ export default function BarcodeScanner() {
         )}
 
         {/* Scanner interface */}
-        {!product && !scanning ? (
+        {!product && !scanning && !showProductList ? (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <button
@@ -922,7 +954,7 @@ export default function BarcodeScanner() {
                 className="flex flex-col items-center gap-3 p-8 rounded-xl bg-gray-500 hover:bg-gray-600 text-white transition-colors min-h-[120px]"
               >
                 <KeyboardIcon className="h-10 w-10" />
-                <span className="font-medium text-base">Manual</span>
+                <span className="font-medium text-base">Product List</span>
             </button>
       </div>
 
@@ -932,6 +964,98 @@ export default function BarcodeScanner() {
         </div>
       )}
     </div>
+        ) : showProductList ? (
+          /* Product List */
+          <div className="space-y-4">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">Select Product</h2>
+              <button
+                onClick={() => setShowProductList(false)}
+                className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600"
+              >
+                <XIcon className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Search */}
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search products..."
+                value={productSearchTerm}
+                onChange={(e) => setProductSearchTerm(e.target.value)}
+                className="w-full px-4 py-3 pl-10 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <KeyboardIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+            </div>
+
+            {/* Loading */}
+            {loadingProducts && (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-4 border-blue-500 border-t-transparent"></div>
+                <span className="ml-2 text-gray-600">Loading products...</span>
+              </div>
+            )}
+
+            {/* Product List */}
+            {!loadingProducts && (
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {filteredProducts.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    {productSearchTerm ? 'No products found' : 'No products available'}
+                  </div>
+                ) : (
+                  filteredProducts.map((product) => (
+                    <button
+                      key={product.id}
+                      onClick={() => handleProductSelect(product)}
+                      className="w-full p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-colors text-left"
+                    >
+                      <div className="flex items-center gap-3">
+                        {/* Product Image */}
+                        <div className="flex-shrink-0">
+                          {product.image_url ? (
+                            <img
+                              src={product.image_url}
+                              alt={product.name}
+                              className="w-12 h-12 rounded-lg object-cover border border-gray-200"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement
+                                target.style.display = 'none'
+                                target.nextElementSibling?.classList.remove('hidden')
+                              }}
+                            />
+                          ) : null}
+                          <div className={`w-12 h-12 rounded-lg bg-gray-200 border border-gray-300 flex items-center justify-center ${product.image_url ? 'hidden' : ''}`}>
+                            <PackageIcon className="h-6 w-6 text-gray-400" />
+                          </div>
+                        </div>
+                        
+                        {/* Product Info */}
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-medium text-gray-900 truncate">{product.name}</h3>
+                          <p className="text-sm text-gray-600">
+                            Stock: {product.inventory?.[0]?.current_stock ?? 0} {product.unit}
+                          </p>
+                          {product.barcode && (
+                            <p className="text-xs text-gray-500 font-mono">{product.barcode}</p>
+                          )}
+                        </div>
+                        
+                        {/* Price */}
+                        <div className="text-right">
+                          <p className="text-sm font-medium text-gray-900">
+                            ${product.selling_price.toFixed(2)}
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
         ) : scanning ? (
           /* Camera view */
     <div className="relative">
