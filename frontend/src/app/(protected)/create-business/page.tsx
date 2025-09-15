@@ -301,7 +301,7 @@ export default function CreateBusinessPage() {
                   value={formData.description}
                   onChange={handleInputChange}
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500"
                   placeholder="Describe your business"
                 />
               </div>
@@ -373,7 +373,7 @@ export default function CreateBusinessPage() {
                   value={formData.address}
                   onChange={handleInputChange}
                   rows={2}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500"
                   placeholder="Enter your business address"
                 />
               </div>
@@ -392,7 +392,7 @@ export default function CreateBusinessPage() {
                     name="business_category"
                     value={formData.business_category}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500"
                   >
                     {BUSINESS_CATEGORIES.map(category => (
                       <option key={category} value={category}>{category}</option>
@@ -408,7 +408,7 @@ export default function CreateBusinessPage() {
                     name="business_size"
                     value={formData.business_size}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500"
                   >
                     {BUSINESS_SIZES.map(size => (
                       <option key={size} value={size}>{size}</option>
@@ -467,7 +467,7 @@ export default function CreateBusinessPage() {
                     name="timezone"
                     value={formData.timezone}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500"
                   >
                     {TIMEZONES.map(tz => (
                       <option key={tz} value={tz}>{tz}</option>
@@ -483,7 +483,7 @@ export default function CreateBusinessPage() {
                     name="currency"
                     value={formData.currency}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500"
                   >
                     {CURRENCIES.map(currency => (
                       <option key={currency} value={currency}>{currency}</option>
