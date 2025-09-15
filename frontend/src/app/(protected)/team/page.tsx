@@ -106,7 +106,7 @@ export default function TeamPage() {
 
     // Check if user is owner of the business
     const isOwner = business.owner_id === user.id
-
+    console.log(user)
     return (
         <div className="p-6 space-y-4">
             <div className="flex items-center justify-between">

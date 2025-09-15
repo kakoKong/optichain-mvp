@@ -50,13 +50,21 @@ export default function GetStartedClient() {
                     setAppUserId(user.databaseUid)
                 }
                 // For LINE: map to app user (public.users.id) by line_user_id
-                else if (user.source === 'line') {
-                    const { data } = await supabase
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('id')
+                    .eq('line_user_id', user.id)
+                    .single()
+
+                if (!profile) {
+                    // Create profile automatically
+                    await supabase
                         .from('profiles')
-                        .select('id')
-                        .eq('line_user_id', user.id)
-                        .single()
-                    setAppUserId(data?.id ?? null)
+                        .insert({
+                            line_user_id: user.id,
+                            full_name: user.displayName || 'LINE User',
+                            email: user.raw?.email || null
+                        })
                 }
             } catch {
                 setAppUserId(null)
@@ -65,7 +73,7 @@ export default function GetStartedClient() {
     }, [authLoading, user, router])
 
     console.log('appUserId', appUserId)
-    
+
     // If user already has a business (owner or member), bounce to dashboard
     useEffect(() => {
         if (!appUserId) return
@@ -96,7 +104,7 @@ export default function GetStartedClient() {
                 .from('businesses')
                 .select('id, name, owner_id')
                 .eq('join_code', joinCode)
-                .single(); 
+                .single();
 
             if (findErr) {
                 // This catches actual server errors
