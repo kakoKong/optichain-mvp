@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import { AuthProvider } from '@/contexts/AuthContext'
+import { LanguageProvider } from '@/contexts/LanguageContext'
 import DevLogin from '@/components/DevLogin'
 import DevModeBanner from '@/components/DevModeBanner'
 import AuthDebug from '@/components/AuthDebug'
@@ -23,12 +24,14 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <AuthProvider>
-          {children}
-          <DevModeBanner />
-          <DevLogin />
-          <AuthDebug />
-        </AuthProvider>
+        <LanguageProvider>
+          <AuthProvider>
+            {children}
+            <DevModeBanner />
+            <DevLogin />
+            <AuthDebug />
+          </AuthProvider>
+        </LanguageProvider>
         <Analytics />
         <SpeedInsights />
       </body>
