@@ -547,7 +547,7 @@ function PriceCard({
         <h3 className="text-2xl font-bold text-gray-900 mb-2">{title}</h3>
         <div className="mb-2">
           <span className="text-4xl font-extrabold text-gray-900">{price}</span>
-          <span className="text-gray-600">{period}</span>
+          {period && <span className="text-gray-600">{period}</span>}
         </div>
         <p className="text-gray-600 mb-6">{blurb}</p>
       </div>
