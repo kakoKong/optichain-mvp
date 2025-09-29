@@ -76,11 +76,11 @@ export const ProductsPage: React.FC = () => {
 
   // Handler functions
   const handleViewProduct = (product: Product) => {
-    router.push(`/liff/products/${product.id}`)
+    router.push(`/app/liff/products/${product.id}`)
   }
 
   const handleEditProduct = (product: Product) => {
-    router.push(`/liff/products/edit/${product.id}`)
+    router.push(`/app/liff/products/edit/${product.id}`)
   }
 
   const handleDeleteProduct = (product: Product) => {
@@ -119,7 +119,7 @@ export const ProductsPage: React.FC = () => {
           onBack={() => window.history.back()}
           action={
             <Button 
-              onClick={() => window.location.href = '/liff/products/add'}
+              onClick={() => window.location.href = '/app/liff/products/add'}
               className="min-h-[48px] px-6 py-3 text-base"
             >
               <PlusCircleIcon className="h-5 w-5 mr-2" />

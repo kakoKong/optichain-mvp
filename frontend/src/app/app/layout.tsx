@@ -1,4 +1,4 @@
-// app/(protected)/layout.tsx
+// app/app/layout.tsx
 'use client'
 
 import { ReactNode, useEffect, useState } from 'react'
@@ -7,21 +7,21 @@ import { useAuth } from '@/contexts/AuthContext'
 import MobileBottomNav from '@/components/MobileBottomNav'
 import TopNavbar from '@/components/TopNavbar'
 
-export default function ProtectedLayout({ children }: { children: ReactNode }) {
+export default function AppLayout({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
   const [redirecting, setRedirecting] = useState(false)
 
   // Allow LIFF routes to handle their own authentication
-  const isLiffRoute = pathname?.startsWith('/liff/')
+  const isLiffRoute = pathname?.startsWith('/app/liff/')
   
   // Handle redirect to signin for non-LIFF routes
   useEffect(() => {
     if (!loading && !user && !isLiffRoute && !redirecting) {
       setRedirecting(true)
-      const next = encodeURIComponent(pathname || '/dashboard')
-      router.replace(`/signin?next=${next}`)
+      const next = encodeURIComponent(pathname || '/app/dashboard')
+      router.replace(`/app/signin?next=${next}`)
     }
   }, [loading, user, isLiffRoute, pathname, router, redirecting])
   
@@ -39,17 +39,17 @@ export default function ProtectedLayout({ children }: { children: ReactNode }) {
       )
     }
     
-      // For LIFF routes, render children (auth will be handled by individual pages)
-  // If user is not authenticated, the LIFF pages will handle the login flow
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <TopNavbar />
-      <div className="mobile-bottom-nav">
-        {children}
-        <MobileBottomNav />
+    // For LIFF routes, render children (auth will be handled by individual pages)
+    // If user is not authenticated, the LIFF pages will handle the login flow
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <TopNavbar />
+        <div className="mobile-bottom-nav">
+          {children}
+          <MobileBottomNav />
+        </div>
       </div>
-    </div>
-  )
+    )
   }
 
   // For non-LIFF routes, show loading while redirecting

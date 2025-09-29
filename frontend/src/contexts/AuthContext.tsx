@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import liff from '@line/liff'
+import { supabase } from '@/lib/supabase'
 
 type AuthUser = {
   id: string
@@ -19,6 +20,7 @@ type AuthContextType = {
   signInDev: (username: string) => Promise<void>
   signInLineBrowser: () => Promise<void>
   isDevMode: boolean
+  resolveAppUserId: (user: AuthUser) => Promise<string | null>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -234,7 +236,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       // LINE OAuth configuration
       const clientId = process.env.NEXT_PUBLIC_LINE_CLIENT_ID
-      const redirectUri = `${window.location.origin}/auth/line/callback`
+      const redirectUri = `${window.location.origin}/app/auth/line/callback`
       
       if (!clientId) {
         throw new Error('LINE Client ID not configured')
@@ -320,6 +322,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const resolveAppUserId = async (u: AuthUser): Promise<string | null> => {
+    if (!u) return null
+    
+    // For dev users: use the databaseUid directly
+    if (u.source === 'dev' && u.databaseUid) {
+      return u.databaseUid
+    }
+
+    // For LINE users: map line_user_id to profile ID
+    if (u.source === 'line' || u.source === 'line_browser') {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('line_user_id', u.id)
+        .single()
+      
+      return data?.id ?? null
+    }
+
+    return null
+  }
+
   const value: AuthContextType = {
     user,
     loading,
@@ -328,6 +352,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signInDev,
     signInLineBrowser,
     isDevMode: isDevelopment,
+    resolveAppUserId,
   }
 
   console.log('[AuthContext] Current state:', { 

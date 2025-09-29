@@ -25,7 +25,7 @@ export default function LiffPage() {
       const { data: { session } } = await supabase.auth.getSession()
       if (session?.user) {
         // User is already authenticated with Supabase, redirect to dashboard
-        router.replace('/dashboard')
+        router.replace('/app/dashboard')
         return
       }
 

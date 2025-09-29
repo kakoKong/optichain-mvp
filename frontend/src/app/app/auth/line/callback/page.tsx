@@ -44,7 +44,7 @@ function LineCallbackContent() {
           },
           body: JSON.stringify({
             code,
-            redirectUri: `${window.location.origin}/auth/line/callback`,
+            redirectUri: `${window.location.origin}/app/auth/line/callback`,
           }),
         })
 
@@ -137,7 +137,7 @@ function LineCallbackContent() {
         // Redirect to dashboard after a short delay to ensure localStorage is set
         setTimeout(() => {
           console.log('[LineCallback] Redirecting to dashboard...')
-          router.push('/dashboard')
+          router.push('/app/dashboard')
         }, 1500)
 
       } catch (err) {
@@ -173,7 +173,7 @@ function LineCallbackContent() {
           <h1 className="text-xl font-semibold text-gray-900 mb-2">Authentication Failed</h1>
           <p className="text-gray-600 mb-6">{error}</p>
           <button
-            onClick={() => router.push('/signin')}
+            onClick={() => router.push('/app/signin')}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             Try Again

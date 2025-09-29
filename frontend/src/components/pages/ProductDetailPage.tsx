@@ -72,7 +72,7 @@ export const ProductDetailPage: React.FC = () => {
 
   const handleEditProduct = () => {
     if (product) {
-      router.push(`/liff/products/edit/${product.id}`)
+      router.push(`/app/liff/products/edit/${product.id}`)
     }
   }
 
@@ -99,7 +99,7 @@ export const ProductDetailPage: React.FC = () => {
           <PackageIcon className="h-12 w-12 mx-auto text-red-400 mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">Error</h3>
           <p className="text-gray-600 mb-4">{error || 'Product not found'}</p>
-          <Button onClick={() => router.push('/liff/products')}>
+          <Button onClick={() => router.push('/app/liff/products')}>
             Back to Products
           </Button>
         </Card>
@@ -118,7 +118,7 @@ export const ProductDetailPage: React.FC = () => {
         <PageHeader
           title={product.name}
           subtitle="Product Details"
-          onBack={() => router.push('/liff/products')}
+          onBack={() => router.push('/app/liff/products')}
           action={
             <div className="flex gap-2">
               <Button
@@ -264,7 +264,7 @@ export const ProductDetailPage: React.FC = () => {
               Edit Product
             </Button>
             <Button
-              onClick={() => router.push('/liff/products')}
+              onClick={() => router.push('/app/liff/products')}
               variant="outline"
             >
               Back to Products

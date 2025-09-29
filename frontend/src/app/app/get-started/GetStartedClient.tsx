@@ -14,7 +14,7 @@ function makeJoinCode(len = 6) {
 }
 
 export default function GetStartedClient() {
-    const { user, loading: authLoading } = useAuth()
+    const { user, loading: authLoading, resolveAppUserId } = useAuth()
     const [business, setBusiness] = useState<any>(null)
     const [loading, setLoading] = useState(false)
     const [showCreateModal, setShowCreateModal] = useState(false)
@@ -39,30 +39,20 @@ export default function GetStartedClient() {
         (async () => {
             if (authLoading) return
             if (!user) {
-                router.replace('/signin')
+                router.replace('/app/signin')
                 return
             }
 
             try {
-                // For dev users: use the databaseUid directly
-                if (user.source === 'dev' && user.databaseUid) {
-                    console.log('[GetStartedClient] Dev user detected, using databaseUid:', user.databaseUid)
-                    setAppUserId(user.databaseUid)
-                }
-                // For LINE: map to app user (public.users.id) by line_user_id
-                else if (user.source === 'line') {
-                    const { data } = await supabase
-                        .from('profiles')
-                        .select('id')
-                        .eq('line_user_id', user.id)
-                        .single()
-                    setAppUserId(data?.id ?? null)
-                }
-            } catch {
+                const resolvedUserId = await resolveAppUserId(user)
+                setAppUserId(resolvedUserId)
+                console.log('[GetStartedClient] Resolved user ID:', resolvedUserId)
+            } catch (error) {
+                console.error('[GetStartedClient] Failed to resolve user ID:', error)
                 setAppUserId(null)
             }
         })()
-    }, [authLoading, user, router])
+    }, [authLoading, user, router, resolveAppUserId])
 
     console.log('appUserId', appUserId)
     
@@ -76,7 +66,7 @@ export default function GetStartedClient() {
             ])
 
             if ((owned?.length ?? 0) > 0 || (memberships?.length ?? 0) > 0) {
-                router.replace('/dashboard')
+                router.replace('/app/dashboard')
             }
         })()
     }, [appUserId, router])
@@ -194,7 +184,7 @@ export default function GetStartedClient() {
                         </p>
 
                         <button
-                            onClick={() => router.push('/create-business')}
+                            onClick={() => router.push('/app/create-business')}
                             className="w-full rounded-xl px-4 py-3 font-semibold transition-opacity"
                             style={{ color: '#fff', background: 'linear-gradient(90deg, #6b7280, #4b5563)' }}
                         >

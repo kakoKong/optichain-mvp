@@ -5,6 +5,9 @@
   --foreground: #171717;
 }
 
+button {
+  cursor: pointer;
+}
 /* Mobile bottom navigation spacing */
 .mobile-bottom-nav {
   padding-bottom: 5rem; /* 80px for mobile bottom nav (h-20) */

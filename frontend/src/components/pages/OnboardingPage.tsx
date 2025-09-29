@@ -28,7 +28,7 @@ export const OnboardingPage: React.FC = () => {
     
     if (business) {
       console.log('[OnboardingPage] User already has business, redirecting to dashboard')
-      router.replace('/dashboard')
+      router.replace('/app/dashboard')
     }
   }, [authLoading, businessLoading, business, router])
 
@@ -38,13 +38,13 @@ export const OnboardingPage: React.FC = () => {
     
     if (!user) {
       console.log('[OnboardingPage] User not authenticated, redirecting to signin')
-      router.replace('/signin')
+      router.replace('/app/signin')
     }
   }, [authLoading, user, router])
 
   const handleCreateBusiness = () => {
     console.log('[OnboardingPage] Redirecting to detailed business creation')
-    router.push('/create-business')
+    router.push('/app/create-business')
   }
 
   const handleJoinBusiness = async () => {
@@ -102,7 +102,7 @@ export const OnboardingPage: React.FC = () => {
       setError(null)
       setJoinError(null)
       alert(`Join request sent to ${business.name}! The business owner will review your request.`)
-      router.push('/dashboard')
+      router.push('/app/dashboard')
     } catch (err) {
       console.error('[OnboardingPage] Error joining business:', err)
       setJoinError(err instanceof Error ? err.message : 'Failed to join business')

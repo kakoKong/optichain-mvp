@@ -13,31 +13,31 @@ import {
 const navItems = [
   {
     name: 'Dashboard',
-    href: '/dashboard',
+    href: '/app/dashboard',
     icon: HomeIcon,
     color: 'text-gray-600',
   },
   {
     name: 'Products',
-    href: '/liff/products',
+    href: '/app/liff/products',
     icon: PackageIcon,
     color: 'text-gray-600',
   },
   {
     name: 'Scan',
-    href: '/liff/scanner',
+    href: '/app/liff/scanner',
     icon: ScanLineIcon,
     color: 'text-blue-600',
   },
   {
     name: 'Analytics',
-    href: '/liff/analytics',
+    href: '/app/liff/analytics',
     icon: BarChart3Icon,
     color: 'text-green-600',
   },
   {
     name: 'Transactions',
-    href: '/liff/transactions',
+    href: '/app/liff/transactions',
     icon: HistoryIcon,
     color: 'text-gray-600',
   },
@@ -51,7 +51,7 @@ export default function MobileBottomNav() {
       <div className="bg-white rounded-lg border border-gray-200 shadow-lg p-2">
         <div className="grid grid-cols-3 gap-2">
         <Link
-            href="/dashboard"
+            href="/app/dashboard"
             className="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-lg text-center text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
           >
             <HomeIcon className="h-5 w-5 text-gray-600" />
@@ -59,14 +59,14 @@ export default function MobileBottomNav() {
           </Link>
           
           <Link
-            href="/liff/scanner"
+            href="/app/liff/scanner"
             className="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-lg text-center text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
           >
             <ScanLineIcon className="h-5 w-5 text-blue-600" />
             <span>Scan</span>
           </Link>
           <Link
-            href="/liff/products"
+            href="/app/liff/products"
             className="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-lg text-center text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
           >
             <PackageIcon className="h-5 w-5 text-gray-600" />

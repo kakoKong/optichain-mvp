@@ -20,16 +20,16 @@ export const TopNavbar: React.FC = () => {
   const pathname = usePathname()
 
   const navItems = [
-    { href: '/dashboard', label: 'Dashboard', icon: HomeIcon },
-    { href: '/liff/products', label: 'Products', icon: PackageIcon },
-    { href: '/liff/scanner', label: 'Scanner', icon: ScanLineIcon },
-    { href: '/liff/analytics', label: 'Analytics', icon: BarChart3Icon },
-    { href: '/liff/transactions', label: 'Transactions', icon: HistoryIcon },
+    { href: '/app/dashboard', label: 'Dashboard', icon: HomeIcon },
+    { href: '/app/liff/products', label: 'Products', icon: PackageIcon },
+    { href: '/app/liff/scanner', label: 'Scanner', icon: ScanLineIcon },
+    { href: '/app/liff/analytics', label: 'Analytics', icon: BarChart3Icon },
+    { href: '/app/liff/transactions', label: 'Transactions', icon: HistoryIcon },
   ]
 
   const isActive = (href: string) => {
-    if (href === '/dashboard') {
-      return pathname === '/dashboard'
+    if (href === '/app/dashboard') {
+      return pathname === '/app/dashboard'
     }
     return pathname.startsWith(href)
   }
@@ -41,7 +41,7 @@ export const TopNavbar: React.FC = () => {
           {/* Logo and Shop Name */}
           <div className="flex items-center">
             <Link
-              href="/dashboard"
+              href="/app/dashboard"
               className="flex items-center gap-3 hover:opacity-80 transition-opacity"
             >
               <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
@@ -93,7 +93,7 @@ export const TopNavbar: React.FC = () => {
               <button
                 onClick={() => {
                   localStorage.removeItem('lineBrowserUser')
-                  window.location.href = '/signin'
+                  window.location.href = '/app/signin'
                 }}
                 className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors"
               >

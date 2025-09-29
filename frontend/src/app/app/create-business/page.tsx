@@ -90,7 +90,7 @@ export default function CreateBusinessPage() {
   useEffect(() => {
     if (authLoading) return
     if (!user) {
-      router.replace('/signin')
+      router.replace('/app/signin')
       return
     }
   }, [authLoading, user, router])
@@ -207,7 +207,7 @@ export default function CreateBusinessPage() {
       }
 
       // Redirect to dashboard
-      router.push('/dashboard')
+      router.push('/app/dashboard')
     } catch (err) {
       console.error('Error creating business:', err)
       setError(err instanceof Error ? err.message : 'Failed to create business')

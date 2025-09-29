@@ -19,7 +19,7 @@ export default function SignInPage() {
     console.log('[SignInClient] Auth state changed:', { loading, user: user?.id, userSource: user?.source })
     if (!loading && user) {
       console.log('[SignInClient] User already authenticated, redirecting to dashboard:', user.id)
-      router.replace('/dashboard')
+      router.replace('/app/dashboard')
     }
   }, [loading, user, router])
 
@@ -66,7 +66,7 @@ export default function SignInPage() {
           if (liff.isLoggedIn()) {
             console.log('[SignInClient] User already logged in to LINE, redirecting to dashboard...')
             // User is already logged in, redirect to dashboard
-            router.replace('/dashboard')
+            router.replace('/app/dashboard')
             return
           }
         } catch (error) {
@@ -102,11 +102,11 @@ export default function SignInPage() {
       if (!liff.isLoggedIn()) {
         // This will redirect to LINE login
         liff.login({ 
-          redirectUri: window.location.origin + '/dashboard'
+          redirectUri: window.location.origin + '/app/dashboard'
         })
       } else {
         // User is already logged in, redirect to dashboard
-        router.replace('/dashboard')
+        router.replace('/app/dashboard')
       }
     } catch (error) {
       console.error('LINE LIFF login failed:', error)

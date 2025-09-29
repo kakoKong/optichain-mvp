@@ -39,7 +39,7 @@ export default function Dashboard() {
     useEffect(() => {
         if (authLoading) return
         if (!user) {
-            router.replace(`/signin`)
+            router.replace(`/app/signin`)
         }
         if (user) {
             loadDashboardData(user)
@@ -137,7 +137,7 @@ export default function Dashboard() {
                 supabase.from('business_members').select('id').eq('user_id', appUserId),
             ])
             if ((owned?.length ?? 0) === 0 && (memberships?.length ?? 0) === 0) {
-                router.replace('/get-started')
+                router.replace('/app/get-started')
                 return
             }
 
@@ -370,7 +370,7 @@ export default function Dashboard() {
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                     <div
                         className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
-                        onClick={() => router.push('/liff/products')}
+                        onClick={() => router.push('/app/liff/products')}
                     >
                         <div>
                             <p className="text-sm font-medium text-gray-600">Total Products</p>
@@ -381,7 +381,7 @@ export default function Dashboard() {
                     </div>
                     <div
                         className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
-                        onClick={() => router.push('/liff/analytics')}
+                        onClick={() => router.push('/app/liff/analytics')}
                     >
                         <div>
                             <p className="text-sm font-medium text-gray-600">Low Stock Alert</p>
@@ -390,7 +390,7 @@ export default function Dashboard() {
                     </div>
                     <div
                         className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
-                        onClick={() => router.push('/liff/products')}
+                        onClick={() => router.push('/app/liff/products')}
                     >
                         <div>
                             <p className="text-sm font-medium text-gray-600">Inventory Value</p>
@@ -401,7 +401,7 @@ export default function Dashboard() {
                     </div>
                     <div
                         className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
-                        onClick={() => router.push('/liff/analytics')}
+                        onClick={() => router.push('/app/liff/analytics')}
                     >
                         <div>
                             <p className="text-sm font-medium text-gray-600">Est. Monthly Revenue</p>
@@ -419,7 +419,7 @@ export default function Dashboard() {
                     <div className="p-6">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <button
-                                onClick={() => (window.location.href = '/liff/scanner')}
+                                onClick={() => (window.location.href = '/app/liff/scanner')}
                                 className="flex items-center gap-4 p-4 rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-sm transition-all text-left"
                             >
                                 <div className="p-3 rounded-lg bg-blue-50 text-blue-600">
@@ -431,7 +431,7 @@ export default function Dashboard() {
                                 </div>
                             </button>
                             <button
-                                onClick={() => (window.location.href = '/liff/products')}
+                                onClick={() => (window.location.href = '/app/liff/products')}
                                 className="flex items-center gap-4 p-4 rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-sm transition-all text-left"
                             >
                                 <div className="p-3 rounded-lg bg-gray-50 text-gray-600">
@@ -443,7 +443,7 @@ export default function Dashboard() {
                                 </div>
                             </button>
                             <button
-                                onClick={() => (window.location.href = '/liff/analytics')}
+                                onClick={() => (window.location.href = '/app/liff/analytics')}
                                 className="flex items-center gap-4 p-4 rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-sm transition-all text-left"
                             >
                                 <div className="p-3 rounded-lg bg-green-50 text-green-600">
@@ -541,7 +541,7 @@ export default function Dashboard() {
                     <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
                         <h3 className="text-lg font-semibold text-gray-900">Recent Activity</h3>
                         <button
-                            onClick={() => (window.location.href = '/liff/transactions')}
+                            onClick={() => (window.location.href = '/app/liff/transactions')}
                             className="text-blue-600 hover:text-blue-700 font-medium text-sm"
                         >
                             View All
@@ -642,14 +642,14 @@ export default function Dashboard() {
                 <div className="bg-white rounded-lg border border-gray-200 shadow-lg p-2">
                     <div className="grid grid-cols-3 gap-2">
                         <button
-                            onClick={() => (window.location.href = '/liff/products')}
+                            onClick={() => (window.location.href = '/app/liff/products')}
                             className="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-lg text-center text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
                         >
                             <PackageIcon className="h-5 w-5 text-gray-600" />
                             <span>Products</span>
                         </button>
                         <button
-                            onClick={() => (window.location.href = '/liff/scanner')}
+                            onClick={() => (window.location.href = '/app/liff/scanner')}
                             className="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-lg text-center text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
                         >
                             <ScanLineIcon className="h-5 w-5 text-blue-600" />
@@ -657,7 +657,7 @@ export default function Dashboard() {
                         </button>
 
                         <button
-                            onClick={() => (window.location.href = '/liff/analytics')}
+                            onClick={() => (window.location.href = '/app/liff/analytics')}
                             className="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-lg text-center text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
                         >
                             <BarChart3Icon className="h-5 w-5 text-green-600" />

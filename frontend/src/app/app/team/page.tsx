@@ -89,7 +89,7 @@ export default function TeamPage() {
     }
 
     if (!user) {
-        router.replace('/signin')
+        router.replace('/app/signin')
         return null
     }
 

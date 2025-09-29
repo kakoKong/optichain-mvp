@@ -29,10 +29,10 @@ export const useOnboarding = () => {
 
       if (!hasBusiness) {
         console.log('[useOnboarding] User has no business, redirecting to onboarding')
-        router.replace('/onboarding')
+        router.replace('/app/onboarding')
       } else {
         console.log('[useOnboarding] User has business, redirecting to dashboard')
-        router.replace('/dashboard')
+        router.replace('/app/dashboard')
       }
     } catch (error) {
       console.error('[useOnboarding] Error checking onboarding status:', error)

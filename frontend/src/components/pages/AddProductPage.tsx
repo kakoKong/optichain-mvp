@@ -129,7 +129,7 @@ export const AddProductPage: React.FC = () => {
 
       setSuccess(true)
       setTimeout(() => {
-        window.location.href = '/liff/products'
+        window.location.href = '/app/liff/products'
       }, 2000)
 
     } catch (err) {

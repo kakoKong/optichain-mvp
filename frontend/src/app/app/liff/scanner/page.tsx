@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import ResponsiveNav from '@/components/ResponsiveNav'
 import {
   ScanLineIcon, CameraIcon, KeyboardIcon, CheckCircleIcon, PackageIcon,
-  TrendingUpIcon, TrendingDownIcon, PlusIcon, XIcon, RotateCcwIcon
+  TrendingUpIcon, TrendingDownIcon, PlusIcon, XIcon, RotateCcwIcon, ArrowLeftIcon
 } from 'lucide-react'
 
 // Types
@@ -42,11 +42,11 @@ const SCANNER_CONFIG = {
     width: { ideal: 1920, min: 1280 },
     height: { ideal: 1080, min: 720 },
     frameRate: { ideal: 30, min: 15 },
-    aspectRatio: { ideal: 16/9 },
+    aspectRatio: { ideal: 16 / 9 },
     resizeMode: 'crop-and-scale' as any
   },
   barcodeFormats: [
-    'ean_13', 'ean_8', 'upc_a', 'upc_e', 
+    'ean_13', 'ean_8', 'upc_a', 'upc_e',
     'code_128', 'code_93', 'code_39', 'itf',
     'codabar', 'data_matrix', 'pdf_417'
   ],
@@ -84,6 +84,7 @@ export default function BarcodeScanner() {
   const [productList, setProductList] = useState<Product[]>([])
   const [productSearchTerm, setProductSearchTerm] = useState('')
   const [loadingProducts, setLoadingProducts] = useState(false)
+  const [transactionCompleted, setTransactionCompleted] = useState(false)
 
   // Refs
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -100,17 +101,29 @@ export default function BarcodeScanner() {
   // Initialize component
   useEffect(() => {
     if (authLoading) return
-    
+
     if (!user) {
-      window.location.href = '/liff/login'
+      window.location.href = '/app/liff/login'
       return
     }
-    
+
     initializeScanner()
+
     return () => {
       cleanupScanner()
     }
   }, [authLoading, user])
+
+  // Auto-load product list on desktop
+  useEffect(() => {
+    if (authLoading || !user || !business) return
+
+    const isMobile = window.innerWidth < 768
+    if (!isMobile && !showProductList && !product && !scanning) {
+      console.log('[Scanner] Auto-loading product list for desktop')
+      handleManualEntry()
+    }
+  }, [authLoading, user, business, showProductList, product, scanning])
 
   // Removed automatic camera start - let user choose between camera and manual mode
 
@@ -129,17 +142,17 @@ export default function BarcodeScanner() {
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
       const oscillator = audioContext.createOscillator()
       const gainNode = audioContext.createGain()
-      
+
       oscillator.connect(gainNode)
       gainNode.connect(audioContext.destination)
-      
+
       oscillator.frequency.setValueAtTime(800, audioContext.currentTime) // 800Hz frequency
       oscillator.type = 'sine'
-      
+
       gainNode.gain.setValueAtTime(0, audioContext.currentTime)
       gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.01)
       gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1)
-      
+
       oscillator.start(audioContext.currentTime)
       oscillator.stop(audioContext.currentTime + 0.1)
     } catch (error) {
@@ -251,21 +264,21 @@ export default function BarcodeScanner() {
       })
 
       streamRef.current = stream
-      
+
       if (videoRef.current) {
         videoRef.current.srcObject = stream
         videoRef.current.setAttribute('playsinline', 'true')
         videoRef.current.muted = true
-        
+
         await new Promise((resolve, reject) => {
           const timeout = setTimeout(() => reject(new Error('Video load timeout')), 5000)
-          
+
           const onLoadedMetadata = () => {
             clearTimeout(timeout)
             videoRef.current?.removeEventListener('loadedmetadata', onLoadedMetadata)
             resolve(true)
           }
-          
+
           videoRef.current?.addEventListener('loadedmetadata', onLoadedMetadata)
           videoRef.current?.play().catch(reject)
         })
@@ -273,7 +286,7 @@ export default function BarcodeScanner() {
 
       setScanning(true)
       await new Promise(resolve => setTimeout(resolve, 300))
-      
+
       if ((window as any).BarcodeDetector) {
         await startNativeScanner()
       } else {
@@ -344,7 +357,7 @@ export default function BarcodeScanner() {
       const detector = new (window as any).BarcodeDetector({
         formats: SCANNER_CONFIG.barcodeFormats
       })
-      
+
       setScanMethod('native')
 
       const scanFrame = async () => {
@@ -365,14 +378,14 @@ export default function BarcodeScanner() {
             ctx.drawImage(video, 0, 0, width, height)
 
             const imageBitmap = await createImageBitmap(canvas)
-            
+
             try {
               const results = await detector.detect(imageBitmap)
-              
+
               if (results?.length > 0) {
                 const bestResult = results[0]
                 const confidence = bestResult.confidence || 1.0
-                
+
                 if (confidence >= SCANNER_CONFIG.confidenceThreshold) {
                   const barcode = bestResult.rawValue
                   if (barcode && barcode.length >= 8) {
@@ -408,7 +421,7 @@ export default function BarcodeScanner() {
     try {
       setScanMethod('zxing')
       const { BrowserMultiFormatReader } = await import('@zxing/browser')
-      
+
       if (!videoRef.current) {
         throw new Error('Video element not available')
       }
@@ -421,10 +434,10 @@ export default function BarcodeScanner() {
         videoRef.current,
         async (result: any, error: any) => {
           if (error) return
-          
+
           if (result && !foundBarcodeRef.current) {
             const barcode = result.getText?.() || result.text || ''
-            
+
             if (barcode && barcode.length >= 8) {
               foundBarcodeRef.current = barcode
               await handleBarcodeResult(barcode)
@@ -441,12 +454,15 @@ export default function BarcodeScanner() {
   }
 
   const handleManualEntry = async () => {
+    console.log('[Scanner] handleManualEntry called')
     setLoadingProducts(true)
     setShowProductList(true)
     setProductSearchTerm('')
-    
+
     try {
+      console.log('[Scanner] Fetching products for business:', business?.id)
       const products = await fetchAllProducts()
+      console.log('[Scanner] Fetched products:', products.length)
       setProductList(products)
     } catch (error) {
       console.error('Failed to fetch products:', error)
@@ -460,6 +476,7 @@ export default function BarcodeScanner() {
     setProduct(selectedProduct)
     setShowProductList(false)
     setProductSearchTerm('')
+    setTransactionCompleted(false) // Reset transaction completed state
   }
 
   const filteredProducts = productList.filter(product =>
@@ -483,8 +500,13 @@ export default function BarcodeScanner() {
   }
 
   const fetchAllProducts = async (): Promise<Product[]> => {
-    if (!business) return []
-    
+    if (!business) {
+      console.log('[Scanner] No business found, returning empty array')
+      return []
+    }
+
+    console.log('[Scanner] Fetching products for business:', business.id)
+
     const { data, error } = await supabase
       .from('products')
       .select(`
@@ -494,7 +516,12 @@ export default function BarcodeScanner() {
       .eq('business_id', business.id)
       .order('name')
 
-    if (error) throw error
+    if (error) {
+      console.error('[Scanner] Error fetching products:', error)
+      throw error
+    }
+
+    console.log('[Scanner] Products fetched successfully:', data?.length || 0)
     return data || []
   }
 
@@ -516,21 +543,21 @@ export default function BarcodeScanner() {
 
     try {
       const existing = await fetchProductWithInventory(barcode)
-      
+
       if (existing) {
         playSuccessSound() // Play sound when barcode is found
-        
+
         // Use ref to get the current mode state at the time of processing
         const currentMode = isQuickModeRef.current
         console.log('[Scanner] Processing barcode with mode:', currentMode)
-        
+
         if (currentMode) {
           await handleQuickAdd(existing, barcode)
         } else {
           setProduct(existing)
         }
       } else {
-        window.location.href = `/liff/products/add?barcode=${barcode}`
+        window.location.href = `/app/liff/products/add?barcode=${barcode}`
       }
     } catch (error: any) {
       alert('Lookup failed. Try again.')
@@ -547,17 +574,17 @@ export default function BarcodeScanner() {
     try {
       const appUserId = await resolveAppUserId(user!)
       if (!appUserId) throw new Error('Could not resolve user ID')
-      
+
       foundBarcodeRef.current = null
 
       const currentStock = product.inventory?.[0]?.current_stock || 0
       const quantity = 1
       let newStock = currentStock
-      
+
       // Use ref to get current action type
       const currentActionType = quickActionTypeRef.current
       console.log('[Scanner] Quick add action type:', currentActionType)
-      
+
       if (currentActionType === 'stock_in') {
         newStock = currentStock + quantity
       } else {
@@ -569,31 +596,31 @@ export default function BarcodeScanner() {
 
       const { data: transaction, error } = await supabase
         .from('inventory_transactions')
-      .insert([{
-        business_id: business!.id,
-        product_id: product.id,
-        user_id: appUserId,
-        transaction_type: currentActionType,
-        quantity: quantity,
-        previous_stock: currentStock,
-        new_stock: newStock,
-        reason: `Quick ${currentActionType}`,
-        notes: `Quick scan ${currentActionType}`
-      }])
-      .select()
-      .single()
+        .insert([{
+          business_id: business!.id,
+          product_id: product.id,
+          user_id: appUserId,
+          transaction_type: currentActionType,
+          quantity: quantity,
+          previous_stock: currentStock,
+          new_stock: newStock,
+          reason: `Quick ${currentActionType}`,
+          notes: `Quick scan ${currentActionType}`
+        }])
+        .select()
+        .single()
 
-    if (error) throw error
+      if (error) throw error
 
       const { error: updateError } = await supabase
-      .from('inventory')
-        .update({ 
+        .from('inventory')
+        .update({
           current_stock: newStock,
           updated_at: new Date().toISOString()
         })
         .eq('product_id', product.id)
         .eq('business_id', business!.id)
-        
+
       if (updateError) throw updateError
 
       // Store the product information for the popup
@@ -637,7 +664,7 @@ export default function BarcodeScanner() {
       if (inventory) {
         await supabase
           .from('inventory')
-          .update({ 
+          .update({
             current_stock: Math.max(0, inventory.current_stock - undoTransaction.quantity),
             updated_at: new Date().toISOString()
           })
@@ -707,7 +734,7 @@ export default function BarcodeScanner() {
 
       const { error: updateError } = await supabase
         .from('inventory')
-        .update({ 
+        .update({
           current_stock: newStock,
           updated_at: new Date().toISOString()
         })
@@ -729,21 +756,23 @@ export default function BarcodeScanner() {
           id: prev.inventory[0].id,
           current_stock: newStock,
           min_stock_level: currentInventory.min_stock_level
-        }] : [{ 
+        }] : [{
           id: '',
-          current_stock: newStock, 
-          min_stock_level: currentInventory.min_stock_level 
+          current_stock: newStock,
+          min_stock_level: currentInventory.min_stock_level
         }]
       } : null)
 
       setShowSuccess(true)
       playSuccessSound() // Play success sound
+      setTransactionCompleted(true) // Mark transaction as completed
 
       setTimeout(() => {
         setProduct(null)
         setTransactionForm({ type: 'stock_in', quantity: 1 })
         setShowSuccess(false)
         setScanResult('')
+        setTransactionCompleted(false) // Reset transaction completed state
       }, 2000)
     } catch (error: any) {
       alert(`Transaction failed: ${error.message}`)
@@ -757,7 +786,8 @@ export default function BarcodeScanner() {
     setScanResult('')
     setShowSuccess(false)
     setTransactionForm({ type: 'stock_in', quantity: 1 })
-    
+    setTransactionCompleted(false) // Reset transaction completed state
+
     await new Promise(resolve => setTimeout(resolve, 100))
     await startCamera()
   }
@@ -765,34 +795,34 @@ export default function BarcodeScanner() {
   const handleModeChange = async (newMode: boolean) => {
     console.log('[Scanner] Mode change requested:', { from: isQuickMode, to: newMode })
     setIsModeChanging(true)
-    
+
     // Update the mode state immediately
     setIsQuickMode(newMode)
     isQuickModeRef.current = newMode // Update ref for immediate access
-    
+
     // Clear any existing product state when switching modes
     setProduct(null)
     setShowSuccess(false)
     setScanResult('')
-    
+
     // If scanner is currently running, restart it with the new mode
     if (scanning) {
       await cleanupScanner()
       await new Promise(resolve => setTimeout(resolve, 300)) // Slightly longer delay
       await startCamera()
     }
-    
+
     // Add a small delay to ensure state is fully updated
     await new Promise(resolve => setTimeout(resolve, 100))
     setIsModeChanging(false)
-    
+
     console.log('[Scanner] Mode change completed:', { isQuickMode: newMode })
   }
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <canvas ref={canvasRef} className="hidden" />
-      
+
       {/* Loading overlay */}
       {authLoading && (
         <div className="fixed inset-0 bg-white/90 flex items-center justify-center z-50">
@@ -812,414 +842,429 @@ export default function BarcodeScanner() {
           </div>
         </div>
       )}
-      
-        {/* Page Header */}
-        <ResponsiveNav
-          title="Scanner"
-          action={
+
+      {/* Page Header */}
+      <ResponsiveNav
+        title="Scanner"
+        action={
+          <div className="flex items-center gap-2">
+            {/* Mode Toggle - only show on mobile */}
+            <div className="flex bg-gray-100 rounded-lg p-1 md:hidden">
+              <button
+                onClick={() => handleModeChange(false)}
+                disabled={isModeChanging}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${!isQuickMode
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                  } ${isModeChanging ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                Manual
+              </button>
+              <button
+                onClick={() => handleModeChange(true)}
+                disabled={isModeChanging}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${isQuickMode
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                  } ${isModeChanging ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                Quick
+              </button>
+            </div>
+
+            {/* Desktop mode indicator */}
+            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-blue-100 text-blue-800 rounded-md text-sm font-medium">
+              <PackageIcon className="h-4 w-4" />
+              Product List Mode
+            </div>
+          </div>
+        }
+      />
+
+      {/* Quick Mode Action Selector - only show on mobile */}
+      {isQuickMode && (
+        <div className="bg-gradient-to-r from-green-50 to-blue-50 border-b border-green-200 px-4 py-3 md:hidden">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              {/* Mode Toggle */}
-              <div className="flex bg-gray-100 rounded-lg p-1">
-                <button
-                  onClick={() => handleModeChange(false)}
-                  disabled={isModeChanging}
-                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                    !isQuickMode 
-                      ? 'bg-white text-gray-900 shadow-sm' 
-                      : 'text-gray-600 hover:text-gray-900'
-                  } ${isModeChanging ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  Manual
-                </button>
-                <button
-                  onClick={() => handleModeChange(true)}
-                  disabled={isModeChanging}
-                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                    isQuickMode 
-                      ? 'bg-white text-gray-900 shadow-sm' 
-                      : 'text-gray-600 hover:text-gray-900'
-                  } ${isModeChanging ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  Quick
-                </button>
-              </div>
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span className="text-sm font-medium text-gray-700">Quick Mode Active</span>
             </div>
-          }
-        />
 
-       {/* Quick Mode Action Selector */}
-       {isQuickMode && (
-         <div className="bg-gradient-to-r from-green-50 to-blue-50 border-b border-green-200 px-4 py-3">
-           <div className="flex items-center justify-between">
-             <div className="flex items-center gap-2">
-               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-               <span className="text-sm font-medium text-gray-700">Quick Mode Active</span>
-              </div>
-             
-             {/* Action Toggle */}
-             <div className="flex bg-white rounded-lg p-1 shadow-sm border border-gray-200">
-                <button
-                 onClick={() => setQuickActionType('stock_in')}
-                 className={`flex items-center gap-2 px-4 py-3 rounded-md text-sm font-medium transition-all min-h-[48px] ${
-                   quickActionType === 'stock_in'
-                     ? 'bg-green-500 text-white shadow-sm'
-                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                 }`}
-               >
-                 <TrendingUpIcon className="h-5 w-5" />
-                 <span>Add Stock</span>
-                </button>
-                <button
-                 onClick={() => setQuickActionType('stock_out')}
-                 className={`flex items-center gap-2 px-4 py-3 rounded-md text-sm font-medium transition-all min-h-[48px] ${
-                   quickActionType === 'stock_out'
-                     ? 'bg-red-500 text-white shadow-sm'
-                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                 }`}
-               >
-                 <TrendingDownIcon className="h-5 w-5" />
-                 <span>Remove Stock</span>
-                </button>
-             </div>
-           </div>
-           
-           {/* Quick Mode Description */}
-           <div className="mt-2 text-xs text-gray-600">
-             {quickActionType === 'stock_in' 
-               ? '📦 Each scan will add 1 item to inventory' 
-               : '🛒 Each scan will remove 1 item from inventory'
-             }
-              </div>
+            {/* Action Toggle */}
+            <div className="flex bg-white rounded-lg p-1 shadow-sm border border-gray-200">
+              <button
+                onClick={() => setQuickActionType('stock_in')}
+                className={`flex items-center gap-2 px-4 py-3 rounded-md text-sm font-medium transition-all min-h-[48px] ${quickActionType === 'stock_in'
+                    ? 'bg-green-500 text-white shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  }`}
+              >
+                <TrendingUpIcon className="h-5 w-5" />
+                <span>Add Stock</span>
+              </button>
+              <button
+                onClick={() => setQuickActionType('stock_out')}
+                className={`flex items-center gap-2 px-4 py-3 rounded-md text-sm font-medium transition-all min-h-[48px] ${quickActionType === 'stock_out'
+                    ? 'bg-red-500 text-white shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  }`}
+              >
+                <TrendingDownIcon className="h-5 w-5" />
+                <span>Remove Stock</span>
+              </button>
             </div>
-          )}
+          </div>
 
-       {/* Manual Entry Mode Indicator */}
-       {!isQuickMode && (
-         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-200 px-4 py-3">
-           <div className="flex items-center gap-2">
-             <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-             <span className="text-sm font-medium text-gray-700">Manual Mode Active</span>
+          {/* Quick Mode Description */}
+          <div className="mt-2 text-xs text-gray-600">
+            {quickActionType === 'stock_in'
+              ? '📦 Each scan will add 1 item to inventory'
+              : '🛒 Each scan will remove 1 item from inventory'
+            }
+          </div>
         </div>
-           <div className="mt-1 text-xs text-gray-600">
-             📝 Choose between camera scanning or manual product selection
-      </div>
-    </div>
-       )}
+      )}
+
+      {/* Manual Entry Mode Indicator - only show on mobile */}
+      {!isQuickMode && (
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-200 px-4 py-3 md:hidden">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+            <span className="text-sm font-medium text-gray-700">Manual Mode Active</span>
+          </div>
+          <div className="mt-1 text-xs text-gray-600">
+            📝 Choose between camera scanning or manual product selection
+          </div>
+        </div>
+      )}
 
       {/* Main content */}
       <div className="flex-1 p-4 space-y-4">
         <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
-        {/* Success message */}
-        {(showSuccess || scanResult) && (
-          <div className={`p-3 rounded-lg border flex items-center gap-3 ${
-            showSuccess 
-              ? 'bg-green-50 border-green-200' 
-              : 'bg-blue-50 border-blue-200'
-          }`}>
-            <CheckCircleIcon className={`h-5 w-5 ${
-              showSuccess ? 'text-green-500' : 'text-blue-500'
-            }`} />
-            <div className="flex-1">
-              <p className={`text-sm font-medium ${
-                showSuccess ? 'text-green-800' : 'text-blue-800'
+          {/* Success message */}
+          {(showSuccess || scanResult) && (
+            <div className={`p-3 rounded-lg border flex items-center gap-3 ${showSuccess
+                ? 'bg-green-50 border-green-200'
+                : 'bg-blue-50 border-blue-200'
               }`}>
-                {showSuccess ? 'Transaction recorded!' : `Scanned: ${scanResult}`}
-              </p>
-        </div>
-            {showSuccess && undoTransaction && (
-            <button
-                onClick={handleUndoTransaction}
-                className="p-1 rounded bg-red-100 hover:bg-red-200 text-red-600"
-                title="Undo"
-              >
-                <RotateCcwIcon className="h-4 w-4" />
-              </button>
-            )}
+              <CheckCircleIcon className={`h-5 w-5 ${showSuccess ? 'text-green-500' : 'text-blue-500'
+                }`} />
+              <div className="flex-1">
+                <p className={`text-sm font-medium ${showSuccess ? 'text-green-800' : 'text-blue-800'
+                  }`}>
+                  {showSuccess ? 'Transaction recorded!' : `Scanned: ${scanResult}`}
+                </p>
               </div>
-        )}
-
-        {/* Scanner interface */}
-        {!product && !scanning && !showProductList ? (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <button
-                onClick={startCamera}
-                className="flex flex-col items-center gap-3 p-8 rounded-xl bg-blue-500 hover:bg-blue-600 text-white transition-colors min-h-[120px]"
-              >
-                <CameraIcon className="h-10 w-10" />
-                <span className="font-medium text-base">Camera</span>
-            </button>
-            <button
-                onClick={handleManualEntry}
-                className="flex flex-col items-center gap-3 p-8 rounded-xl bg-gray-500 hover:bg-gray-600 text-white transition-colors min-h-[120px]"
-              >
-                <KeyboardIcon className="h-10 w-10" />
-                <span className="font-medium text-base">Product List</span>
-            </button>
-      </div>
-
-            {cameraError && (
-              <div className="p-3 rounded-lg bg-red-50 border border-red-200">
-                <p className="text-sm text-red-700">{cameraError}</p>
-        </div>
-      )}
-    </div>
-        ) : showProductList ? (
-          /* Product List */
-          <div className="space-y-4">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">Select Product</h2>
-              <button
-                onClick={() => setShowProductList(false)}
-                className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600"
-              >
-                <XIcon className="h-5 w-5" />
-              </button>
+              {showSuccess && undoTransaction && (
+                <button
+                  onClick={handleUndoTransaction}
+                  className="p-1 rounded bg-red-100 hover:bg-red-200 text-red-600"
+                  title="Undo"
+                >
+                  <RotateCcwIcon className="h-4 w-4" />
+                </button>
+              )}
             </div>
+          )}
 
-            {/* Search */}
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search products..."
-                value={productSearchTerm}
-                onChange={(e) => setProductSearchTerm(e.target.value)}
-                className="w-full px-4 py-3 pl-10 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500"
-              />
-              <KeyboardIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-            </div>
+          {/* Scanner interface */}
+          {!product && !scanning && !showProductList ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Camera button - only show on mobile */}
+                <button
+                  onClick={startCamera}
+                  className="flex flex-col items-center gap-3 p-8 rounded-xl bg-blue-500 hover:bg-blue-600 text-white transition-colors min-h-[120px] md:hidden"
+                >
+                  <CameraIcon className="h-10 w-10" />
+                  <span className="font-medium text-base">Camera</span>
+                </button>
 
-            {/* Loading */}
-            {loadingProducts && (
-              <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-4 border-blue-500 border-t-transparent"></div>
-                <span className="ml-2 text-gray-600">Loading products...</span>
+                {/* Product List button - always show */}
+                <button
+                  onClick={handleManualEntry}
+                  className="flex flex-col items-center gap-3 p-8 rounded-xl bg-gray-500 hover:bg-gray-600 text-white transition-colors min-h-[120px] md:col-span-2"
+                >
+                  <KeyboardIcon className="h-10 w-10" />
+                  <span className="font-medium text-base">Product List</span>
+                </button>
               </div>
-            )}
 
-            {/* Product List */}
-            {!loadingProducts && (
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {filteredProducts.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    {productSearchTerm ? 'No products found' : 'No products available'}
-                  </div>
-                ) : (
-                  filteredProducts.map((product) => (
-                    <button
-                      key={product.id}
-                      onClick={() => handleProductSelect(product)}
-                      className="w-full p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-colors text-left"
-                    >
-                      <div className="flex items-center gap-3">
-                        {/* Product Image */}
-                        <div className="flex-shrink-0">
-                          {product.image_url ? (
-                            <img
-                              src={product.image_url}
-                              alt={product.name}
-                              className="w-12 h-12 rounded-lg object-cover border border-gray-200"
-                              onError={(e) => {
-                                const target = e.target as HTMLImageElement
-                                target.style.display = 'none'
-                                target.nextElementSibling?.classList.remove('hidden')
-                              }}
-                            />
-                          ) : null}
-                          <div className={`w-12 h-12 rounded-lg bg-gray-200 border border-gray-300 flex items-center justify-center ${product.image_url ? 'hidden' : ''}`}>
-                            <PackageIcon className="h-6 w-6 text-gray-400" />
+              {/* Desktop-only message */}
+              <div className="hidden md:block p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <span className="text-sm font-medium text-blue-800">Desktop Mode</span>
+                </div>
+                <p className="text-sm text-blue-700 mt-1">
+                  On desktop, you can only update inventory using the product list. Use mobile for camera scanning.
+                </p>
+              </div>
+
+              {cameraError && (
+                <div className="p-3 rounded-lg bg-red-50 border border-red-200">
+                  <p className="text-sm text-red-700">{cameraError}</p>
+                </div>
+              )}
+            </div>
+          ) : showProductList ? (
+            /* Product List */
+            <div className="space-y-4">
+              {/* Header */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">Select Product</h2>
+                  <p className="text-sm text-gray-600 md:hidden">Choose a product to update inventory</p>
+                  <p className="text-sm text-gray-600 hidden md:block">Update inventory for your products</p>
+                </div>
+                {/* Close button - only show on mobile */}
+                <button
+                  onClick={() => setShowProductList(false)}
+                  className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 md:hidden"
+                >
+                  <XIcon className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Search */}
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search products..."
+                  value={productSearchTerm}
+                  onChange={(e) => setProductSearchTerm(e.target.value)}
+                  className="w-full px-4 py-3 pl-10 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500"
+                />
+                <KeyboardIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              </div>
+
+              {/* Loading */}
+              {loadingProducts && (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-4 border-blue-500 border-t-transparent"></div>
+                  <span className="ml-2 text-gray-600">Loading products...</span>
+                </div>
+              )}
+
+              {/* Product List */}
+              {!loadingProducts && (
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {filteredProducts.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      {productSearchTerm ? 'No products found' : 'No products available'}
+                    </div>
+                  ) : (
+                    filteredProducts.map((product) => (
+                      <button
+                        key={product.id}
+                        onClick={() => handleProductSelect(product)}
+                        className="w-full cursor-pointer p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-colors text-left"
+                      >
+                        <div className="flex items-center gap-3">
+                          {/* Product Image */}
+                          <div className="flex-shrink-0">
+                            {product.image_url ? (
+                              <img
+                                src={product.image_url}
+                                alt={product.name}
+                                className="w-12 h-12 rounded-lg object-cover border border-gray-200"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement
+                                  target.style.display = 'none'
+                                  target.nextElementSibling?.classList.remove('hidden')
+                                }}
+                              />
+                            ) : null}
+                            <div className={`w-12 h-12 rounded-lg bg-gray-200 border border-gray-300 flex items-center justify-center ${product.image_url ? 'hidden' : ''}`}>
+                              <PackageIcon className="h-6 w-6 text-gray-400" />
+                            </div>
+                          </div>
+
+                          {/* Product Info */}
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-medium text-gray-900 truncate">{product.name}</h3>
+                            <p className="text-sm text-gray-600">
+                              Stock: {product.inventory?.[0]?.current_stock ?? 0} {product.unit}
+                            </p>
+                            {product.barcode && (
+                              <p className="text-xs text-gray-500 font-mono">{product.barcode}</p>
+                            )}
+                          </div>
+
+                          {/* Price */}
+                          <div className="text-right">
+                            <p className="text-sm font-medium text-gray-900">
+                              ${product.selling_price.toFixed(2)}
+                            </p>
                           </div>
                         </div>
-                        
-                        {/* Product Info */}
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-medium text-gray-900 truncate">{product.name}</h3>
-                          <p className="text-sm text-gray-600">
-                            Stock: {product.inventory?.[0]?.current_stock ?? 0} {product.unit}
-                          </p>
-                          {product.barcode && (
-                            <p className="text-xs text-gray-500 font-mono">{product.barcode}</p>
-                          )}
-                        </div>
-                        
-                        {/* Price */}
-                        <div className="text-right">
-                          <p className="text-sm font-medium text-gray-900">
-                            ${product.selling_price.toFixed(2)}
-                          </p>
-                        </div>
-                      </div>
-                    </button>
-                  ))
-                )}
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          ) : scanning ? (
+            /* Camera view - only show on mobile */
+            <div className="relative md:hidden">
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className="w-full h-64 rounded-xl object-cover bg-gray-900"
+              />
+
+              {/* Scanning frame */}
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="w-48 h-20 border-2 border-white rounded-lg shadow-lg" />
               </div>
-            )}
-          </div>
-        ) : scanning ? (
-          /* Camera view */
-    <div className="relative">
-      <video
-        ref={videoRef}
-        autoPlay
-        playsInline
-        muted
-              className="w-full h-64 rounded-xl object-cover bg-gray-900"
-            />
-            
-            {/* Scanning frame */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="w-48 h-20 border-2 border-white rounded-lg shadow-lg" />
-      </div>
-      
-            {/* Stop button */}
-        <button 
-              onClick={cleanupScanner} 
-              className="absolute bottom-4 left-1/2 -translate-x-1/2 px-8 py-3 rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-colors min-h-[48px] text-base"
-        >
-              Stop
-        </button>
-            
-            {/* Method indicator */}
-            <div className="absolute top-3 left-3 px-2 py-1 rounded bg-white/90 text-xs font-medium text-gray-700">
-              {scanMethod}
+
+              {/* Stop button */}
+              <button
+                onClick={cleanupScanner}
+                className="absolute bottom-4 left-1/2 -translate-x-1/2 px-8 py-3 rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-colors min-h-[48px] text-base"
+              >
+                Stop
+              </button>
+
+              {/* Method indicator */}
+              <div className="absolute top-3 left-3 px-2 py-1 rounded bg-white/90 text-xs font-medium text-gray-700">
+                {scanMethod}
+              </div>
+
+              {/* Mode indicator */}
+              <div className={`absolute top-3 right-3 px-2 py-1 rounded text-xs font-medium ${isQuickMode
+                  ? 'bg-green-500 text-white'
+                  : 'bg-blue-500 text-white'
+                }`}>
+                {isQuickMode ? `Quick ${quickActionType}` : 'Manual'}
+              </div>
             </div>
-            
-            {/* Mode indicator */}
-            <div className={`absolute top-3 right-3 px-2 py-1 rounded text-xs font-medium ${
-              isQuickMode 
-                ? 'bg-green-500 text-white' 
-                : 'bg-blue-500 text-white'
-            }`}>
-              {isQuickMode ? `Quick ${quickActionType}` : 'Manual'}
-            </div>
-    </div>
-        ) : product && (
-          /* Transaction form */
-          <div className="space-y-4">
-            {/* Product info */}
-            <div className="bg-white rounded-xl border border-gray-200 p-4">
-              <div className="flex items-center gap-3 mb-3">
-                {/* Product Image */}
-                <div className="flex-shrink-0">
-                  {product.image_url ? (
-                    <img
-                      src={product.image_url}
-                      alt={product.name}
-                      className="w-12 h-12 rounded-lg object-cover border border-gray-200"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement
-                        target.style.display = 'none'
-                        target.nextElementSibling?.classList.remove('hidden')
-                      }}
+          ) : product && (
+            /* Transaction form */
+            <div className="space-y-4">
+              {/* Product info */}
+              <div className="bg-white rounded-xl border border-gray-200 p-4">
+                <div className="flex items-center gap-3 mb-3">
+                  {/* Product Image */}
+                  <div className="flex-shrink-0">
+                    {product.image_url ? (
+                      <img
+                        src={product.image_url}
+                        alt={product.name}
+                        className="w-12 h-12 rounded-lg object-cover border border-gray-200"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement
+                          target.style.display = 'none'
+                          target.nextElementSibling?.classList.remove('hidden')
+                        }}
+                      />
+                    ) : null}
+                    <div className={`w-12 h-12 rounded-lg bg-gray-200 border border-gray-300 flex items-center justify-center ${product.image_url ? 'hidden' : ''}`}>
+                      <PackageIcon className="h-6 w-6 text-gray-400" />
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-gray-900">{product.name}</h3>
+                    <p className="text-sm text-gray-600">Stock: {product.inventory?.[0]?.current_stock ?? 0}</p>
+                  </div>
+                </div>
+
+                {/* Transaction type selection */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Transaction Type</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      onClick={() => setTransactionForm(prev => ({ ...prev, type: 'stock_in' }))}
+                      className={`p-4 rounded-lg border-2 transition-all min-h-[80px] ${transactionForm.type === 'stock_in'
+                          ? 'bg-green-100 border-green-500 text-green-700'
+                          : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                        }`}
+                    >
+                      <TrendingUpIcon className="h-6 w-6 mx-auto mb-2" />
+                      <div className="text-sm font-medium">Stock In</div>
+                    </button>
+                    <button
+                      onClick={() => setTransactionForm(prev => ({ ...prev, type: 'stock_out' }))}
+                      className={`p-4 rounded-lg border-2 transition-all min-h-[80px] ${transactionForm.type === 'stock_out'
+                          ? 'bg-red-100 border-red-500 text-red-700'
+                          : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                        }`}
+                    >
+                      <TrendingDownIcon className="h-6 w-6 mx-auto mb-2" />
+                      <div className="text-sm font-medium">Stock Out</div>
+                    </button>
+                    <button
+                      onClick={() => setTransactionForm(prev => ({ ...prev, type: 'adjustment' }))}
+                      className={`p-4 rounded-lg border-2 transition-all min-h-[80px] ${transactionForm.type === 'adjustment'
+                          ? 'bg-blue-100 border-blue-500 text-blue-700'
+                          : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                        }`}
+                    >
+                      <PackageIcon className="h-6 w-6 mx-auto mb-2" />
+                      <div className="text-sm font-medium">Adjust</div>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Quantity input */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Quantity</label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setTransactionForm(prev => ({ ...prev, quantity: Math.max(1, prev.quantity - 1) }))}
+                      className="w-12 h-12 rounded-lg font-bold bg-gray-200 hover:bg-gray-300 text-gray-700 transition-colors text-lg min-h-[48px]"
+                    >
+                      -
+                    </button>
+                    <input
+                      type="number"
+                      value={transactionForm.quantity}
+                      onChange={(e) => setTransactionForm(prev => ({ ...prev, quantity: Math.max(1, parseInt(e.target.value) || 1) }))}
+                      min={1}
+                      className="flex-1 text-center text-xl font-bold rounded-lg py-3 px-4 bg-white border-2 border-gray-200 focus:border-blue-500 focus:outline-none text-gray-900 min-h-[48px]"
                     />
-                  ) : null}
-                  <div className={`w-12 h-12 rounded-lg bg-gray-200 border border-gray-300 flex items-center justify-center ${product.image_url ? 'hidden' : ''}`}>
-                    <PackageIcon className="h-6 w-6 text-gray-400" />
-      </div>
+                    <button
+                      onClick={() => setTransactionForm(prev => ({ ...prev, quantity: prev.quantity + 1 }))}
+                      className="w-12 h-12 rounded-lg font-bold bg-gray-200 hover:bg-gray-300 text-gray-700 transition-colors text-lg min-h-[48px]"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+
+                {/* Action buttons */}
+                <div className="flex gap-3">
+                  <button
+                    onClick={recordTransaction}
+                    disabled={loading}
+                    className="cursor-pointer flex-1 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white py-4 px-6 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 min-h-[52px] text-base"
+                  >
+                    {loading ? (
+                      <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
+                    ) : (
+                      <CheckCircleIcon className="h-5 w-5" />
+                    )}
+                    Record
+                  </button>
+                  <button
+                    onClick={handleResetAndScanAgain}
+                    className="cursor-pointer bg-gray-500 hover:bg-gray-600 text-white py-4 px-6 rounded-lg font-medium transition-colors min-h-[52px] min-w-[52px] flex items-center justify-center"
+                    title={transactionCompleted ? "Return to product list" : "Scan again"}
+                  >
+                    <ArrowLeftIcon className="h-5 w-5" />
+                  </button>
+                </div>
+              </div>
             </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900">{product.name}</h3>
-                  <p className="text-sm text-gray-600">Stock: {product.inventory?.[0]?.current_stock ?? 0}</p>
-          </div>
-        </div>
-
-              {/* Transaction type selection */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Transaction Type</label>
-                <div className="grid grid-cols-3 gap-2">
-                <button
-                    onClick={() => setTransactionForm(prev => ({ ...prev, type: 'stock_in' }))}
-                    className={`p-4 rounded-lg border-2 transition-all min-h-[80px] ${
-                      transactionForm.type === 'stock_in'
-                        ? 'bg-green-100 border-green-500 text-green-700'
-                        : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    <TrendingUpIcon className="h-6 w-6 mx-auto mb-2" />
-                    <div className="text-sm font-medium">Stock In</div>
-                </button>
-                  <button
-                    onClick={() => setTransactionForm(prev => ({ ...prev, type: 'stock_out' }))}
-                    className={`p-4 rounded-lg border-2 transition-all min-h-[80px] ${
-                      transactionForm.type === 'stock_out'
-                        ? 'bg-red-100 border-red-500 text-red-700'
-                        : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    <TrendingDownIcon className="h-6 w-6 mx-auto mb-2" />
-                    <div className="text-sm font-medium">Stock Out</div>
-                  </button>
-                  <button
-                    onClick={() => setTransactionForm(prev => ({ ...prev, type: 'adjustment' }))}
-                    className={`p-4 rounded-lg border-2 transition-all min-h-[80px] ${
-                      transactionForm.type === 'adjustment'
-                        ? 'bg-blue-100 border-blue-500 text-blue-700'
-                        : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    <PackageIcon className="h-6 w-6 mx-auto mb-2" />
-                    <div className="text-sm font-medium">Adjust</div>
-                  </button>
-          </div>
-        </div>
-
-              {/* Quantity input */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Quantity</label>
-                <div className="flex items-center gap-2">
-            <button 
-                    onClick={() => setTransactionForm(prev => ({ ...prev, quantity: Math.max(1, prev.quantity - 1) }))} 
-                    className="w-12 h-12 rounded-lg font-bold bg-gray-200 hover:bg-gray-300 text-gray-700 transition-colors text-lg min-h-[48px]"
-            >
-              -
-            </button>
-            <input
-              type="number"
-                    value={transactionForm.quantity}
-                    onChange={(e) => setTransactionForm(prev => ({ ...prev, quantity: Math.max(1, parseInt(e.target.value) || 1) }))}
-              min={1}
-                    className="flex-1 text-center text-xl font-bold rounded-lg py-3 px-4 bg-white border-2 border-gray-200 focus:border-blue-500 focus:outline-none text-gray-900 min-h-[48px]"
-            />
-            <button 
-                    onClick={() => setTransactionForm(prev => ({ ...prev, quantity: prev.quantity + 1 }))} 
-                    className="w-12 h-12 rounded-lg font-bold bg-gray-200 hover:bg-gray-300 text-gray-700 transition-colors text-lg min-h-[48px]"
-            >
-              +
-            </button>
-          </div>
-        </div>
-
-              {/* Action buttons */}
-              <div className="flex gap-3">
-          <button
-                  onClick={recordTransaction}
-            disabled={loading}
-                  className="flex-1 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white py-4 px-6 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 min-h-[52px] text-base"
-          >
-            {loading ? (
-                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
-            ) : (
-                    <CheckCircleIcon className="h-5 w-5" />
-            )}
-                  Record
-          </button>
-          <button
-                  onClick={handleResetAndScanAgain}
-                  className="bg-gray-500 hover:bg-gray-600 text-white py-4 px-6 rounded-lg font-medium transition-colors min-h-[52px] min-w-[52px] flex items-center justify-center"
-          >
-                  <ScanLineIcon className="h-5 w-5" />
-          </button>
-        </div>
-      </div>
-    </div>
-        )}
+          )}
         </div>
       </div>
 
-      {/* Quick success toast */}
+      {/* Quick success toast - only show on mobile */}
       {showSuccess && isQuickMode && (
-        <div className="fixed top-20 left-4 right-4 z-50">
+        <div className="fixed top-20 left-4 right-4 z-50 md:hidden">
           <div className="bg-white rounded-lg border border-gray-200 shadow-lg p-4 flex items-center gap-3 animate-slide-down">
             {/* Product Image */}
             <div className="flex-shrink-0">
@@ -1240,9 +1285,8 @@ export default function BarcodeScanner() {
               </div>
             </div>
 
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-              quickActionType === 'stock_in' ? 'bg-green-100' : 'bg-red-100'
-            }`}>
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${quickActionType === 'stock_in' ? 'bg-green-100' : 'bg-red-100'
+              }`}>
               {quickActionType === 'stock_in' ? (
                 <TrendingUpIcon className="h-4 w-4 text-green-600" />
               ) : (
