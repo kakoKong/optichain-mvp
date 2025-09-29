@@ -114,6 +114,37 @@ const translations = {
     'mobile.device.desc': 'Works on iOS, Android, and web browsers. No app installation required.',
     'mobile.sync.title': 'Real-time Sync',
     'mobile.sync.desc': 'All changes sync instantly across all devices and team members.',
+    
+    // Payment/Beta Page
+    'payment.beta.badge': 'Beta Version',
+    'payment.beta.title': 'Join Our Beta Program',
+    'payment.beta.subtitle': 'Be among the first to experience OptiChain\'s powerful inventory management features. Help us shape the future of inventory control.',
+    'payment.beta.feature1.title': 'Early Access',
+    'payment.beta.feature1.desc': 'Get exclusive access to new features before public release.',
+    'payment.beta.feature2.title': 'Direct Feedback',
+    'payment.beta.feature2.desc': 'Share your feedback directly with our development team.',
+    'payment.beta.feature3.title': 'Free During Beta',
+    'payment.beta.feature3.desc': 'Enjoy all features at no cost during the beta period.',
+    'payment.beta.cta.title': 'Ready to Get Started?',
+    'payment.beta.cta.subtitle': 'Apply for beta access and help us build the perfect inventory management solution.',
+    'payment.beta.cta.button': 'Apply for Beta Access',
+    'payment.beta.cta.note': 'Beta applications are reviewed within 2-3 business days',
+    'payment.beta.timeline.title': 'How It Works',
+    'payment.beta.timeline.step1.title': 'Apply',
+    'payment.beta.timeline.step1.desc': 'Fill out our beta application form',
+    'payment.beta.timeline.step2.title': 'Review',
+    'payment.beta.timeline.step2.desc': 'We review your application',
+    'payment.beta.timeline.step3.title': 'Access',
+    'payment.beta.timeline.step3.desc': 'Get your beta access credentials',
+    'payment.beta.contact.question': 'Have questions about the beta program?',
+    'payment.beta.contact.email': 'Contact us at beta@optichain.com',
+    
+    // Footer
+    'footer.tagline': 'Scan, manage, analyze, and review—without the mess.',
+    'footer.product': 'Product',
+    'footer.resources': 'Resources',
+    'footer.company': 'Company',
+    'footer.copyright': 'All rights reserved.'
   },
   th: {
     // Navigation
@@ -216,6 +247,30 @@ const translations = {
     'mobile.device.desc': 'ทำงานบน iOS, Android และเว็บเบราว์เซอร์ ไม่ต้องติดตั้งแอป',
     'mobile.sync.title': 'ซิงค์แบบเรียลไทม์',
     'mobile.sync.desc': 'การเปลี่ยนแปลงทั้งหมดซิงค์ทันทีข้ามอุปกรณ์และสมาชิกทีมทั้งหมด',
+    
+    // Payment/Beta Page
+    'payment.beta.badge': 'เวอร์ชันเบต้า',
+    'payment.beta.title': 'เข้าร่วมโปรแกรมเบต้าของเรา',
+    'payment.beta.subtitle': 'เป็นหนึ่งในคนแรกที่ได้สัมผัสฟีเจอร์การจัดการสต็อกที่ทรงพลังของ OptiChain ช่วยเราสร้างอนาคตของการควบคุมสต็อก',
+    'payment.beta.feature1.title': 'เข้าถึงก่อนใคร',
+    'payment.beta.feature1.desc': 'เข้าถึงฟีเจอร์ใหม่ก่อนการเปิดตัวสู่สาธารณะ',
+    'payment.beta.feature2.title': 'ฟีดแบ็กโดยตรง',
+    'payment.beta.feature2.desc': 'แบ่งปันความคิดเห็นของคุณโดยตรงกับทีมพัฒนา',
+    'payment.beta.feature3.title': 'ฟรีในช่วงเบต้า',
+    'payment.beta.feature3.desc': 'เพลิดเพลินกับฟีเจอร์ทั้งหมดโดยไม่เสียค่าใช้จ่ายในช่วงเบต้า',
+    'payment.beta.cta.title': 'พร้อมเริ่มต้นแล้วหรือยัง?',
+    'payment.beta.cta.subtitle': 'สมัครเข้าร่วมเบต้าและช่วยเราสร้างโซลูชันการจัดการสต็อกที่สมบูรณ์แบบ',
+    'payment.beta.cta.button': 'สมัครเข้าร่วมเบต้า',
+    'payment.beta.cta.note': 'การสมัครเบต้าจะได้รับการพิจารณาภายใน 2-3 วันทำการ',
+    'payment.beta.timeline.title': 'วิธีการทำงาน',
+    'payment.beta.timeline.step1.title': 'สมัคร',
+    'payment.beta.timeline.step1.desc': 'กรอกแบบฟอร์มสมัครเบต้าของเรา',
+    'payment.beta.timeline.step2.title': 'พิจารณา',
+    'payment.beta.timeline.step2.desc': 'เราพิจารณาการสมัครของคุณ',
+    'payment.beta.timeline.step3.title': 'เข้าถึง',
+    'payment.beta.timeline.step3.desc': 'รับข้อมูลเข้าถึงเบต้าของคุณ',
+    'payment.beta.contact.question': 'มีคำถามเกี่ยวกับโปรแกรมเบต้า?',
+    'payment.beta.contact.email': 'ติดต่อเราที่ beta@optichain.com',
     
     // Footer
     'footer.tagline': 'สแกน จัดการ วิเคราะห์ และตรวจสอบ—โดยไม่ยุ่งเหยิง',

@@ -397,7 +397,7 @@ export default function LandingPage() {
                 t('pricing.enterprise.feature4'),
               ]}
               cta={t('pricing.enterprise.cta')}
-              href="/contact"
+              href="/payment"
               accent="dark"
             />
           </div>
