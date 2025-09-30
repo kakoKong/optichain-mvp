@@ -82,7 +82,7 @@ export default function LandingPage() {
             </p>
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-              <Link href="/app/signin" className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg text-lg font-semibold transition-colors shadow">
+                <Link href="/beta" className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg text-lg font-semibold transition-colors shadow">
                   {t('hero.startFree')}
               </Link>
               <Link href="/demo" className="border border-gray-300 hover:border-gray-400 text-gray-800 px-8 py-3 rounded-lg text-lg font-semibold transition-colors bg-white">
@@ -363,12 +363,13 @@ export default function LandingPage() {
                 t('pricing.starter.feature5'),
               ]}
               cta={t('pricing.starter.cta')}
-              href="/app/signin"
+              href="/beta"
               accent="neutral"
+              available={true}
             />
 
             <PriceCard
-              badge={t('pricing.pro.badge')}
+              badge={t('pricing.comingSoon')}
               title={t('pricing.pro.title')}
               price={t('pricing.pro.price')}
               period={t('pricing.pro.period')}
@@ -380,9 +381,10 @@ export default function LandingPage() {
                 t('pricing.pro.feature4'),
                 t('pricing.pro.feature5'),
               ]}
-              cta={t('pricing.pro.cta')}
-              href="/app/signin"
+              cta={t('pricing.comingSoon')}
+              href="#"
               accent="primary"
+              available={false}
             />
 
             <PriceCard
@@ -396,9 +398,10 @@ export default function LandingPage() {
                 t('pricing.enterprise.feature3'),
                 t('pricing.enterprise.feature4'),
               ]}
-              cta={t('pricing.enterprise.cta')}
-              href="/payment"
+              cta={t('pricing.comingSoon')}
+              href="#"
               accent="dark"
+              available={false}
             />
           </div>
         </div>
@@ -435,7 +438,7 @@ export default function LandingPage() {
                 <Image src="/OptichainLogo2.png" alt="OptiChain Logo" width={120} height={120} className="mx-auto mb-6" />
                 <h4 className="text-xl font-bold text-gray-900 mb-2">{t('about.cta.title')}</h4>
                 <p className="text-gray-600 mb-6">{t('about.cta.subtitle')}</p>
-                <Link href="/app/signin" className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors inline-block">
+                <Link href="/beta" className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors inline-block">
                   {t('about.cta.button')}
                 </Link>
               </div>
@@ -458,17 +461,12 @@ export default function LandingPage() {
             <FooterCol title={t('footer.product')} links={[
               [t('nav.features'), '#features'],
               [t('nav.pricing'), '#pricing'],
-              [t('nav.getStarted'), '/app/signin'],
-            ]}/>
-            <FooterCol title={t('footer.resources')} links={[
-              ['Docs', '#'],
-              ['Help Center', '#'],
-              ['Status', '#'],
+              [t('nav.about'), '#about'],
             ]}/>
             <FooterCol title={t('footer.company')} links={[
-              [t('nav.about'), '#about'],
-              ['Privacy', '#'],
-              ['Terms', '#'],
+              [t('footer.about'), '/about'],
+              [t('footer.privacy'), '/privacy'],
+              [t('footer.terms'), '/terms'],
             ]}/>
           </div>
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-500 text-sm">
@@ -518,7 +516,8 @@ function PriceCard({
   features,
   cta,
   href,
-  accent
+  accent,
+  available = true
 }: {
   badge?: string
   title: string
@@ -529,6 +528,7 @@ function PriceCard({
   cta: string
   href: string
   accent: 'primary' | 'dark' | 'neutral'
+  available?: boolean
 }) {
   const accentClasses = {
     primary: 'border-2 border-blue-500 shadow-lg relative',
@@ -537,13 +537,16 @@ function PriceCard({
   }[accent]
 
   return (
-    <div className={`bg-white p-8 rounded-2xl ${accentClasses}`}>
+    <div className={`bg-white p-8 rounded-2xl ${accentClasses} ${!available ? 'opacity-60 relative' : ''}`}>
+      {!available && (
+        <div className="absolute inset-0 bg-gray-50/50 rounded-2xl z-10"></div>
+      )}
       {badge ? (
-        <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-          <span className="bg-blue-600 text-white px-3 py-1 rounded-full text-xs font-semibold">{badge}</span>
+        <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-20">
+          <span className={`${available ? 'bg-blue-600' : 'bg-gray-500'} text-white px-3 py-1 rounded-full text-xs font-semibold`}>{badge}</span>
         </div>
       ) : null}
-      <div className="text-center">
+      <div className="text-center relative z-0">
         <h3 className="text-2xl font-bold text-gray-900 mb-2">{title}</h3>
         <div className="mb-2">
           <span className="text-4xl font-extrabold text-gray-900">{price}</span>
@@ -551,7 +554,7 @@ function PriceCard({
         </div>
         <p className="text-gray-600 mb-6">{blurb}</p>
       </div>
-      <ul className="space-y-3 mb-8">
+      <ul className="space-y-3 mb-8 relative z-0">
         {features.map((f) => (
           <li key={f} className="flex items-center">
             <svg className="w-5 h-5 text-green-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -561,9 +564,10 @@ function PriceCard({
           </li>
         ))}
       </ul>
+      {available ? (
       <Link
         href={href}
-        className={`w-full block text-center py-3 rounded-lg font-semibold transition-colors ${
+          className={`w-full block text-center py-3 rounded-lg font-semibold transition-colors relative z-0 ${
           accent === 'primary'
             ? 'bg-blue-600 hover:bg-blue-700 text-white'
             : accent === 'dark'
@@ -573,6 +577,14 @@ function PriceCard({
       >
         {cta}
       </Link>
+      ) : (
+        <button
+          disabled
+          className="w-full block text-center py-3 rounded-lg font-semibold bg-gray-400 text-white cursor-not-allowed relative z-0"
+        >
+          {cta}
+        </button>
+      )}
     </div>
   )
 }
