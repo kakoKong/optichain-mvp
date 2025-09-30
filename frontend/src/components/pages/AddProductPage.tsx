@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { ArrowLeftIcon, PackageIcon, SaveIcon } from 'lucide-react'
 import { PageLayout } from '@/components/ui/PageLayout'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -12,6 +13,7 @@ import { useBusiness } from '@/hooks/useBusiness'
 import { supabase } from '@/lib/supabase'
 
 export const AddProductPage: React.FC = () => {
+  const router = useRouter()
   const { user, loading: authLoading } = useAuth()
   const { business, loading: businessLoading } = useBusiness()
   const [loading, setLoading] = useState(false)

@@ -23,11 +23,6 @@ export const ProductsPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
 
-
-
-
-
-
   // Load products
   useEffect(() => {
     if (authLoading || businessLoading || !user || !business) return

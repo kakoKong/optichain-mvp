@@ -16,6 +16,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   // Allow LIFF routes to handle their own authentication
   const isLiffRoute = pathname?.startsWith('/app/liff/')
   
+  // Routes that should not have navigation (onboarding flows)
+  const isOnboardingRoute = pathname === '/app/onboarding' || pathname === '/app/create-business'
+  
   // Handle redirect to signin for non-LIFF routes
   useEffect(() => {
     if (!loading && !user && !isLiffRoute && !redirecting) {
@@ -82,6 +85,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         </div>
       </div>
     )
+  }
+
+  // For onboarding routes, don't show navigation
+  if (isOnboardingRoute) {
+    return <>{children}</>
   }
 
   return (

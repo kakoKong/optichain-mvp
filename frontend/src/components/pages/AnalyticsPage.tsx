@@ -1,4 +1,5 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { BarChart3Icon, TrendingUpIcon, TrendingDownIcon, PackageIcon, DollarSignIcon, CalendarIcon, ArrowLeftIcon } from 'lucide-react'
 import { PageLayout } from '@/components/ui/PageLayout'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -8,10 +9,13 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { SalesChart } from '@/components/analytics/SalesChart'
 import { MetricCard } from '@/components/analytics/MetricCard'
 import { useAnalytics } from '@/hooks/useAnalytics'
+import { useAuth } from '@/hooks/useAuth'
 import { TIME_RANGES } from '@/utils/constants'
 import { formatCurrency, formatNumber } from '@/utils/formatters'
 
 export const AnalyticsPage: React.FC = () => {
+  const router = useRouter()
+  const { user, loading: authLoading } = useAuth()
   const { analytics, loading, refetch } = useAnalytics()
   const [timeRange, setTimeRange] = useState('30d')
 

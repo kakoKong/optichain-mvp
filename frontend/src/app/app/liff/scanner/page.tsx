@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import ResponsiveNav from '@/components/ResponsiveNav'
@@ -57,6 +58,7 @@ const SCANNER_CONFIG = {
 
 export default function BarcodeScanner() {
   // Core state
+  const router = useRouter()
   const { user, loading: authLoading } = useAuth()
   const [scanning, setScanning] = useState(false)
   const [product, setProduct] = useState<Product | null>(null)

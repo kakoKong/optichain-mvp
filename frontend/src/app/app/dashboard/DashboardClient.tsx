@@ -131,13 +131,13 @@ export default function Dashboard() {
                 return
             }
 
-            // 2) If user has no business (neither owner nor member) -> get-started
+            // 2) If user has no business (neither owner nor member) -> onboarding
             const [{ data: owned }, { data: memberships }] = await Promise.all([
                 supabase.from('businesses').select('id').eq('owner_id', appUserId),
                 supabase.from('business_members').select('id').eq('user_id', appUserId),
             ])
             if ((owned?.length ?? 0) === 0 && (memberships?.length ?? 0) === 0) {
-                router.replace('/app/get-started')
+                router.replace('/app/onboarding')
                 return
             }
 

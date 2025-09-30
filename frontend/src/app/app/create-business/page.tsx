@@ -8,11 +8,10 @@ import { TrialCodeService, validateTrialCodeFallback } from '@/lib/trial-codes'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Card } from '@/components/ui/Card'
-import { PageLayout } from '@/components/ui/PageLayout'
-import { PageHeader } from '@/components/ui/PageHeader'
 import { ImageUpload } from '@/components/ui/ImageUpload'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
-import { ExternalLink } from 'lucide-react'
+import { ExternalLink, LogOutIcon, ArrowLeftIcon } from 'lucide-react'
+import Image from 'next/image'
 import Link from 'next/link'
 
 interface BusinessFormData {
@@ -224,12 +223,52 @@ export default function CreateBusinessPage() {
     )
   }
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    router.replace('/app/signin')
+  }
+
   return (
-    <PageLayout>
-      <PageHeader
-        title="Create Your Business"
-        subtitle="Set up your business profile to get started with inventory management"
-      />
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+      {/* Simple Header with Logo, Back, and Logout */}
+      <div className="bg-white/80 backdrop-blur border-b sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center">
+              <Image src="/OptichainLogo.png" alt="OptiChain" width={40} height={40} className="mr-3" />
+              <span className="text-xl font-bold tracking-tight text-gray-900">OptiChain</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => router.back()}
+                className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors text-sm font-medium"
+              >
+                <ArrowLeftIcon className="h-4 w-4" />
+                <span className="hidden sm:inline">Back</span>
+              </button>
+              <button
+                onClick={handleLogout}
+                className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors text-sm font-medium"
+              >
+                <LogOutIcon className="h-4 w-4" />
+                <span className="hidden sm:inline">Logout</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        {/* Header */}
+        <div className="text-center">
+          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-gray-900 mb-4">
+            Create Your Business
+          </h1>
+          <p className="text-lg text-gray-600">
+            Set up your business profile to get started with inventory management
+          </p>
+        </div>
 
       <div className="max-w-2xl mx-auto">
         <Card className="p-6">
@@ -247,7 +286,7 @@ export default function CreateBusinessPage() {
                 <p className="text-xs text-black text-muted-foreground">
                   Use this code to create your business. It’s valid for <span className="font-medium">30 days</span>.{" "}
                   <Link
-                    href="https://optichain.com/request-trial-code"
+                    href="https://forms.gle/cq2EnrMcoAdNGZ9n6"
                     target="_blank"
                     className="inline-flex items-center gap-1 underline underline-offset-2 hover:no-underline"
                   >
@@ -506,6 +545,7 @@ export default function CreateBusinessPage() {
           </form>
         </Card>
       </div>
-    </PageLayout>
+      </div>
+    </div>
   )
 }

@@ -2,6 +2,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import {
     History as HistoryIcon,
@@ -40,6 +41,7 @@ interface Transaction {
 }
 
 export default function TransactionsPage() {
+    const router = useRouter()
     const { user, loading: authLoading } = useAuth()
     const [transactions, setTransactions] = useState<Transaction[]>([])
     const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([])

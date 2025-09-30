@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Building2Icon, UsersIcon, ArrowRightIcon, CheckCircleIcon } from 'lucide-react'
-import { PageLayout } from '@/components/ui/PageLayout'
-import { PageHeader } from '@/components/ui/PageHeader'
+import { Building2Icon, UsersIcon, ArrowRightIcon, CheckCircleIcon, LogOutIcon } from 'lucide-react'
+import Image from 'next/image'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -45,6 +44,11 @@ export const OnboardingPage: React.FC = () => {
   const handleCreateBusiness = () => {
     console.log('[OnboardingPage] Redirecting to detailed business creation')
     router.push('/app/create-business')
+  }
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    router.replace('/app/signin')
   }
 
   const handleJoinBusiness = async () => {
@@ -113,19 +117,44 @@ export const OnboardingPage: React.FC = () => {
 
   if (authLoading || businessLoading) {
     return (
-      <PageLayout>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50">
         <LoadingSpinner size="lg" text="Loading..." />
-      </PageLayout>
+      </div>
     )
   }
 
   return (
-    <PageLayout>
-      <div className="max-w-4xl mx-auto space-y-8">
-        <PageHeader
-          title="Welcome to Optichain!"
-          subtitle="Let's get you set up with your business"
-        />
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+      {/* Simple Header with Logo and Logout */}
+      <div className="bg-white/80 backdrop-blur border-b sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center">
+              <Image src="/OptichainLogo.png" alt="OptiChain" width={40} height={40} className="mr-3" />
+              <span className="text-xl font-bold tracking-tight text-gray-900">OptiChain</span>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors text-sm font-medium"
+            >
+              <LogOutIcon className="h-4 w-4" />
+              Logout
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20 space-y-8">
+        {/* Header */}
+        <div className="text-center">
+          <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-gray-900 mb-4">
+            Welcome to OptiChain!
+          </h1>
+          <p className="text-xl text-gray-600">
+            Let's get you set up with your business
+          </p>
+        </div>
 
         {/* Main Options */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -241,7 +270,7 @@ export const OnboardingPage: React.FC = () => {
           </div>
         </Card>
       </div>
-    </PageLayout>
+    </div>
   )
 }
 
