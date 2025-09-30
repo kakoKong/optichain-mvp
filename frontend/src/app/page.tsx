@@ -388,6 +388,7 @@ export default function LandingPage() {
             />
 
             <PriceCard
+              badge={t('pricing.comingSoon')}
               title={t('pricing.enterprise.title')}
               price={t('pricing.enterprise.price')}
               period={t('pricing.enterprise.period')}
@@ -531,7 +532,7 @@ function PriceCard({
   available?: boolean
 }) {
   const accentClasses = {
-    primary: 'border-2 border-blue-500 shadow-lg relative',
+    primary: 'border shadow-sm relative',
     dark: 'border shadow-sm',
     neutral: 'border shadow-sm'
   }[accent]
