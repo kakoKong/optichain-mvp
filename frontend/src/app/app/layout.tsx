@@ -26,7 +26,10 @@ function AuthenticatedAppLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!loading && !user && !isLiffRoute && !redirecting) {
       setRedirecting(true)
-      const next = encodeURIComponent(pathname || '/app/dashboard')
+      // Preserve the actual pathname the user was trying to access
+      // Only default to dashboard if they were accessing the root /app path
+      const destination = pathname === '/app' ? '/app/dashboard' : (pathname || '/app/dashboard')
+      const next = encodeURIComponent(destination)
       router.replace(`/app/signin?next=${next}`)
     }
   }, [loading, user, isLiffRoute, pathname, router, redirecting])

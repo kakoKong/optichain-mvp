@@ -18,8 +18,11 @@ export default function SignInPage() {
   useEffect(() => {
     console.log('[SignInClient] Auth state changed:', { loading, user: user?.id, userSource: user?.source })
     if (!loading && user) {
-      console.log('[SignInClient] User already authenticated, redirecting to dashboard:', user.id)
-      router.replace('/app/dashboard')
+      // Check for redirect parameter first
+      const params = new URLSearchParams(window.location.search)
+      const next = params.get('next') || '/app/dashboard'
+      console.log('[SignInClient] User already authenticated, redirecting to:', next)
+      router.replace(next)
     }
   }, [loading, user, router])
 
@@ -64,9 +67,12 @@ export default function SignInPage() {
           
           // Check if user is already logged in to LINE
           if (liff.isLoggedIn()) {
-            console.log('[SignInClient] User already logged in to LINE, redirecting to dashboard...')
-            // User is already logged in, redirect to dashboard
-            router.replace('/app/dashboard')
+            // Check for redirect parameter first
+            const params = new URLSearchParams(window.location.search)
+            const next = params.get('next') || '/app/dashboard'
+            console.log('[SignInClient] User already logged in to LINE, redirecting to:', next)
+            // User is already logged in, redirect to intended destination
+            router.replace(next)
             return
           }
         } catch (error) {
@@ -100,13 +106,19 @@ export default function SignInPage() {
       }
       
       if (!liff.isLoggedIn()) {
+        // Check for redirect parameter to preserve intended destination
+        const params = new URLSearchParams(window.location.search)
+        const next = params.get('next') || '/app/dashboard'
         // This will redirect to LINE login
         liff.login({ 
-          redirectUri: window.location.origin + '/app/dashboard'
+          redirectUri: window.location.origin + next
         })
       } else {
-        // User is already logged in, redirect to dashboard
-        router.replace('/app/dashboard')
+        // Check for redirect parameter first
+        const params = new URLSearchParams(window.location.search)
+        const next = params.get('next') || '/app/dashboard'
+        // User is already logged in, redirect to intended destination
+        router.replace(next)
       }
     } catch (error) {
       console.error('LINE LIFF login failed:', error)

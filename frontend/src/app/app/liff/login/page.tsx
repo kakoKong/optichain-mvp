@@ -29,7 +29,10 @@ export default function LiffLogin() {
           const profile = await liff.getProfile()
           await ensureProfileFromLine(profile)
 
-          let to = sessionStorage.getItem('postLoginRedirect') || '/app/dashboard'
+          // Check for stored redirect first, then check URL parameters, then default to dashboard
+          let to = sessionStorage.getItem('postLoginRedirect') || 
+                   new URLSearchParams(window.location.search).get('redirect') ||
+                   '/app/dashboard'
           sessionStorage.removeItem('postLoginRedirect')
           
           // Check if user has a business before redirecting
