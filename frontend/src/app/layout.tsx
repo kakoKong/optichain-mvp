@@ -1,11 +1,7 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
-import { AuthProvider } from '@/contexts/AuthContext'
 import { LanguageProvider } from '@/contexts/LanguageContext'
-import DevLogin from '@/components/DevLogin'
-import DevModeBanner from '@/components/DevModeBanner'
-import AuthDebug from '@/components/AuthDebug'
 import { Analytics } from '@vercel/analytics/react'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 
@@ -25,12 +21,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <LanguageProvider>
-          <AuthProvider>
-            {children}
-            <DevModeBanner />
-            <DevLogin />
-            <AuthDebug />
-          </AuthProvider>
+          {children}
         </LanguageProvider>
         <Analytics />
         <SpeedInsights />

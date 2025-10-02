@@ -3,11 +3,14 @@
 
 import { ReactNode, useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
+import { AuthProvider } from '@/contexts/AuthContext'
 import { useAuth } from '@/contexts/AuthContext'
 import MobileBottomNav from '@/components/MobileBottomNav'
 import TopNavbar from '@/components/TopNavbar'
+import DevLogin from '@/components/DevLogin'
+import AuthDebug from '@/components/AuthDebug'
 
-export default function AppLayout({ children }: { children: ReactNode }) {
+function AuthenticatedAppLayout({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
@@ -100,5 +103,17 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         <MobileBottomNav />
       </div>
     </div>
+  )
+}
+
+export default function AppLayout({ children }: { children: ReactNode }) {
+  return (
+    <AuthProvider>
+      <AuthenticatedAppLayout>
+        {children}
+      </AuthenticatedAppLayout>
+      <DevLogin />
+      <AuthDebug />
+    </AuthProvider>
   )
 }
