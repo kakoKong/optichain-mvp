@@ -24,8 +24,13 @@ export default function LiffPage() {
       // Check if we already have a Supabase session
       const { data: { session } } = await supabase.auth.getSession()
       if (session?.user) {
-        // User is already authenticated with Supabase, redirect to dashboard
-        router.replace('/app/dashboard')
+        // User is already authenticated with Supabase, check for intended destination
+        const storedRedirect = sessionStorage.getItem('postLoginRedirect')
+        const intendedDestination = storedRedirect || '/app/dashboard'
+        sessionStorage.removeItem('postLoginRedirect')
+        
+        console.log('[LIFF] User already authenticated, redirecting to:', intendedDestination)
+        router.replace(intendedDestination)
         return
       }
 

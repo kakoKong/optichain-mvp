@@ -25,8 +25,9 @@ export default function LiffLayout({ children }: { children: ReactNode }) {
       return
     }
 
-    // Redirect to onboarding if no business
-    if (!business) {
+    // Only redirect to onboarding if user has no business AND we're not already on a specific page
+    // This prevents redirect loops when OnboardingPage tries to redirect back to dashboard
+    if (!business && pathname === '/app/liff') {
       router.replace('/app/onboarding')
     }
   }, [authLoading, businessLoading, user, business, router, pathname, isLoginPage])

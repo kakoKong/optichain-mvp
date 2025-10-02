@@ -1,143 +1,61 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import Image from 'next/image'
-import liff from '@line/liff'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 
 export default function SignInPage() {
-  const [liffError, setLiffError] = useState<string | null>(null)
-  const [liffLoading, setLiffLoading] = useState(false)
-  const [browserLoading, setBrowserLoading] = useState(false)
-  const [isLineContext, setIsLineContext] = useState<boolean | null>(null)
   const router = useRouter()
-  const { signInLineBrowser, user, loading, refreshUser } = useAuth()
+  const { 
+    signInLineBrowser, 
+    signInLineLiff,
+    user, 
+    loading, 
+    refreshUser,
+    isLineContext,
+    liffError,
+    liffLoading,
+    browserLoading
+  } = useAuth()
 
   // Check if user is already authenticated
   useEffect(() => {
-    console.log('[SignInClient] Auth state changed:', { loading, user: user?.id, userSource: user?.source })
     if (!loading && user) {
       // Check for redirect parameter first
       const params = new URLSearchParams(window.location.search)
       const next = params.get('next') || '/app/dashboard'
+      
+      console.log('[SignInClient] Redirect parameters:', {
+        url: window.location.href,
+        search: window.location.search,
+        next: next,
+        decoded: decodeURIComponent(next)
+      })
+      
+      // Store the intended destination for other components to use
+      sessionStorage.setItem('postLoginRedirect', next)
+      
       console.log('[SignInClient] User already authenticated, redirecting to:', next)
       router.replace(next)
     }
   }, [loading, user, router])
 
-  useEffect(() => {
-    let mounted = true
-    const decide = async () => {
-      if (typeof window === 'undefined') return
-
-      console.log('[SignInClient] Checking LINE context...')
-      console.log('[SignInClient] URL:', window.location.href)
-      console.log('[SignInClient] Referrer:', document.referrer)
-      console.log('[SignInClient] User Agent:', navigator.userAgent)
-
-      const params = new URLSearchParams(window.location.search)
-      const hasLiffState = params.has('liff.state')
-      const hasLiffReferrer = /liff\.line\.me/i.test(document.referrer)
-      const isInLineApp = /line/i.test(navigator.userAgent) || window.location.hostname.includes('liff.line.me')
-      
-      console.log('[SignInClient] LINE detection:', {
-        hasLiffState,
-        hasLiffReferrer,
-        isInLineApp,
-        liffId: process.env.NEXT_PUBLIC_LINE_LIFF_ID
-      })
-
-      // More comprehensive LINE detection
-      const looksLikeLiff = hasLiffState || hasLiffReferrer || isInLineApp
-
-      if (looksLikeLiff && process.env.NEXT_PUBLIC_LINE_LIFF_ID) {
-        console.log('[SignInClient] LINE context detected, initializing LIFF...')
-        setIsLineContext(true)
-        
-        try {
-          await liff.init({
-            liffId: process.env.NEXT_PUBLIC_LINE_LIFF_ID,
-            withLoginOnExternalBrowser: true,
-          })
-          
-          if (!mounted) return
-          
-          console.log('[SignInClient] LIFF initialized successfully')
-          
-          // Check if user is already logged in to LINE
-          if (liff.isLoggedIn()) {
-            // Check for redirect parameter first
-            const params = new URLSearchParams(window.location.search)
-            const next = params.get('next') || '/app/dashboard'
-            console.log('[SignInClient] User already logged in to LINE, redirecting to:', next)
-            // User is already logged in, redirect to intended destination
-            router.replace(next)
-            return
-          }
-        } catch (error) {
-          console.error('[SignInClient] LIFF initialization failed:', error)
-          setLiffError('Failed to initialize LINE login')
-        }
-      } else {
-        console.log('[SignInClient] No LINE context detected, using browser authentication')
-        setIsLineContext(false)
-      }
-    }
-    
-    decide()
-    return () => { mounted = false }
-  }, [router])
-
   const onLineLiffClick = async () => {
     try {
-      setLiffError(null)
-      setLiffLoading(true)
-      
-      // Always try to initialize LIFF if not already done
-      try {
-        await liff.init({
-          liffId: process.env.NEXT_PUBLIC_LINE_LIFF_ID!,
-          withLoginOnExternalBrowser: true,
-        })
-      } catch (initError) {
-        // If already initialized, this will fail but that's okay
-        console.log('[SignInClient] LIFF already initialized or init failed:', initError)
-      }
-      
-      if (!liff.isLoggedIn()) {
-        // Check for redirect parameter to preserve intended destination
-        const params = new URLSearchParams(window.location.search)
-        const next = params.get('next') || '/app/dashboard'
-        // This will redirect to LINE login
-        liff.login({ 
-          redirectUri: window.location.origin + next
-        })
-      } else {
-        // Check for redirect parameter first
-        const params = new URLSearchParams(window.location.search)
-        const next = params.get('next') || '/app/dashboard'
-        // User is already logged in, redirect to intended destination
-        router.replace(next)
-      }
+      await signInLineLiff()
     } catch (error) {
       console.error('LINE LIFF login failed:', error)
-      setLiffError('Failed to start LINE login. Please try again.')
-      setLiffLoading(false)
     }
-  };
+  }
 
   const onLineBrowserClick = async () => {
     try {
-      setLiffError(null)
-      setBrowserLoading(true)
       await signInLineBrowser()
     } catch (error) {
       console.error('LINE browser login failed:', error)
-      setLiffError('Failed to start LINE browser login. Please try again.')
-      setBrowserLoading(false)
     }
-  };
+  }
 
   return (
     <div

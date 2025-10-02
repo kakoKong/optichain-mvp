@@ -19,7 +19,12 @@ type AuthContextType = {
   refreshUser: () => Promise<void>
   signInDev: (username: string) => Promise<void>
   signInLineBrowser: () => Promise<void>
+  signInLineLiff: () => Promise<void>
   isDevMode: boolean
+  isLineContext: boolean | null
+  liffError: string | null
+  liffLoading: boolean
+  browserLoading: boolean
   resolveAppUserId: (user: AuthUser) => Promise<string | null>
 }
 
@@ -41,35 +46,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser>(null)
   const [loading, setLoading] = useState(true)
   const [initialized, setInitialized] = useState(false)
+  const [isLineContext, setIsLineContext] = useState<boolean | null>(null)
+  const [liffError, setLiffError] = useState<string | null>(null)
+  const [liffLoading, setLiffLoading] = useState(false)
+  const [browserLoading, setBrowserLoading] = useState(false)
 
   // Initialize authentication once when the app starts
   useEffect(() => {
     if (initialized) return
     
     const initializeAuth = async () => {
-      console.log('[AuthContext] Initializing authentication...', { isDevelopment })
-      
       try {
         // Check if we have a stored user first
         const devUser = localStorage.getItem('devUser')
         const lineUser = localStorage.getItem('lineUser')
         const lineBrowserUser = localStorage.getItem('lineBrowserUser')
         
-        console.log('[AuthContext] Checking stored users:', {
-          devUser: !!devUser,
-          lineUser: !!lineUser,
-          lineBrowserUser: !!lineBrowserUser
-        })
-        
-        if (lineBrowserUser) {
-          console.log('[AuthContext] lineBrowserUser content:', lineBrowserUser)
-        }
-        
         const storedUser = devUser || lineUser || lineBrowserUser
         if (storedUser) {
           try {
             const storedUserData = JSON.parse(storedUser)
-            console.log('[AuthContext] Found stored user:', storedUserData.id, 'source:', storedUserData.source)
             setUser(storedUserData)
             setLoading(false)
             setInitialized(true)
@@ -100,7 +96,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           
           // In dev mode, don't initialize LINE authentication at all
           // Just set loading to false and let user use dev login
-          console.log('[AuthContext] Development mode active - skipping LINE authentication')
           setLoading(false)
           setInitialized(true)
           return
@@ -111,7 +106,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (process.env.NEXT_PUBLIC_LINE_LIFF_ID) {
           await initLiffAuth()
         } else {
-          console.log('[AuthContext] No LINE LIFF ID configured - skipping LINE authentication')
           setLoading(false)
         }
       } catch (error) {
@@ -125,12 +119,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     initializeAuth()
   }, [initialized])
 
+  // Detect LINE context when AuthProvider mounts (only in /app routes)
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.pathname.startsWith('/app')) {
+      detectLineContext()
+    }
+  }, [])
+
   // Listen for visibility changes to re-check localStorage (useful for OAuth callbacks)
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible' && initialized) {
-        console.log('[AuthContext] Page became visible, re-checking localStorage...')
-        
         // Re-check for stored users
         const devUser = localStorage.getItem('devUser')
         const lineUser = localStorage.getItem('lineUser')
@@ -140,7 +139,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (storedUser && !user) {
           try {
             const storedUserData = JSON.parse(storedUser)
-            console.log('[AuthContext] Found stored user on visibility change:', storedUserData.id, 'source:', storedUserData.source)
             setUser(storedUserData)
           } catch (parseError) {
             console.error('[AuthContext] Failed to parse stored user on visibility change:', parseError)
@@ -151,10 +149,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'lineBrowserUser' && e.newValue && !user) {
-        console.log('[AuthContext] localStorage changed, re-checking lineBrowserUser...')
         try {
           const storedUserData = JSON.parse(e.newValue)
-          console.log('[AuthContext] Found stored user from storage event:', storedUserData.id, 'source:', storedUserData.source)
           setUser(storedUserData)
         } catch (parseError) {
           console.error('[AuthContext] Failed to parse stored user from storage event:', parseError)
@@ -192,13 +188,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           raw: profile,
         }
         
-        console.log('[AuthContext] LIFF user authenticated:', userData)
         setUser(userData)
         
         // Store in localStorage for persistence
         localStorage.setItem('lineUser', JSON.stringify(userData))
       } else {
-        console.log('[AuthContext] LIFF user not logged in')
         setUser(null)
       }
     } catch (error) {
@@ -217,6 +211,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Use the specific UID from the database for dev users
     const databaseUid = '50d054d6-4e1c-4157-b231-5b8e9d321913'
     
+    // Ensure the dev user profile exists in the database
+    try {
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', databaseUid)
+        .single()
+
+      if (!existingProfile) {
+        const { error } = await supabase
+          .from('profiles')
+          .insert([{
+            id: databaseUid,
+            full_name: username,
+            email: `${username}@dev.local`,
+            phone: '+66-123-456-789',
+            line_user_id: null,
+            avatar_url: null,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }])
+
+        if (error) {
+          console.error('[AuthContext] Failed to create dev user profile:', error)
+          throw new Error('Failed to create dev user profile in database')
+        }
+      }
+    } catch (error) {
+      console.error('[AuthContext] Error ensuring dev user profile exists:', error)
+      throw new Error('Failed to ensure dev user profile exists')
+    }
+    
     const devUser = {
       id: databaseUid,
       displayName: username,
@@ -225,7 +251,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       databaseUid: databaseUid // Store the actual database UID
     }
 
-    console.log('[AuthContext] Dev user signed in:', devUser)
     setUser(devUser)
     localStorage.setItem('devUser', JSON.stringify(devUser))
     localStorage.removeItem('lineUser') // Clear any LINE user data
@@ -234,6 +259,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInLineBrowser = async () => {
     try {
+      setBrowserLoading(true)
+      setLiffError(null)
+      
       // LINE OAuth configuration
       const clientId = process.env.NEXT_PUBLIC_LINE_CLIENT_ID
       const redirectUri = `${window.location.origin}/app/auth/line/callback`
@@ -255,13 +283,122 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       lineAuthUrl.searchParams.set('scope', 'profile openid')
       lineAuthUrl.searchParams.set('nonce', Math.random().toString(36).substring(2, 15))
 
-      console.log('[AuthContext] Redirecting to LINE OAuth:', lineAuthUrl.toString())
-      
       // Redirect to LINE OAuth
       window.location.href = lineAuthUrl.toString()
     } catch (error) {
       console.error('[AuthContext] LINE browser authentication failed:', error)
+      setLiffError('Failed to start LINE browser login. Please try again.')
+      setBrowserLoading(false)
       throw error
+    }
+  }
+
+  const signInLineLiff = async () => {
+    try {
+      setLiffLoading(true)
+      setLiffError(null)
+      
+      // Always try to initialize LIFF if not already done
+      try {
+        await liff.init({
+          liffId: process.env.NEXT_PUBLIC_LINE_LIFF_ID!,
+          withLoginOnExternalBrowser: true,
+        })
+      } catch (initError) {
+        // If already initialized, this will fail but that's okay
+      }
+      
+      if (!liff.isLoggedIn()) {
+        // Check for redirect parameter to preserve intended destination
+        const params = new URLSearchParams(window.location.search)
+        const next = params.get('next') || '/app/dashboard'
+        
+        console.log('[AuthContext] LIFF login redirect parameters:', {
+          url: window.location.href,
+          search: window.location.search,
+          next: next,
+          decoded: decodeURIComponent(next)
+        })
+        
+        // Store the intended destination for other components to use
+        sessionStorage.setItem('postLoginRedirect', next)
+        
+        // This will redirect to LINE login
+        liff.login({ 
+          redirectUri: window.location.origin + next
+        })
+      } else {
+        // Check for redirect parameter first
+        const params = new URLSearchParams(window.location.search)
+        const next = params.get('next') || '/app/dashboard'
+        
+        console.log('[AuthContext] LIFF already logged in redirect parameters:', {
+          url: window.location.href,
+          search: window.location.search,
+          next: next,
+          decoded: decodeURIComponent(next)
+        })
+        
+        // Store the intended destination for other components to use
+        sessionStorage.setItem('postLoginRedirect', next)
+        
+        // User is already logged in, redirect to intended destination
+        window.location.href = next
+      }
+    } catch (error) {
+      console.error('[AuthContext] LINE LIFF login failed:', error)
+      setLiffError('Failed to start LINE login. Please try again.')
+      setLiffLoading(false)
+      throw error
+    }
+  }
+
+  const detectLineContext = async () => {
+    if (typeof window === 'undefined') return
+
+    const params = new URLSearchParams(window.location.search)
+    const hasLiffState = params.has('liff.state')
+    const hasLiffReferrer = /liff\.line\.me/i.test(document.referrer)
+    const isInLineApp = /line/i.test(navigator.userAgent) || window.location.hostname.includes('liff.line.me')
+    
+    // More comprehensive LINE detection
+    const looksLikeLiff = hasLiffState || hasLiffReferrer || isInLineApp
+
+    if (looksLikeLiff && process.env.NEXT_PUBLIC_LINE_LIFF_ID) {
+      setIsLineContext(true)
+      
+      try {
+        await liff.init({
+          liffId: process.env.NEXT_PUBLIC_LINE_LIFF_ID,
+          withLoginOnExternalBrowser: true,
+        })
+        
+        // Check if user is already logged in to LINE
+        if (liff.isLoggedIn()) {
+          // Check for redirect parameter first
+          const params = new URLSearchParams(window.location.search)
+          const next = params.get('next') || '/app/dashboard'
+          
+          console.log('[AuthContext] detectLineContext redirect parameters:', {
+            url: window.location.href,
+            search: window.location.search,
+            next: next,
+            decoded: decodeURIComponent(next)
+          })
+          
+          // Store the intended destination for other components to use
+          sessionStorage.setItem('postLoginRedirect', next)
+          
+          // User is already logged in, redirect to intended destination
+          window.location.href = next
+          return
+        }
+      } catch (error) {
+        console.error('[AuthContext] LIFF initialization failed:', error)
+        setLiffError('Failed to initialize LINE login')
+      }
+    } else {
+      setIsLineContext(false)
     }
   }
 
@@ -274,11 +411,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             await liff.init({ liffId: process.env.NEXT_PUBLIC_LINE_LIFF_ID })
             if (liff.isLoggedIn()) {
               liff.logout()
-              console.log('[AuthContext] LINE logout successful')
             }
           }
         } catch (error) {
-          console.log('[AuthContext] LINE logout failed')
+          console.error('[AuthContext] LINE logout failed')
         }
       }
 
@@ -292,14 +428,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Reset state
       setUser(null)
-      console.log('[AuthContext] Logout completed successfully')
     } catch (error) {
       console.error('[AuthContext] Logout error:', error)
     }
   }
 
   const refreshUser = async () => {
-    console.log('[AuthContext] Refreshing user...')
     setLoading(true)
     
     try {
@@ -351,17 +485,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refreshUser,
     signInDev,
     signInLineBrowser,
+    signInLineLiff,
     isDevMode: isDevelopment,
+    isLineContext,
+    liffError,
+    liffLoading,
+    browserLoading,
     resolveAppUserId,
   }
-
-  console.log('[AuthContext] Current state:', { 
-    user: user?.id, 
-    loading, 
-    source: user?.source,
-    initialized,
-    isDevMode: isDevelopment
-  })
 
   return (
     <AuthContext.Provider value={value}>

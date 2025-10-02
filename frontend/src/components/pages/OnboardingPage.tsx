@@ -26,8 +26,21 @@ export const OnboardingPage: React.FC = () => {
     if (authLoading || businessLoading) return
     
     if (business) {
-      console.log('[OnboardingPage] User already has business, redirecting to dashboard')
-      router.replace('/app/dashboard')
+      // Check for stored redirect first, then default to dashboard
+      const storedRedirect = sessionStorage.getItem('postLoginRedirect')
+      const intendedDestination = storedRedirect || '/app/dashboard'
+      
+      console.log('[OnboardingPage] Redirect check:', {
+        storedRedirect,
+        intendedDestination,
+        sessionStorageKeys: Object.keys(sessionStorage),
+        allSessionStorage: Object.fromEntries(Object.keys(sessionStorage).map(key => [key, sessionStorage.getItem(key)]))
+      })
+      
+      sessionStorage.removeItem('postLoginRedirect')
+      
+      console.log('[OnboardingPage] User already has business, redirecting to:', intendedDestination)
+      router.replace(intendedDestination)
     }
   }, [authLoading, businessLoading, business, router])
 
